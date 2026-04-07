@@ -1,26 +1,124 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+*/
+@layer base {
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  :root {
+    --background: 100 26% 95%;
+    --foreground: 132 24% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 133 28% 15%;
+    --primary-foreground: 90 40% 98%;
+    --secondary: 96 22% 90%;
+    --secondary-foreground: 132 24% 15%;
+    --muted: 96 18% 92%;
+    --muted-foreground: 115 10% 38%;
+    --accent: 38 75% 92%;
+    --accent-foreground: 133 28% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 106 18% 84%;
+    --input: 106 18% 84%;
+    --ring: 133 28% 15%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 132 24% 10%;
+    --foreground: 90 20% 96%;
+    --card: 132 24% 10%;
+    --card-foreground: 90 20% 96%;
+    --popover: 132 24% 10%;
+    --popover-foreground: 90 20% 96%;
+    --primary: 90 20% 96%;
+    --primary-foreground: 132 24% 10%;
+    --secondary: 130 13% 20%;
+    --secondary-foreground: 90 20% 96%;
+    --muted: 130 13% 20%;
+    --muted-foreground: 100 8% 70%;
+    --accent: 130 13% 20%;
+    --accent-foreground: 90 20% 96%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 130 13% 20%;
+    --input: 130 13% 20%;
+    --ring: 90 20% 96%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground tracking-tight selection:bg-primary/20 selection:text-primary antialiased;
+  }
+}
+
+/* Micro animations for UI components */
+.transition-beautiful {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-glow {
+  @apply transition-all duration-300;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.5);
 }

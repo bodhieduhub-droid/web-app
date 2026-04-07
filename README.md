@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bodhi Edu Hub / Reading Hub
 
-## Getting Started
+Next.js + Supabase application for:
 
-First, run the development server:
+- public enquiries,
+- monthly student account onboarding,
+- manual UPI invoice verification,
+- staff and super-admin operations,
+- public notes and job postings,
+- category-based exam alerts for subscribed students.
+
+## Required Environment Variables
+
+Existing Supabase variables:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App/runtime variables:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+CRON_SECRET=
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Email via Resend HTTP API:
 
-## Learn More
+```bash
+RESEND_API_KEY=
+MAIL_FROM=
+```
 
-To learn more about Next.js, take a look at the following resources:
+Cloudinary for payment screenshots and ID proof uploads:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Main Routes
 
-## Deploy on Vercel
+- `/` public Bodhi landing page
+- `/register` public enquiry form
+- `/login` shared login for students, staff, and super admin
+- `/student` monthly student dashboard
+- `/student/onboarding` first-login onboarding gate
+- `/staff/*` operational staff dashboard
+- `/super-admin/*` full admin dashboard
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Compatibility redirects:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/reader` -> `/student`
+- `/super-admin/readers` -> `/super-admin/students`
+- `/super-admin/registrations` -> `/super-admin/enquiries`
+
+## Billing Model
+
+- Daily: `150`
+- Weekly: `650`
+- Monthly default: `1650`
+- Registration fee: `400`
+- Caution deposit: `300`
+- Mid-month monthly admission uses `55/day` for remaining days
+- Legacy monthly students are supported through per-student `monthly_fee`
+
+## Notes
+
+- Only monthly students receive accounts and dashboard access.
+- Daily and weekly members remain operational records only.
+- Payment flow is manual UPI only. Students upload proof, staff/admin verifies, and payment screenshots are deleted from Cloudinary after final review.
+- Monthly reminders can be triggered by `GET /api/cron/billing` with `x-cron-secret` or `?secret=...`.
