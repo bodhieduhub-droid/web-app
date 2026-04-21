@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { Bot, Loader2, MessageCircle, Send, Sparkles, User, X, Mic, MicPulse } from "lucide-react";
+import { Bot, Loader2, MessageCircle, Mic, Send, Sparkles, User, X } from "lucide-react";
 
 import { submitEnquiry, updateEnquiryEmail } from "@/app/register/actions";
 import { getChatResponse } from "@/app/(dashboard)/chat-actions";
