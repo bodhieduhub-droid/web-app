@@ -1,8 +1,12 @@
 "use client";
 
+import Image from "next/image";
+
 import { resetAllDataAction, updateHubSettingsAction } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { HubSettings } from "@/lib/settings";
+
+const remoteImageLoader = ({ src }: { src: string }) => src;
 
 export function SettingsForms({ settings }: { settings: HubSettings }) {
   return (
@@ -39,7 +43,15 @@ export function SettingsForms({ settings }: { settings: HubSettings }) {
           {settings.static_upi_qr_url ? (
             <div className="rounded-2xl border border-[#d8e0d4] bg-[#f7faf5] p-4">
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#6d7c6c]">UPI QR Preview</p>
-              <img src={settings.static_upi_qr_url} alt="UPI QR" className="mt-3 h-52 w-52 rounded-xl border border-[#d8e0d4] bg-white object-contain p-2" />
+              <Image
+                loader={remoteImageLoader}
+                unoptimized
+                src={settings.static_upi_qr_url}
+                alt="UPI QR"
+                width={208}
+                height={208}
+                className="mt-3 h-52 w-52 rounded-xl border border-[#d8e0d4] bg-white object-contain p-2"
+              />
             </div>
           ) : null}
         </section>

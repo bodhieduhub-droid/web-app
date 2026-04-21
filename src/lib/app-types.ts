@@ -115,6 +115,33 @@ export interface PostRecord {
   published_at: string | null;
 }
 
+export interface CalendarEventRecord {
+  id: string;
+  title: string;
+  summary: string | null;
+  description: string;
+  event_type:
+    | "exam_deadline"
+    | "exam_date"
+    | "admit_card"
+    | "result"
+    | "hub_event"
+    | "holiday"
+    | "other";
+  audience: "student" | "public";
+  exam_category?: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  is_all_day: boolean;
+  location: string | null;
+  link_url: string | null;
+  source_post_id: string | null;
+  status: "draft" | "published" | "archived";
+  author_profile_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TodoItemRecord {
   id: string;
   reader_id: string;
@@ -144,6 +171,72 @@ export interface NightLogRecord {
   actual_exit_time: string | null;
   status: "active" | "completed" | "late";
   created_at: string;
+}
+
+export interface StudentPostActivityRecord {
+  id: string;
+  reader_id: string;
+  post_id: string;
+  is_saved: boolean;
+  is_revised: boolean;
+  revision_due_on: string | null;
+  last_opened_at: string | null;
+  revised_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudySessionRecord {
+  id: string;
+  reader_id: string;
+  preset_name: string;
+  focus_minutes: number;
+  break_minutes: number;
+  completed_focus_blocks: number;
+  started_at: string;
+  ended_at: string | null;
+  source: string;
+  created_at: string;
+}
+
+export interface StudentCalendarEntryRecord {
+  id: string;
+  reader_id: string;
+  title: string;
+  notes: string;
+  entry_type: "goal" | "personal_event" | "reminder";
+  status: "planned" | "completed" | "cancelled";
+  starts_at: string;
+  ends_at: string | null;
+  is_all_day: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentSupportTicketRecord {
+  id: string;
+  reader_id: string;
+  subject: string;
+  message: string;
+  status: "open" | "in_review" | "resolved" | "closed";
+  category: string;
+  last_reply_at: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SeatChangeRequestRecord {
+  id: string;
+  reader_id: string;
+  current_seat_id: string | null;
+  requested_seat_id: string;
+  status: "pending" | "approved" | "declined" | "cancelled";
+  admin_notes: string | null;
+  resolved_at: string | null;
+  resolved_by_profile_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DashboardContext {

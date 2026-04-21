@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Bell, BellRing, Briefcase, GraduationCap, Inbox, Megaphone, User, Wallet } from "lucide-react";
 
 import { markAllNotificationsReadAction, markNotificationReadAction } from "@/app/(dashboard)/actions";
@@ -6,6 +7,8 @@ import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+
+const NOTIFICATION_PAGE_SIZE = 20;
 
 const categoryIconMap: Record<string, React.ElementType> = {
   billing: Wallet,
@@ -24,17 +27,30 @@ const categoryColor: Record<string, string> = {
   announcement: "border-l-purple-400",
 };
 
-export default async function NotificationsPage() {
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ cursor?: string }>;
+}) {
   const { student, profile } = await requireDashboardContext(["student"]);
   if (!student) return null;
 
   const supabase = createAdminClient();
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const cursor = resolvedSearchParams.cursor ?? null;
 
-  const { data: notifications } = await supabase
+  let notificationQuery = supabase
     .from("notifications")
     .select("*")
     .or(`audience_id.eq.${student.id},audience_id.eq.${profile.id},audience_type.eq.broadcast_role`)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(NOTIFICATION_PAGE_SIZE + 1);
+
+  if (cursor) {
+    notificationQuery = notificationQuery.lt("created_at", cursor);
+  }
+
+  const { data: notifications } = await notificationQuery;
 
   const filteredNotifications = ((notifications ?? []) as (NotificationRecord & { metadata?: Record<string, unknown> })[])
     .filter((n) => {
@@ -43,7 +59,10 @@ export default async function NotificationsPage() {
       if (n.audience_type === "broadcast_role") return n.metadata?.role === "student";
       return false;
     });
-  const notificationIds = filteredNotifications.map((n) => n.id);
+  const hasMore = filteredNotifications.length > NOTIFICATION_PAGE_SIZE;
+  const pagedNotifications = filteredNotifications.slice(0, NOTIFICATION_PAGE_SIZE);
+  const nextCursor = pagedNotifications.at(-1)?.created_at ?? null;
+  const notificationIds = pagedNotifications.map((n) => n.id);
   const { data: notificationReads } = notificationIds.length
     ? await supabase
         .from("notification_reads")
@@ -53,7 +72,7 @@ export default async function NotificationsPage() {
     : { data: [] as { notification_id: string; read_at: string }[] };
 
   const readMap = new Map((notificationReads ?? []).map((row) => [row.notification_id, row.read_at]));
-  const allNotifications = filteredNotifications.map((n) => ({
+  const allNotifications = pagedNotifications.map((n) => ({
     ...n,
     effective_read_at: readMap.get(n.id) ?? (n.audience_type !== "broadcast_role" ? n.read_at : null),
   }));
@@ -120,15 +139,31 @@ export default async function NotificationsPage() {
                       </button>
                     </form>
                   )}
-                  {n.link && (
+                  {n.link && (n.link.startsWith("/") ? (
+                    <Link href={n.link} className="mt-2 inline-block text-xs font-bold text-[#1b3022] underline underline-offset-2">
+                      View →
+                    </Link>
+                  ) : (
                     <a href={n.link} className="mt-2 inline-block text-xs font-bold text-[#1b3022] underline underline-offset-2">
                       View →
                     </a>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
           ))}
+
+          {hasMore && nextCursor ? (
+            <div className="pt-2">
+              <Link
+                href={`/student/notifications?cursor=${encodeURIComponent(nextCursor)}`}
+                prefetch={false}
+                className="inline-flex rounded-2xl border border-[#d8e0d4] bg-white px-4 py-3 text-sm font-semibold text-[#1b3022]"
+              >
+                Load older notifications
+              </Link>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

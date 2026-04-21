@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Megaphone, Newspaper } from "lucide-react";
 
+import { ExpandableText } from "@/components/student/expandable-text";
 import type { PostRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,9 +14,24 @@ const typeBadge: Record<string, string> = {
   note: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
-export default async function StudentAnnouncementsPage() {
+const announcementFilters = [
+  ["all", "All"],
+  ["exam_alert", "Exam Alerts"],
+  ["job", "Jobs"],
+  ["note", "Notes"],
+] as const;
+
+export default async function StudentAnnouncementsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ filter?: string }>;
+}) {
   await requireDashboardContext(["student"]);
   const supabase = createAdminClient();
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const activeFilter = announcementFilters.some(([value]) => value === resolvedSearchParams.filter)
+    ? resolvedSearchParams.filter!
+    : "all";
 
   const { data: posts } = await supabase
     .from("posts")
@@ -25,6 +42,9 @@ export default async function StudentAnnouncementsPage() {
     .limit(40);
 
   const allPosts = (posts ?? []) as PostRecord[];
+  const filteredPosts = activeFilter === "all"
+    ? allPosts
+    : allPosts.filter((post) => post.type === activeFilter);
 
   return (
     <div className="space-y-8">
@@ -36,9 +56,27 @@ export default async function StudentAnnouncementsPage() {
         </p>
       </section>
 
-      {allPosts.length > 0 ? (
+      <section className="flex flex-wrap gap-2">
+        {announcementFilters.map(([value, label]) => {
+          const active = value === activeFilter;
+          return (
+            <Link
+              key={value}
+              href={value === "all" ? "/student/announcements" : `/student/announcements?filter=${value}`}
+              prefetch={false}
+              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                active ? "border-[#1b3022] bg-[#1b3022] text-white" : "border-[#d8e0d4] bg-white text-[#536352]"
+              }`}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </section>
+
+      {filteredPosts.length > 0 ? (
         <div className="space-y-3">
-          {allPosts.map((post) => (
+          {filteredPosts.map((post) => (
             <div key={post.id} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-5 shadow shadow-[#27452e]/4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -49,7 +87,9 @@ export default async function StudentAnnouncementsPage() {
                   {post.type.replaceAll("_", " ")}
                 </span>
               </div>
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[#1b3022]">{post.content}</p>
+              <div className="mt-4">
+                <ExpandableText text={post.content} />
+              </div>
               <p className="mt-3 text-[10px] font-bold text-[#8a9d88]">
                 {post.published_at
                   ? new Date(post.published_at).toLocaleDateString("en-IN", {
@@ -67,7 +107,9 @@ export default async function StudentAnnouncementsPage() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#eef3ea]">
             <Newspaper className="h-8 w-8 text-[#6d7c6c]" />
           </div>
-          <p className="mt-4 text-lg font-black text-[#1b3022]">No announcements yet</p>
+          <p className="mt-4 text-lg font-black text-[#1b3022]">
+            {activeFilter === "all" ? "No announcements yet" : `No ${activeFilter.replaceAll("_", " ")} posts yet`}
+          </p>
           <p className="mt-2 text-sm font-medium text-[#536352]">Staff announcements will show up here.</p>
         </div>
       )}

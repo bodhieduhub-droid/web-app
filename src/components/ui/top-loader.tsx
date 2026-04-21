@@ -48,12 +48,17 @@ export function TopLoader() {
     prevRef.current = pathname;
 
     if (rafRef.current) clearTimeout(rafRef.current);
-    setWidth(100);
+    const completeTimer = setTimeout(() => {
+      setWidth(100);
+    }, 0);
     const t = setTimeout(() => {
       setActive(false);
       setWidth(0);
     }, 350);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(completeTimer);
+      clearTimeout(t);
+    };
   }, [pathname]);
 
   if (!active && width === 0) return null;

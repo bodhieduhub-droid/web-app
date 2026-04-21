@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Bell,
   BookOpen,
+  CalendarDays,
   CircleDollarSign,
   DoorOpen,
   GraduationCap,
@@ -13,11 +14,11 @@ import {
   createTodoItemAction,
   deleteTodoItemAction,
   endNightLogAction,
-  requestExitAction,
   startNightLogAction,
-  submitStudentFeedbackAction,
   toggleTodoItemAction,
 } from "@/app/(dashboard)/actions";
+import { ExitRequestForm } from "@/components/student/exit-request-form";
+import { SupportTicketForm } from "@/components/student/support-ticket-form";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type {
   BillRecord,
@@ -25,8 +26,9 @@ import type {
   NotificationRecord,
   NightLogRecord,
   PostRecord,
+  StudentCalendarEntryRecord,
+  StudentSupportTicketRecord,
   TodoItemRecord,
-  TransactionRecord,
 } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,6 +37,7 @@ export const dynamic = "force-dynamic";
 
 const quickLinks = [
   { href: "/student/study", label: "Study Timer", sub: "Pomodoro focus mode", icon: Timer, color: "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100" },
+  { href: "/student/calendar", label: "Calendar", sub: "Dates and deadlines", icon: CalendarDays, color: "bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100" },
   { href: "/student/exams", label: "Exam Alerts", sub: "Your personalized feed", icon: GraduationCap, color: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
   { href: "/student/resources", label: "Resources", sub: "Notes & job posts", icon: BookOpen, color: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100" },
   { href: "/student/announcements", label: "Announcements", sub: "Pinboard from staff", icon: Bell, color: "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100" },
@@ -51,16 +54,16 @@ export default async function StudentDashboard() {
 
   const [
     { data: bills },
-    { data: transactions },
     { data: notifications },
     { data: todoItems },
     { data: interests },
     { data: exitRequests },
     { data: seatData },
     { data: nightLogs },
+    { data: plannerEntries },
+    { data: supportTickets },
   ] = await Promise.all([
     supabase.from("bills").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
-    supabase.from("transactions").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(3),
     supabase.from("notifications").select("*").or(`audience_id.eq.${student.id},audience_id.eq.${profile.id},audience_type.eq.broadcast_role`).order("created_at", { ascending: false }).limit(20),
     supabase.from("todo_items").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
     supabase.from("student_exam_interests").select("category").eq("reader_id", student.id),
@@ -69,6 +72,8 @@ export default async function StudentDashboard() {
       ? supabase.from("seats").select("seat_number").eq("id", student.fixed_seat_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("night_logs").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
+    supabase.from("student_calendar_entries").select("*").eq("reader_id", student.id).gte("starts_at", new Date().toISOString()).order("starts_at", { ascending: true }).limit(12),
+    supabase.from("student_support_tickets").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
   ]);
 
   const categories = (interests ?? []).map((i) => i.category as string);
@@ -103,6 +108,19 @@ export default async function StudentDashboard() {
   const activeExitRequest = ((exitRequests ?? []) as ExitRequestRecord[]).find((r) => r.status === "pending");
   const recentNightLogs = (nightLogs ?? []) as NightLogRecord[];
   const activeNightLog = recentNightLogs.find((log) => log.status === "active" && !log.actual_exit_time);
+  const supportTicketRows = (supportTickets ?? []) as StudentSupportTicketRecord[];
+  const upcomingPlannerEntries = ((plannerEntries ?? []) as StudentCalendarEntryRecord[])
+    .filter((entry) => entry.status !== "cancelled");
+  const upcomingCalendarItems = upcomingPlannerEntries
+    .map((entry) => ({
+      id: `planner-${entry.id}`,
+      title: entry.title,
+      starts_at: entry.starts_at,
+      is_all_day: entry.is_all_day,
+      meta: `${entry.entry_type.replaceAll("_", " ")} · ${entry.status.replaceAll("_", " ")}`,
+    }))
+    .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime())
+    .slice(0, 3);
 
   // Recent exam alerts
   let alertPosts: PostRecord[] = [];
@@ -290,6 +308,33 @@ export default async function StudentDashboard() {
             </div>
           )}
 
+          {/* Calendar planner */}
+          {upcomingCalendarItems.length > 0 && (
+            <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Upcoming Planner</p>
+                <Link href="/student/calendar" className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1b3022]">View all →</Link>
+              </div>
+              <div className="mt-4 space-y-3">
+                {upcomingCalendarItems.map((item) => (
+                  <div key={item.id} className="rounded-2xl bg-[#f5f8f3] px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-black text-[#1b3022]">{item.title}</p>
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-amber-700">
+                        {item.meta}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs font-medium leading-5 text-[#536352]">
+                      {item.is_all_day
+                        ? new Date(item.starts_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                        : new Date(item.starts_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Recent exam alerts */}
           {alertPosts.length > 0 && (
             <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
@@ -375,26 +420,29 @@ export default async function StudentDashboard() {
 
           {/* Feedback / complaint */}
           <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Feedback / Complaint</p>
-            <form action={submitStudentFeedbackAction} className="mt-4 space-y-3">
-              <input
-                name="subject"
-                placeholder="Subject"
-                required
-                className="w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none"
-              />
-              <textarea
-                name="message"
-                placeholder="Describe your issue or feedback"
-                required
-                className="min-h-28 w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none"
-              />
-              <PendingSubmitButton
-                idleLabel="Send"
-                pendingLabel="Sending…"
-                className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white disabled:opacity-50"
-              />
-            </form>
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Support Desk</p>
+            <p className="mt-2 text-sm font-medium leading-6 text-[#536352]">
+              Use this form for billing issues, portal bugs, facility concerns, or anything that needs a staff follow-up.
+            </p>
+            <SupportTicketForm />
+            {supportTicketRows.length > 0 && (
+              <div className="mt-5 space-y-2 border-t border-[#e5ebe1] pt-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#8a9d88]">Recent Tickets</p>
+                {supportTicketRows.map((ticket) => (
+                  <div key={ticket.id} className="rounded-2xl bg-[#f5f8f3] px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-black text-[#1b3022]">{ticket.subject}</p>
+                      <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] ${ticket.status === "resolved" || ticket.status === "closed" ? "bg-emerald-100 text-emerald-700" : ticket.status === "in_review" ? "bg-amber-100 text-amber-700" : "bg-[#1b3022] text-white"}`}>
+                        {ticket.status.replaceAll("_", " ")}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs font-medium leading-5 text-[#536352]">
+                      {new Date(ticket.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Exit request */}
@@ -407,19 +455,12 @@ export default async function StudentDashboard() {
                 <p className="mt-1"><strong>Refund Eligible:</strong> {activeExitRequest.refund_eligible ? "Yes" : "No"}</p>
               </div>
             ) : (
-              <form action={requestExitAction} className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <input
-                  name="exit_date"
-                  type="date"
-                  required
-                  className="flex-1 rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none"
-                />
-                <PendingSubmitButton
-                  idleLabel="Request Exit"
-                  pendingLabel="Submitting…"
-                  className="shrink-0 rounded-2xl border border-[#d8e0d4] px-5 py-3 text-[11px] font-black uppercase tracking-[0.25em] text-[#1b3022] transition hover:bg-[#f3f7f0] disabled:opacity-50"
-                />
-              </form>
+              <>
+                <p className="mt-2 text-sm font-medium leading-6 text-[#536352]">
+                  Submit a planned exit date so staff can confirm the process, seat release, and any eligible refund.
+                </p>
+                <ExitRequestForm />
+              </>
             )}
             <p className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-[#aab5a8]">
               <DoorOpen className="h-3 w-3" />

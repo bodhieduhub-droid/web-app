@@ -199,6 +199,61 @@ export default function ContactPage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-7xl px-6 py-16 lg:py-20">
+        <div className="mb-10">
+          <p className="text-[11px] font-black uppercase tracking-[0.32em] text-[#6b795f]">
+            Find Us
+          </p>
+          <h2 className="mt-4 font-serif text-4xl leading-tight text-[#1b3022] md:text-5xl">
+            Visit the reading room.
+          </h2>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[#556455]">
+            Located at Bakery Junction, Vazhuthacaud. Call ahead before visiting so we can welcome you properly.
+          </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_0.4fr]">
+          <div className="overflow-hidden rounded-[2.4rem] border border-[#d8ddcf] shadow-[0_18px_45px_rgba(39,69,46,0.08)]">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d246.62424849095837!2d76.95720690851914!3d8.500547443685742!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3b05bb7a500085fb%3A0x379d75d0d6cea7d2!2sBodhi-The%20Reading%20Room!5e0!3m2!1sen!2sin!4v1776787464011!5m2!1sen!2sin"
+              width="100%"
+              height="100%"
+              style={{ border: 0, minHeight: "400px" }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title="Bodhi Reading Room Location"
+              className="rounded-[2.4rem]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-[1.8rem] border border-[#d8ddcf] bg-[#fffdf7] p-6 shadow-[0_18px_45px_rgba(39,69,46,0.06)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#6b795f]">Phone</p>
+              <a href="tel:08089695014" className="mt-2 block font-serif text-2xl text-[#1b3022] hover:text-[#294731] transition-colors">
+                080896 95014
+              </a>
+            </div>
+            <div className="rounded-[1.8rem] border border-[#d8ddcf] bg-[#fffdf7] p-6 shadow-[0_18px_45px_rgba(39,69,46,0.06)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#6b795f]">Address</p>
+              <p className="mt-2 text-lg font-semibold text-[#1b3022] leading-relaxed">
+                Bodhi - The Reading Room<br />
+                Bakery Junction<br />
+                Vazhuthacaud<br />
+                Thiruvananthapuram, Kerala
+              </p>
+            </div>
+            <div className="rounded-[1.8rem] border border-[#d8ddcf] bg-[#fffdf7] p-6 shadow-[0_18px_45px_rgba(39,69,46,0.06)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#6b795f]">Visiting Hours</p>
+              <p className="mt-2 text-base text-[#556455]">
+                Mon-Sat, 8am-8pm<br />
+                <span className="text-sm">Calling ahead recommended</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="px-6 py-20 lg:py-24">
         <div className="mx-auto max-w-6xl overflow-hidden rounded-[2.8rem] border border-[#d8ddcf] bg-[linear-gradient(135deg,#fffdf7_0%,#f3efe2_48%,#e4eddb_100%)] p-10 shadow-[0_20px_60px_rgba(39,69,46,0.08)] md:p-14">
           <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">

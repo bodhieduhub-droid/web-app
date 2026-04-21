@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Bot } from "lucide-react";
 
 import { finalizeFinance, getFinancePeriodWindow, summarizeFinance } from "@/lib/finance-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -48,6 +49,11 @@ export default async function SuperAdminDashboard() {
     .select("*", { count: "exact", head: true })
     .eq("status", "overdue");
 
+  const { count: openSupportTickets } = await supabase
+    .from("student_support_tickets")
+    .select("*", { count: "exact", head: true })
+    .in("status", ["open", "in_review"]);
+
   const [{ count: totalSeats }, { count: occupiedSeats }, { count: pendingExits }, { count: pendingProofs }, { data: todayCollections }, { data: dailyTx }, { data: weeklyTx }, { data: monthlyTx }] = await Promise.all([
     supabase.from("seats").select("*", { count: "exact", head: true }),
     supabase.from("seats").select("*", { count: "exact", head: true }).eq("status", "occupied"),
@@ -95,8 +101,12 @@ export default async function SuperAdminDashboard() {
         <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Super Admin</p>
         <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Bodhi Operations Center</h1>
         <p className="mt-4 max-w-3xl text-base font-medium leading-7 text-white/80">
-          Monitor enquiries, students, seats, invoices, content, and staff operations from one place.
+          Monitor enquiries, students, seats, invoices, content, AI systems, and staff operations from one place.
         </p>
+        <Link href="/super-admin/chatbot" className="mt-6 flex w-fit items-center gap-2 rounded-xl bg-white/10 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-white/20">
+          <Bot className="h-5 w-5" />
+          Access Aruna AI Dashboard
+        </Link>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -112,6 +122,7 @@ export default async function SuperAdminDashboard() {
         <MetricCard label="Seat Occupancy" value={`${occupancyPct}%`} href="/super-admin/seats" />
         <MetricCard label="Exits Pending" value={pendingExits ?? 0} href="/super-admin/exit-requests" />
         <MetricCard label="Proof Queue" value={pendingProofs ?? 0} href="/super-admin/billing" />
+        <MetricCard label="Open Support" value={openSupportTickets ?? 0} href="/super-admin/support" />
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
@@ -138,6 +149,8 @@ export default async function SuperAdminDashboard() {
               ["/super-admin/students", "Manage students"],
               ["/super-admin/billing", "Verify payments"],
               ["/super-admin/content", "Publish posts"],
+              ["/super-admin/chatbot", "Manage Aruna AI"],
+              ["/super-admin/support", "Review support"],
             ].map(([href, label]) => (
               <Link
                 key={href}

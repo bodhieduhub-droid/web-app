@@ -1,7 +1,9 @@
 import { ArrowRightLeft, FileCheck, MapPin } from "lucide-react";
 
-import { requestSeatChangeAction, updateExamInterestsAction } from "@/app/(dashboard)/actions";
+import { updateExamInterestsAction } from "@/app/(dashboard)/actions";
+import { SeatChangeRequestForm } from "@/components/student/seat-change-request-form";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
+import type { SeatChangeRequestRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -37,17 +39,35 @@ export default async function ProfilePage() {
     { data: interests },
     { data: currentSeatData },
     { data: availableSeats },
+    { data: pendingSeatRequest },
   ] = await Promise.all([
     supabase.from("student_exam_interests").select("category").eq("reader_id", student.id),
     student.fixed_seat_id
       ? supabase.from("seats").select("seat_number").eq("id", student.fixed_seat_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("seats").select("id, seat_number").eq("status", "available").order("seat_number", { ascending: true }),
+    supabase
+      .from("seat_change_requests")
+      .select("*")
+      .eq("reader_id", student.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const selectedCategories = (interests ?? []).map((i) => i.category as string);
   const seatNumber = (currentSeatData as { seat_number?: number } | null)?.seat_number ?? null;
   const seats = (availableSeats ?? []) as { id: string; seat_number: number }[];
+  const activeSeatRequest = pendingSeatRequest as SeatChangeRequestRecord | null;
+  const { data: requestedSeatData } = activeSeatRequest
+    ? await supabase
+        .from("seats")
+        .select("seat_number")
+        .eq("id", activeSeatRequest.requested_seat_id)
+        .maybeSingle()
+    : { data: null as { seat_number?: number } | null };
+  const requestedSeatNumber = requestedSeatData?.seat_number ?? null;
 
   const joinDate = new Date(student.join_date).toLocaleDateString("en-IN", {
     day: "numeric", month: "long", year: "numeric",
@@ -169,42 +189,28 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        {seats.length > 0 ? (
-          <form action={requestSeatChangeAction} className="mt-6">
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.3em] text-[#8a9d88]">
-              {seats.length} seat{seats.length !== 1 ? "s" : ""} available — select your preferred seat
+        {activeSeatRequest ? (
+          <div className="mt-6 rounded-[1.6rem] border border-amber-200 bg-amber-50 px-5 py-4">
+            <p className="text-sm font-semibold text-amber-800">Seat-change request pending</p>
+            <p className="mt-2 text-lg font-black text-amber-900">
+              {seatNumber ? `Seat #${seatNumber}` : "No current seat"} to {requestedSeatNumber ? `Seat #${requestedSeatNumber}` : "requested seat"}
             </p>
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-6 xl:grid-cols-8">
-              {seats.map((seat) => (
-                <label
-                  key={seat.id}
-                  className="group relative flex cursor-pointer flex-col items-center gap-1"
-                >
-                  <input
-                    type="radio"
-                    name="new_seat_id"
-                    value={seat.id}
-                    className="peer sr-only"
-                    required
-                  />
-                  <div className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border-2 border-[#d7ddd3] bg-[#f7faf5] text-[#1b3022] transition peer-checked:border-[#1b3022] peer-checked:bg-[#1b3022] peer-checked:text-white group-hover:border-[#1b3022]/40">
-                    <MapPin className="h-3 w-3 opacity-60 peer-checked:opacity-100" />
-                    <span className="text-sm font-black">#{seat.seat_number}</span>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <div className="mt-5 flex items-center gap-3">
-              <PendingSubmitButton
-                idleLabel="Submit Request"
-                pendingLabel="Submitting…"
-                className="rounded-2xl bg-[#1b3022] px-6 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white shadow-lg shadow-[#1b3022]/20 transition hover:bg-[#27452e] disabled:opacity-50"
-              />
-              <p className="text-xs font-medium text-[#8a9d88]">
-                Staff will process your request and update your seat.
-              </p>
-            </div>
-          </form>
+            <p className="mt-2 text-sm font-medium leading-6 text-amber-800">
+              Staff has your request already. You can submit another request once this one is approved or declined.
+            </p>
+            <p className="mt-3 text-sm font-medium text-amber-700">
+              Requested on{" "}
+              {new Date(activeSeatRequest.created_at).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
+        ) : seats.length > 0 ? (
+          <SeatChangeRequestForm seats={seats} />
         ) : (
           <div className="mt-5 rounded-2xl bg-[#f5f8f3] px-4 py-4 text-sm font-medium text-[#536352]">
             No seats are currently available for transfer. Check back later.
@@ -217,7 +223,7 @@ export default async function ProfilePage() {
         <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Exam Preferences</p>
         <h2 className="mt-3 text-2xl font-black text-[#1b3022]">Update Your Exam Goals</h2>
         <p className="mt-2 text-sm font-medium text-[#536352]">
-          Select which exams you're preparing for. This personalizes your alerts and resources.
+          Select which exams you&apos;re preparing for. This personalizes your alerts and resources.
         </p>
 
         <form action={updateExamInterestsAction} className="mt-6 space-y-5">

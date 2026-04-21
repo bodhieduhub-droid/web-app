@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Inbox, Pin } from "lucide-react";
 
+import { ExpandableText } from "@/components/student/expandable-text";
 import type { PostRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -14,11 +16,16 @@ const categoryColors: Record<string, { bg: string; text: string; border: string;
   RAILWAY: { bg: "bg-orange-50", text: "text-orange-800", border: "border-orange-200", pill: "bg-orange-100 text-orange-700 border-orange-200" },
 };
 
-export default async function ExamsPage() {
+export default async function ExamsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ filter?: string }>;
+}) {
   const { student } = await requireDashboardContext(["student"]);
   if (!student) return null;
 
   const supabase = createAdminClient();
+  const resolvedSearchParams = (await searchParams) ?? {};
 
   const { data: interests } = await supabase
     .from("student_exam_interests")
@@ -51,8 +58,18 @@ export default async function ExamsPage() {
     examAlerts = (data ?? []) as PostRecord[];
   }
 
+  const availableCategories = Array.from(
+    new Set(examAlerts.map((post) => post.exam_category).filter(Boolean) as string[]),
+  );
+  const activeFilter = resolvedSearchParams.filter && (resolvedSearchParams.filter === "all" || availableCategories.includes(resolvedSearchParams.filter))
+    ? resolvedSearchParams.filter
+    : "all";
+  const filteredExamAlerts = activeFilter === "all"
+    ? examAlerts
+    : examAlerts.filter((post) => post.exam_category === activeFilter);
+
   const groupedByCategory: Record<string, PostRecord[]> = {};
-  for (const post of examAlerts) {
+  for (const post of filteredExamAlerts) {
     const cat = post.exam_category ?? "General";
     if (!groupedByCategory[cat]) groupedByCategory[cat] = [];
     groupedByCategory[cat].push(post);
@@ -72,15 +89,38 @@ export default async function ExamsPage() {
         </p>
         {categories.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2">
-            {categories.map((cat) => {
-              const color = categoryColors[cat];
-              return (
-                <span key={cat} className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">{cat}</span>
-              );
-            })}
+            {categories.map((cat) => (
+              <span key={cat} className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">{cat}</span>
+            ))}
           </div>
         )}
       </section>
+
+      {availableCategories.length > 0 && (
+        <section className="flex flex-wrap gap-2">
+          <Link
+            href="/student/exams"
+            prefetch={false}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              activeFilter === "all" ? "border-[#1b3022] bg-[#1b3022] text-white" : "border-[#d8e0d4] bg-white text-[#536352]"
+            }`}
+          >
+            All
+          </Link>
+          {availableCategories.map((category) => (
+            <Link
+              key={category}
+              href={`/student/exams?filter=${category}`}
+              prefetch={false}
+              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                activeFilter === category ? "border-[#1b3022] bg-[#1b3022] text-white" : "border-[#d8e0d4] bg-white text-[#536352]"
+              }`}
+            >
+              {category}
+            </Link>
+          ))}
+        </section>
+      )}
 
       {categories.length === 0 && (
         <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 shadow shadow-amber-200/30">
@@ -89,12 +129,12 @@ export default async function ExamsPage() {
             <p className="font-black text-amber-800">Set your exam preferences</p>
           </div>
           <p className="mt-2 text-sm font-medium text-amber-700">
-            Go to <a href="/student/profile" className="underline font-bold">My Profile</a> and select the exams you're preparing for to get personalized alerts.
+            Go to <Link href="/student/profile" className="underline font-bold">My Profile</Link> and select the exams you&apos;re preparing for to get personalized alerts.
           </p>
         </div>
       )}
 
-      {examAlerts.length === 0 ? (
+      {filteredExamAlerts.length === 0 ? (
         <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-10 text-center shadow-lg shadow-[#27452e]/6">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#eef3ea]">
             <Inbox className="h-8 w-8 text-[#6d7c6c]" />
@@ -128,7 +168,7 @@ export default async function ExamsPage() {
                           <p className="mt-3 text-sm leading-6 text-[#536352]">{post.summary}</p>
                         )}
                         <div className="mt-4 border-t border-white/50 pt-4">
-                          <p className="whitespace-pre-wrap text-sm leading-7 text-[#1b3022]">{post.content}</p>
+                          <ExpandableText text={post.content} />
                         </div>
                         <p className="mt-4 text-[10px] font-bold text-[#aab5a8]">
                           {post.published_at

@@ -10,23 +10,29 @@ export async function submitEnquiry(data: {
   name: string;
   phone: string;
   email?: string;
+  visit_date?: string;
+  visit_time?: string;
 }) {
   const supabase = createAdminClient();
   const name = data.name.trim();
   const phone = data.phone.trim();
   const email = data.email?.trim() || null;
+  const visit_date = data.visit_date || null;
+  const visit_time = data.visit_time || null;
 
   if (!name || !phone) {
     return { error: "Name and phone are required." };
   }
 
-  const { error } = await supabase.from("enquiries").insert({
+  const { data: lead, error } = await supabase.from("enquiries").insert({
     name,
     phone,
     email,
+    visit_date,
+    visit_time,
     source: "landing_page",
     status: "new",
-  });
+  }).select("id").single();
 
   if (error) {
     return { error: error.message };
@@ -69,5 +75,16 @@ export async function submitEnquiry(data: {
     });
   }
 
+  return { success: true, id: lead?.id };
+}
+
+export async function updateEnquiryEmail(id: string, email: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("enquiries")
+    .update({ email: email.trim() })
+    .eq("id", id);
+    
+  if (error) return { error: error.message };
   return { success: true };
 }

@@ -4,8 +4,8 @@ import {
   CalendarClock,
   ChevronRight,
   MapPinned,
+  Phone,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 
 import { MarketingFooter } from "@/components/marketing/footer";
@@ -108,10 +108,22 @@ export default async function Home() {
                     </p>
                     <div className="mt-3 flex items-start gap-3">
                       <MapPinned className="mt-1 h-5 w-5 shrink-0" />
-                      <p className="text-sm font-semibold leading-6">
-                        Vazhuthacaud, Thiruvananthapuram
-                      </p>
+                      <div>
+                        <p className="text-sm font-semibold leading-6">
+                          Bakery Junction, Vazhuthacaud
+                        </p>
+                        <p className="text-xs font-medium text-[#5b684f] mt-1">
+                          Thiruvananthapuram, Kerala
+                        </p>
+                      </div>
                     </div>
+                    <a
+                      href="tel:08089695014"
+                      className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#1b3022] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#2d4a35]"
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                      080896 95014
+                    </a>
                   </div>
                 </div>
 

@@ -29,6 +29,11 @@ export default async function StaffDashboard() {
     .select("*", { count: "exact", head: true })
     .eq("verification_status", "pending");
 
+  const { count: openSupportTickets } = await supabase
+    .from("student_support_tickets")
+    .select("*", { count: "exact", head: true })
+    .in("status", ["open", "in_review"]);
+
   const [{ count: totalSeats }, { count: occupiedSeats }, { count: pendingExits }, { count: overdueBills }, { data: todayCollections }, { data: dailyTx }, { data: weeklyTx }, { data: monthlyTx }] = await Promise.all([
     supabase.from("seats").select("*", { count: "exact", head: true }),
     supabase.from("seats").select("*", { count: "exact", head: true }).eq("status", "occupied"),
@@ -72,6 +77,7 @@ export default async function StaffDashboard() {
     { label: "Overdue Count", value: overdueBills ?? 0, href: "/staff/billing" },
     { label: "Seat Occupancy", value: `${occupancyPct}%`, href: "/staff/seats" },
     { label: "Exits Pending", value: pendingExits ?? 0, href: "/staff/exit-requests" },
+    { label: "Open Support", value: openSupportTickets ?? 0, href: "/staff/support" },
   ];
 
   return (
@@ -86,7 +92,7 @@ export default async function StaffDashboard() {
 
       <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
         {cards.map((card) => (
-          <Link key={card.href} href={card.href} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
+          <Link key={card.label} href={card.href} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">{card.label}</p>
             <p className="mt-4 text-4xl font-black text-[#1b3022]">{card.value}</p>
           </Link>

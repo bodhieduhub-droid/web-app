@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Mail, PhoneCall, ShieldCheck } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { MarketingFooter } from "@/components/marketing/footer";
 import { MarketingHeroBackground } from "@/components/marketing/hero-background";
@@ -18,9 +18,13 @@ export function RegisterShell({ openOnLoad = false }: { openOnLoad?: boolean }) 
       return;
     }
 
-    if (window.matchMedia("(max-width: 1023px)").matches) {
-      setMobileFormOpen(true);
-    }
+    const timer = window.setTimeout(() => {
+      if (window.matchMedia("(max-width: 1023px)").matches) {
+        setMobileFormOpen(true);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [openOnLoad]);
 
   return (

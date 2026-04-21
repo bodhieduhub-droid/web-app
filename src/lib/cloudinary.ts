@@ -35,7 +35,7 @@ export async function uploadToCloudinary(file: File, folder: string): Promise<Cl
   const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
     method: "POST",
     body,
-    signal: AbortSignal.timeout(20_000), // 20-second max
+    signal: AbortSignal.timeout(45_000), // Allow slower mobile uploads before timing out
   });
 
   if (!response.ok) {

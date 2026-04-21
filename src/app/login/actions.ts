@@ -5,10 +5,17 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-export async function loginWithPassword(email: string, password: string) {
+export interface LoginState {
+  error?: string;
+  success?: boolean;
+}
+
+export async function loginWithPassword(
+  email: string,
+  password: string
+): Promise<LoginState> {
   const supabase = await createClient();
 
-  // For readers, we just need standard password login
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,

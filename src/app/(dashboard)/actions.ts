@@ -50,6 +50,40 @@ function getStringArray(formData: FormData, key: string) {
     .filter(Boolean);
 }
 
+function getIsoDateTime(value: string | null | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function revalidateCalendarPaths() {
+  revalidatePath("/student");
+  revalidatePath("/student/calendar");
+  revalidatePath("/staff/content");
+  revalidatePath("/staff/content/calendar");
+  revalidatePath("/super-admin/content");
+  revalidatePath("/super-admin/content/calendar");
+}
+
+function revalidateStudentCalendarPaths() {
+  revalidatePath("/student");
+  revalidatePath("/student/calendar");
+}
+
+function revalidateSupportPaths() {
+  revalidatePath("/student");
+  revalidatePath("/staff");
+  revalidatePath("/staff/support");
+  revalidatePath("/super-admin");
+  revalidatePath("/super-admin/support");
+}
+
 function normalizePlanType(value: string): PlanType {
   if (value === "daily" || value === "weekly" || value === "monthly") return value;
   return "monthly";
@@ -82,6 +116,45 @@ function formatPlanLabel(planType: PlanType) {
   if (planType === "weekly") return "Weekly";
   return "Monthly";
 }
+
+type SimpleActionState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+type PaymentProofActionState = SimpleActionState & {
+  billId: string | null;
+};
+
+type CalendarFieldErrors = Partial<Record<"title" | "starts_at" | "ends_at", string>>;
+
+type CalendarActionState = SimpleActionState & {
+  fieldErrors: CalendarFieldErrors;
+};
+
+function successState(message: string): SimpleActionState {
+  return { status: "success", message };
+}
+
+function errorState(message: string): SimpleActionState {
+  return { status: "error", message };
+}
+
+const CALENDAR_EVENT_TYPES = new Set([
+  "exam_deadline",
+  "exam_date",
+  "admit_card",
+  "result",
+  "hub_event",
+  "holiday",
+  "other",
+]);
+
+const CALENDAR_EVENT_STATUSES = new Set(["draft", "published", "archived"]);
+const CALENDAR_EVENT_AUDIENCES = new Set(["student", "public"]);
+const STUDENT_CALENDAR_ENTRY_TYPES = new Set(["goal", "personal_event", "reminder"]);
+const STUDENT_CALENDAR_ENTRY_STATUSES = new Set(["planned", "completed", "cancelled"]);
+const SUPPORT_TICKET_STATUSES = new Set(["open", "in_review", "resolved", "closed"]);
 
 async function requireRole(allowedRoles: AppRole[]) {
   return requireDashboardContext(allowedRoles);
@@ -625,15 +698,32 @@ export async function updateExamInterestsAction(formData: FormData) {
   revalidatePath("/student/resources");
 }
 
-export async function requestSeatChangeAction(formData: FormData) {
+export async function requestSeatChangeAction(
+  _prevState: SimpleActionState,
+  formData: FormData,
+): Promise<SimpleActionState> {
   const { student } = await requireRole(["student"]);
-  if (!student) return;
+  if (!student) return errorState("Your session expired. Please sign in again.");
 
   const supabase = createAdminClient();
   const newSeatId = getString(formData, "new_seat_id");
-  if (!newSeatId) return;
+  if (!newSeatId) return errorState("Select a preferred seat before submitting.");
+  if (student.fixed_seat_id === newSeatId) {
+    return errorState("You are already assigned to that seat.");
+  }
 
-  // Confirm seat is still available
+  const { data: existingPending } = await supabase
+    .from("seat_change_requests")
+    .select("id")
+    .eq("reader_id", student.id)
+    .eq("status", "pending")
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPending) {
+    return errorState("You already have a pending seat-change request.");
+  }
+
   const { data: newSeat } = await supabase
     .from("seats")
     .select("id, seat_number, status")
@@ -641,13 +731,27 @@ export async function requestSeatChangeAction(formData: FormData) {
     .eq("status", "available")
     .maybeSingle();
 
-  if (!newSeat) return;
+  if (!newSeat) return errorState("That seat is no longer available. Pick another seat and try again.");
 
   const { data: oldSeat } = student.fixed_seat_id
     ? await supabase.from("seats").select("seat_number").eq("id", student.fixed_seat_id).maybeSingle()
     : { data: null };
 
-  // One broadcast notification with approval metadata
+  const { data: request, error: requestError } = await supabase
+    .from("seat_change_requests")
+    .insert({
+      reader_id: student.id,
+      current_seat_id: student.fixed_seat_id ?? null,
+      requested_seat_id: newSeat.id,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (requestError || !request) {
+    return errorState(requestError?.message || "Could not submit your seat-change request.");
+  }
+
   await createNotification({
     audienceType: "broadcast_role",
     category: "seat_change_request",
@@ -655,6 +759,7 @@ export async function requestSeatChangeAction(formData: FormData) {
     body: `${student.name} wants to move from Seat #${oldSeat?.seat_number ?? "?"} → Seat #${newSeat.seat_number}.`,
     link: "/staff/seats",
     metadata: {
+      request_id: request.id,
       reader_id: student.id,
       reader_name: student.name,
       old_seat_id: student.fixed_seat_id ?? null,
@@ -666,61 +771,70 @@ export async function requestSeatChangeAction(formData: FormData) {
 
   revalidatePath("/student");
   revalidatePath("/student/profile");
+  revalidatePath("/staff/seats");
+  revalidatePath("/super-admin/seats");
+
+  return successState(`Seat #${newSeat.seat_number} has been requested. Staff approval is still pending.`);
 }
 
 export async function approveSeatChangeAction(formData: FormData) {
-  await requireRole(["super_admin", "staff"]);
+  const { profile } = await requireRole(["super_admin", "staff"]);
   const supabase = createAdminClient();
-  const notifId = getString(formData, "notif_id");
-  if (!notifId) return;
+  const requestId = getString(formData, "request_id");
+  if (!requestId) return;
 
-  const { data: notif } = await supabase
-    .from("notifications")
-    .select("id, metadata")
-    .eq("id", notifId)
+  const { data: request } = await supabase
+    .from("seat_change_requests")
+    .select("id, reader_id, current_seat_id, requested_seat_id, status")
+    .eq("id", requestId)
     .maybeSingle();
 
-  if (!notif) return;
+  if (!request || request.status !== "pending") return;
 
-  const meta = notif.metadata as {
-    reader_id: string;
-    old_seat_id: string | null;
-    new_seat_id: string;
-    new_seat_number: number;
-    old_seat_number: number | null;
-  };
+  const { data: requestedSeat } = await supabase
+    .from("seats")
+    .select("seat_number, status")
+    .eq("id", request.requested_seat_id)
+    .maybeSingle();
 
-  // Release old seat if assigned
-  if (meta.old_seat_id) {
+  if (!requestedSeat || requestedSeat.status !== "available") return;
+
+  if (request.current_seat_id) {
     await supabase
       .from("seats")
       .update({ status: "available", assigned_reader_id: null })
-      .eq("id", meta.old_seat_id);
+      .eq("id", request.current_seat_id);
   }
 
-  // Occupy new seat
   await supabase
     .from("seats")
-    .update({ status: "occupied", assigned_reader_id: meta.reader_id })
-    .eq("id", meta.new_seat_id);
+    .update({ status: "occupied", assigned_reader_id: request.reader_id })
+    .eq("id", request.requested_seat_id);
 
-  // Update reader's seat
   await supabase
     .from("readers")
-    .update({ fixed_seat_id: meta.new_seat_id })
-    .eq("id", meta.reader_id);
+    .update({ fixed_seat_id: request.requested_seat_id })
+    .eq("id", request.reader_id);
 
-  // Mark this notification done + cancel any other pending requests for same reader
+  await supabase
+    .from("seat_change_requests")
+    .update({
+      status: "approved",
+      resolved_at: new Date().toISOString(),
+      resolved_by_profile_id: profile.id,
+    })
+    .eq("id", requestId);
+
   await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
     .eq("category", "seat_change_request")
-    .contains("metadata", { reader_id: meta.reader_id });
+    .contains("metadata", { request_id: requestId });
 
-  await notifyReader(meta.reader_id, {
+  await notifyReader(request.reader_id, {
     category: "account",
     title: "Seat Change Approved",
-    body: `Your request to move to Seat #${meta.new_seat_number} has been approved.`,
+    body: `Your request to move to Seat #${requestedSeat.seat_number} has been approved.`,
     link: "/student/profile",
   });
 
@@ -731,41 +845,59 @@ export async function approveSeatChangeAction(formData: FormData) {
 }
 
 export async function denySeatChangeAction(formData: FormData) {
-  await requireRole(["super_admin", "staff"]);
+  const { profile } = await requireRole(["super_admin", "staff"]);
   const supabase = createAdminClient();
-  const notifId = getString(formData, "notif_id");
-  if (!notifId) return;
+  const requestId = getString(formData, "request_id");
+  if (!requestId) return;
 
-  const { data: notif } = await supabase
-    .from("notifications")
-    .select("id, metadata")
-    .eq("id", notifId)
+  const { data: request } = await supabase
+    .from("seat_change_requests")
+    .select("id, reader_id, requested_seat_id, status")
+    .eq("id", requestId)
     .maybeSingle();
 
-  if (!notif) return;
+  if (!request || request.status !== "pending") return;
 
-  const meta = notif.metadata as { reader_id: string; new_seat_number: number };
+  const { data: requestedSeat } = await supabase
+    .from("seats")
+    .select("seat_number")
+    .eq("id", request.requested_seat_id)
+    .maybeSingle();
+
+  await supabase
+    .from("seat_change_requests")
+    .update({
+      status: "declined",
+      resolved_at: new Date().toISOString(),
+      resolved_by_profile_id: profile.id,
+    })
+    .eq("id", requestId);
 
   await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
-    .eq("id", notifId);
+    .eq("category", "seat_change_request")
+    .contains("metadata", { request_id: requestId });
 
-  await notifyReader(meta.reader_id, {
+  await notifyReader(request.reader_id, {
     category: "account",
     title: "Seat Change Declined",
-    body: `Your request for Seat #${meta.new_seat_number} was declined by staff. Please contact the hub for more info.`,
+    body: `Your request for Seat #${requestedSeat?.seat_number ?? "?"} was declined by staff. Please contact the hub for more info.`,
     link: "/student/profile",
   });
 
   revalidatePath("/staff/seats");
   revalidatePath("/super-admin/seats");
+  revalidatePath("/student/profile");
 }
 
-export async function submitPaymentProof(formData: FormData) {
+export async function submitPaymentProof(
+  _prevState: PaymentProofActionState,
+  formData: FormData,
+): Promise<PaymentProofActionState> {
   const { student } = await requireRole(["student"]);
   if (!student) {
-    return;
+    return { status: "error", message: "Your session expired. Please sign in again.", billId: null };
   }
 
   const supabase = createAdminClient();
@@ -774,8 +906,8 @@ export async function submitPaymentProof(formData: FormData) {
   const referenceNumber = getOptionalString(formData, "reference_number");
   const proofFile = getFile(formData, "payment_proof");
 
-  if (!billId || !amount || !proofFile) {
-    return;
+  if (!billId || amount <= 0 || !proofFile) {
+    return { status: "error", message: "Add the payment amount and attach a screenshot before submitting.", billId };
   }
 
   const { data: bill } = await supabase
@@ -785,53 +917,110 @@ export async function submitPaymentProof(formData: FormData) {
     .eq("reader_id", student.id)
     .maybeSingle();
 
-  if (!bill || bill.status === "paid") {
-    return;
+  if (!bill) {
+    return { status: "error", message: "That invoice could not be found.", billId };
   }
 
-  const uploadedProof = await uploadToCloudinary(proofFile, "bodhi-payment-proofs");
+  if (bill.status === "paid") {
+    return { status: "error", message: "This invoice is already marked as paid.", billId };
+  }
 
-  await supabase.from("transactions").insert({
-    reader_id: student.id,
-    bill_id: billId,
-    type: "upi",
-    amount,
-    payment_mode: "upi",
-    payment_proof_url: uploadedProof.secureUrl,
-    payment_proof_public_id: uploadedProof.publicId,
-    verification_status: "pending",
-    submitted_at: new Date().toISOString(),
-  });
+  const { data: existingPending } = await supabase
+    .from("transactions")
+    .select("id")
+    .eq("bill_id", billId)
+    .eq("reader_id", student.id)
+    .eq("verification_status", "pending")
+    .limit(1)
+    .maybeSingle();
 
-  const profileIds = await getStaffAndAdminProfileIds();
-  await notifyProfileIds(profileIds, {
-    category: "payment",
-    title: "New payment proof submitted",
-    body: `${student.name} uploaded a payment screenshot for verification.`,
-    link: "/staff/billing",
-  });
+  if (existingPending || bill.status === "proof_submitted") {
+    return {
+      status: "error",
+      message: "A payment proof is already awaiting verification for this invoice.",
+      billId,
+    };
+  }
 
-  const settings = await getHubSettings();
-  if (settings.billing_notification_emails.length > 0) {
-    const template = emailTemplates.paymentProofSubmitted({
-      studentName: student.name,
+  let uploadedProof: { secureUrl: string; publicId: string } | null = null;
+
+  try {
+    uploadedProof = await uploadToCloudinary(proofFile, "bodhi-payment-proofs");
+
+    const { error: transactionError } = await supabase.from("transactions").insert({
+      reader_id: student.id,
+      bill_id: billId,
+      type: "upi",
       amount,
-      invoiceId: billId,
-      dashboardLink: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/staff/billing`,
+      payment_mode: "upi",
+      reference_number: referenceNumber,
+      payment_proof_url: uploadedProof.secureUrl,
+      payment_proof_public_id: uploadedProof.publicId,
+      verification_status: "pending",
+      submitted_at: new Date().toISOString(),
     });
-    await sendEmail({
-      to: settings.billing_notification_emails,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-    });
-  }
 
-  revalidatePath("/student");
-  revalidatePath("/super-admin/billing");
-  revalidatePath(`/super-admin/billing/${billId}`);
-  revalidatePath("/staff/billing");
-  return;
+    if (transactionError) {
+      throw new Error(transactionError.message);
+    }
+
+    const { error: billError } = await supabase
+      .from("bills")
+      .update({ status: "proof_submitted" })
+      .eq("id", billId)
+      .eq("reader_id", student.id);
+
+    if (billError) {
+      throw new Error(billError.message);
+    }
+
+    const profileIds = await getStaffAndAdminProfileIds();
+    await notifyProfileIds(profileIds, {
+      category: "payment",
+      title: "New payment proof submitted",
+      body: `${student.name} uploaded a payment screenshot for verification.`,
+      link: "/staff/billing",
+    });
+
+    const settings = await getHubSettings();
+    if (settings.billing_notification_emails.length > 0) {
+      const template = emailTemplates.paymentProofSubmitted({
+        studentName: student.name,
+        amount,
+        invoiceId: billId,
+        dashboardLink: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/staff/billing`,
+      });
+      await sendEmail({
+        to: settings.billing_notification_emails,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+      });
+    }
+
+    revalidatePath("/student");
+    revalidatePath("/student/payments");
+    revalidatePath("/super-admin/billing");
+    revalidatePath(`/super-admin/billing/${billId}`);
+    revalidatePath("/staff/billing");
+
+    return {
+      status: "success",
+      message: "Payment proof uploaded successfully. Staff verification is pending.",
+      billId,
+    };
+  } catch (error) {
+    if (uploadedProof?.publicId) {
+      await deleteFromCloudinary(uploadedProof.publicId).catch(() => null);
+    }
+
+    const message = error instanceof Error ? error.message : "Upload failed.";
+    return {
+      status: "error",
+      message: `Upload failed: ${message}. Re-select the screenshot and try again.`,
+      billId,
+    };
+  }
 }
 
 export async function verifyPaymentProof(formData: FormData) {
@@ -958,9 +1147,9 @@ export async function rejectPaymentProof(formData: FormData) {
   if (reader?.email) {
     const emailTemplate = emailTemplates.paymentRejected({
       name: reader.name ?? "Student",
-      invoiceId: transactionId,
+      invoiceId: transaction.bill_id,
       reason: notes,
-      reuploadLink: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student`,
+      reuploadLink: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student/payments?invoiceId=${transaction.bill_id}`,
     });
     await sendEmail({
       to: [reader.email],
@@ -1393,7 +1582,7 @@ export async function createPostAction(formData: FormData) {
 
       const readerIds = (interestedStudents ?? []).map((row) => row.reader_id);
       const emails = (interestedStudents ?? [])
-        .map((row) => (row.readers as any)?.email as string)
+        .map((row) => (row.readers as { email?: string } | null)?.email ?? "")
         .filter(Boolean);
 
       await Promise.all(
@@ -1812,6 +2001,111 @@ export async function quickUpdatePostStatusAction(formData: FormData) {
   revalidatePath("/student");
 }
 
+export async function createCalendarEventAction(formData: FormData) {
+  const { profile } = await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+
+  const title = getString(formData, "title");
+  const summary = getOptionalString(formData, "summary");
+  const description = getOptionalString(formData, "description") ?? "";
+  const eventType = getString(formData, "event_type");
+  const audience = getString(formData, "audience") || "student";
+  const examCategory = getOptionalString(formData, "exam_category");
+  const startsAt = getIsoDateTime(getString(formData, "starts_at"));
+  const endsAt = getIsoDateTime(getOptionalString(formData, "ends_at"));
+  const isAllDay = getString(formData, "is_all_day") !== "no";
+  const location = getOptionalString(formData, "location");
+  const linkUrl = getOptionalString(formData, "link_url");
+  const sourcePostId = getOptionalString(formData, "source_post_id");
+  const status = getString(formData, "status") || "draft";
+
+  if (!title || !startsAt) return;
+  if (!CALENDAR_EVENT_TYPES.has(eventType)) return;
+  if (!CALENDAR_EVENT_AUDIENCES.has(audience)) return;
+  if (!CALENDAR_EVENT_STATUSES.has(status)) return;
+  if (endsAt && new Date(endsAt) < new Date(startsAt)) return;
+
+  await supabase.from("calendar_events").insert({
+    title,
+    summary,
+    description,
+    event_type: eventType,
+    audience,
+    exam_category: examCategory,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    is_all_day: isAllDay,
+    location,
+    link_url: linkUrl,
+    source_post_id: sourcePostId,
+    status,
+    author_profile_id: profile.id,
+  });
+
+  revalidateCalendarPaths();
+}
+
+export async function updateCalendarEventAction(formData: FormData) {
+  await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+
+  const eventId = getString(formData, "event_id");
+  const title = getString(formData, "title");
+  const summary = getOptionalString(formData, "summary");
+  const description = getOptionalString(formData, "description") ?? "";
+  const eventType = getString(formData, "event_type");
+  const audience = getString(formData, "audience") || "student";
+  const examCategory = getOptionalString(formData, "exam_category");
+  const startsAt = getIsoDateTime(getString(formData, "starts_at"));
+  const endsAt = getIsoDateTime(getOptionalString(formData, "ends_at"));
+  const isAllDay = getString(formData, "is_all_day") !== "no";
+  const location = getOptionalString(formData, "location");
+  const linkUrl = getOptionalString(formData, "link_url");
+  const sourcePostId = getOptionalString(formData, "source_post_id");
+  const status = getString(formData, "status") || "draft";
+
+  if (!eventId || !title || !startsAt) return;
+  if (!CALENDAR_EVENT_TYPES.has(eventType)) return;
+  if (!CALENDAR_EVENT_AUDIENCES.has(audience)) return;
+  if (!CALENDAR_EVENT_STATUSES.has(status)) return;
+  if (endsAt && new Date(endsAt) < new Date(startsAt)) return;
+
+  await supabase
+    .from("calendar_events")
+    .update({
+      title,
+      summary,
+      description,
+      event_type: eventType,
+      audience,
+      exam_category: examCategory,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      is_all_day: isAllDay,
+      location,
+      link_url: linkUrl,
+      source_post_id: sourcePostId,
+      status,
+    })
+    .eq("id", eventId);
+
+  revalidateCalendarPaths();
+}
+
+export async function deleteCalendarEventAction(formData: FormData) {
+  await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+  const eventId = getString(formData, "event_id");
+  if (!eventId) return;
+
+  await supabase
+    .from("calendar_events")
+    .delete()
+    .eq("id", eventId);
+
+  revalidateCalendarPaths();
+}
+
 export async function updateHubSettingsAction(formData: FormData) {
   await requireRole(["super_admin"]);
   const supabase = createAdminClient();
@@ -1885,7 +2179,12 @@ export async function resetAllDataAction(formData: FormData) {
 
   // Clear dependent tables — only tables that exist in the deployed schema
   await supabase.from("notifications").delete().not("id", "is", null);
+  await supabase.from("student_support_tickets").delete().not("id", "is", null);
+  await supabase.from("study_sessions").delete().not("id", "is", null);
+  await supabase.from("student_post_activity").delete().not("id", "is", null);
+  await supabase.from("student_calendar_entries").delete().not("id", "is", null);
   await supabase.from("todo_items").delete().not("id", "is", null);
+  await supabase.from("calendar_events").delete().not("id", "is", null);
   await supabase.from("transactions").delete().not("id", "is", null);
   await supabase.from("bills").delete().not("id", "is", null);
   await supabase.from("student_exam_interests").delete().not("id", "is", null);
@@ -2097,6 +2396,214 @@ export async function deleteTodoItemAction(formData: FormData) {
   return;
 }
 
+export async function toggleSavedPostAction(formData: FormData) {
+  const { student } = await requireRole(["student"]);
+  if (!student) return;
+
+  const supabase = createAdminClient();
+  const postId = getString(formData, "post_id");
+  const shouldSave = getString(formData, "save") !== "no";
+  if (!postId) return;
+
+  const { data: post } = await supabase
+    .from("posts")
+    .select("id, status")
+    .eq("id", postId)
+    .maybeSingle();
+
+  if (!post || post.status !== "published") return;
+
+  await supabase
+    .from("student_post_activity")
+    .upsert(
+      {
+        reader_id: student.id,
+        post_id: postId,
+        is_saved: shouldSave,
+      },
+      { onConflict: "reader_id,post_id" },
+    );
+
+  revalidatePath("/student");
+  revalidatePath("/student/resources");
+}
+
+export async function updatePostRevisionAction(formData: FormData) {
+  const { student } = await requireRole(["student"]);
+  if (!student) return;
+
+  const supabase = createAdminClient();
+  const postId = getString(formData, "post_id");
+  const mode = getString(formData, "mode");
+  if (!postId || !["revised", "needs_revision"].includes(mode)) return;
+
+  const { data: post } = await supabase
+    .from("posts")
+    .select("id, status")
+    .eq("id", postId)
+    .maybeSingle();
+
+  if (!post || post.status !== "published") return;
+
+  const now = new Date();
+  await supabase
+    .from("student_post_activity")
+    .upsert(
+      {
+        reader_id: student.id,
+        post_id: postId,
+        is_saved: true,
+        is_revised: mode === "revised",
+        revised_at: mode === "revised" ? now.toISOString() : null,
+        revision_due_on: mode === "revised" ? getIsoDateOnly(addDays(now, 7)) : getIsoDateOnly(now),
+      },
+      { onConflict: "reader_id,post_id" },
+    );
+
+  revalidatePath("/student/resources");
+}
+
+export async function logStudySessionAction(formData: FormData) {
+  const { student } = await requireRole(["student"]);
+  if (!student) return;
+
+  const supabase = createAdminClient();
+  const presetName = getString(formData, "preset_name");
+  const focusMinutes = Math.max(1, Math.round(getNumber(formData, "focus_minutes", 25)));
+  const breakMinutes = Math.max(1, Math.round(getNumber(formData, "break_minutes", 5)));
+  const completedFocusBlocks = Math.max(0, Math.round(getNumber(formData, "completed_focus_blocks", 1)));
+  const startedAt = getIsoDateTime(getString(formData, "started_at"));
+  const endedAt = getIsoDateTime(getOptionalString(formData, "ended_at"));
+  const source = getString(formData, "source") || "portal_timer";
+
+  if (!presetName || !startedAt) return;
+
+  await supabase.from("study_sessions").insert({
+    reader_id: student.id,
+    preset_name: presetName,
+    focus_minutes: focusMinutes,
+    break_minutes: breakMinutes,
+    completed_focus_blocks: completedFocusBlocks,
+    started_at: startedAt,
+    ended_at: endedAt,
+    source,
+  });
+
+  revalidatePath("/student/study");
+}
+
+export async function createStudentCalendarEntryAction(
+  _prevState: CalendarActionState,
+  formData: FormData,
+): Promise<CalendarActionState> {
+  const { student } = await requireRole(["student"]);
+  if (!student) return { status: "error", message: "Your session expired. Please sign in again.", fieldErrors: {} };
+
+  const supabase = createAdminClient();
+  const title = getString(formData, "title");
+  const notes = getOptionalString(formData, "notes") ?? "";
+  const entryType = getString(formData, "entry_type") || "goal";
+  const status = getString(formData, "status") || "planned";
+  const startsAt = getIsoDateTime(getString(formData, "starts_at"));
+  const endsAt = getIsoDateTime(getOptionalString(formData, "ends_at"));
+  const isAllDay = getString(formData, "is_all_day") !== "no";
+  const fieldErrors: CalendarFieldErrors = {};
+
+  if (!title) fieldErrors.title = "Enter a title for this planner item.";
+  if (!startsAt) fieldErrors.starts_at = "Choose a valid start date and time.";
+  if (endsAt && startsAt && new Date(endsAt) < new Date(startsAt)) {
+    fieldErrors.ends_at = "End time must be later than the start time.";
+  }
+  if (!STUDENT_CALENDAR_ENTRY_TYPES.has(entryType) || !STUDENT_CALENDAR_ENTRY_STATUSES.has(status)) {
+    return { status: "error", message: "Pick a valid planner type and status.", fieldErrors };
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return { status: "error", message: "Please fix the highlighted calendar fields.", fieldErrors };
+  }
+
+  await supabase.from("student_calendar_entries").insert({
+    reader_id: student.id,
+    title,
+    notes,
+    entry_type: entryType,
+    status,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    is_all_day: isAllDay,
+  });
+
+  revalidateStudentCalendarPaths();
+  return { status: "success", message: "Planner item saved.", fieldErrors: {} };
+}
+
+export async function updateStudentCalendarEntryAction(
+  _prevState: CalendarActionState,
+  formData: FormData,
+): Promise<CalendarActionState> {
+  const { student } = await requireRole(["student"]);
+  if (!student) return { status: "error", message: "Your session expired. Please sign in again.", fieldErrors: {} };
+
+  const supabase = createAdminClient();
+  const entryId = getString(formData, "entry_id");
+  const title = getString(formData, "title");
+  const notes = getOptionalString(formData, "notes") ?? "";
+  const entryType = getString(formData, "entry_type") || "goal";
+  const status = getString(formData, "status") || "planned";
+  const startsAt = getIsoDateTime(getString(formData, "starts_at"));
+  const endsAt = getIsoDateTime(getOptionalString(formData, "ends_at"));
+  const isAllDay = getString(formData, "is_all_day") !== "no";
+  const fieldErrors: CalendarFieldErrors = {};
+
+  if (!title) fieldErrors.title = "Enter a title for this planner item.";
+  if (!startsAt) fieldErrors.starts_at = "Choose a valid start date and time.";
+  if (endsAt && startsAt && new Date(endsAt) < new Date(startsAt)) {
+    fieldErrors.ends_at = "End time must be later than the start time.";
+  }
+  if (!entryId) {
+    return { status: "error", message: "This planner item could not be found.", fieldErrors };
+  }
+  if (!STUDENT_CALENDAR_ENTRY_TYPES.has(entryType) || !STUDENT_CALENDAR_ENTRY_STATUSES.has(status)) {
+    return { status: "error", message: "Pick a valid planner type and status.", fieldErrors };
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return { status: "error", message: "Please fix the highlighted calendar fields.", fieldErrors };
+  }
+
+  await supabase
+    .from("student_calendar_entries")
+    .update({
+      title,
+      notes,
+      entry_type: entryType,
+      status,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      is_all_day: isAllDay,
+    })
+    .eq("id", entryId)
+    .eq("reader_id", student.id);
+
+  revalidateStudentCalendarPaths();
+  return { status: "success", message: "Planner item updated.", fieldErrors: {} };
+}
+
+export async function deleteStudentCalendarEntryAction(formData: FormData) {
+  const { student } = await requireRole(["student"]);
+  if (!student) return;
+
+  const supabase = createAdminClient();
+  const entryId = getString(formData, "entry_id");
+  if (!entryId) return;
+
+  await supabase
+    .from("student_calendar_entries")
+    .delete()
+    .eq("id", entryId)
+    .eq("reader_id", student.id);
+
+  revalidateStudentCalendarPaths();
+}
+
 export async function markNotificationReadAction(formData: FormData) {
   const { student, profile } = await requireRole(["student"]);
   if (!student) return;
@@ -2238,43 +2745,106 @@ export async function endNightLogAction(formData: FormData) {
   revalidatePath("/student");
 }
 
-export async function submitStudentFeedbackAction(formData: FormData) {
+export async function submitStudentFeedbackAction(
+  _prevState: SimpleActionState,
+  formData: FormData,
+): Promise<SimpleActionState> {
   const { student } = await requireRole(["student"]);
-  if (!student) return;
+  if (!student) return errorState("Your session expired. Please sign in again.");
 
+  const supabase = createAdminClient();
   const subject = getString(formData, "subject");
   const message = getString(formData, "message");
-  if (!subject || !message) return;
+  const category = getString(formData, "category") || "general";
+  if (!subject || !message) {
+    return errorState("Add both a subject and a description so staff can help you.");
+  }
+
+  await supabase.from("student_support_tickets").insert({
+    reader_id: student.id,
+    subject,
+    message,
+    category,
+    status: "open",
+    last_reply_at: new Date().toISOString(),
+  });
 
   const profileIds = await getStaffAndAdminProfileIds();
   await notifyProfileIds(profileIds, {
     category: "account",
-    title: `Feedback: ${subject}`,
+    title: `Support ticket: ${subject}`,
     body: `${student.name}: ${message}`,
-    link: "/staff",
+    link: "/staff/support",
   });
 
   const settings = await getHubSettings();
   if (settings.enquiry_notification_emails.length > 0) {
     await sendEmail({
       to: settings.enquiry_notification_emails,
-      subject: `Student feedback: ${subject}`,
+      subject: `Student support ticket: ${subject}`,
       html: `<p><strong>Student:</strong> ${student.name} (${student.email ?? "no-email"})</p><p>${message}</p>`,
     });
   }
 
-  revalidatePath("/staff");
-  revalidatePath("/super-admin");
-  revalidatePath("/student");
+  await notifyReader(student.id, {
+    category: "account",
+    title: "Support ticket received",
+    body: "Your issue has been logged. Track its status from your dashboard.",
+    link: "/student",
+  });
+
+  revalidateSupportPaths();
+  return successState("Your support request has been received. Staff will review it shortly.");
 }
 
-export async function requestExitAction(formData: FormData) {
+export async function updateSupportTicketStatusAction(formData: FormData) {
+  await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+  const ticketId = getString(formData, "ticket_id");
+  const status = getString(formData, "status");
+
+  if (!ticketId || !SUPPORT_TICKET_STATUSES.has(status)) return;
+
+  const { data: ticket } = await supabase
+    .from("student_support_tickets")
+    .select("id, reader_id, subject, status")
+    .eq("id", ticketId)
+    .maybeSingle();
+
+  if (!ticket) return;
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("student_support_tickets")
+    .update({
+      status,
+      last_reply_at: now,
+      resolved_at: status === "resolved" || status === "closed" ? now : null,
+    })
+    .eq("id", ticketId);
+
+  if (ticket.status !== status) {
+    await notifyReader(ticket.reader_id, {
+      category: "account",
+      title: "Support ticket updated",
+      body: `"${ticket.subject}" is now ${status.replaceAll("_", " ")}.`,
+      link: "/student",
+    });
+  }
+
+  revalidateSupportPaths();
+}
+
+export async function requestExitAction(
+  _prevState: SimpleActionState,
+  formData: FormData,
+): Promise<SimpleActionState> {
   const { student } = await requireRole(["student"]);
-  if (!student) return;
+  if (!student) return errorState("Your session expired. Please sign in again.");
 
   const supabase = createAdminClient();
   const exitDate = getString(formData, "exit_date");
-  if (!exitDate) return;
+  if (!exitDate) return errorState("Choose an exit date before submitting this request.");
 
   const { data: existingExit } = await supabase
     .from("exit_requests")
@@ -2283,7 +2853,7 @@ export async function requestExitAction(formData: FormData) {
     .in("status", ["pending"])
     .maybeSingle();
 
-  if (existingExit) return;
+  if (existingExit) return errorState("You already have a pending exit request.");
 
   await supabase.from("exit_requests").insert({
     reader_id: student.id,
@@ -2303,7 +2873,7 @@ export async function requestExitAction(formData: FormData) {
   revalidatePath("/student");
   revalidatePath("/super-admin/exit-requests");
   revalidatePath("/staff/exit-requests");
-  return;
+  return successState("Your exit request has been submitted. Staff will confirm the next steps.");
 }
 
 export async function processExitAction(formData: FormData) {
@@ -2321,7 +2891,17 @@ export async function processExitAction(formData: FormData) {
     .maybeSingle();
 
   if (!exitRequest || exitRequest.status !== "pending") return;
-  const student = exitRequest.readers as any;
+  const studentRecord = Array.isArray(exitRequest.readers)
+    ? exitRequest.readers[0]
+    : exitRequest.readers;
+  const student = (studentRecord ?? null) as {
+    id: string;
+    name: string;
+    email?: string | null;
+    fixed_seat_id?: string | null;
+    caution_refunded?: boolean;
+  } | null;
+  if (!student) return;
 
   await supabase
     .from("exit_requests")

@@ -50,6 +50,7 @@ export async function GET(request: Request) {
     .eq("status", "rejected_proof");
 
   let noticesSent = 0;
+  type BillReader = { id: string; name: string; email?: string | null };
 
   const sendBillReminder = async (options: {
     billId: string;
@@ -101,7 +102,10 @@ export async function GET(request: Request) {
   };
 
   for (const bill of overdueBills ?? []) {
-    const student = bill.readers as any;
+    const student = Array.isArray(bill.readers)
+      ? (bill.readers[0] as BillReader | undefined)
+      : (bill.readers as BillReader | null);
+    if (!student) continue;
     const remainingAmount = Number(bill.amount_due) - Number(bill.amount_paid);
     await sendBillReminder({
       billId: bill.id,
@@ -117,7 +121,10 @@ export async function GET(request: Request) {
   }
 
   for (const bill of dueTodayBills ?? []) {
-    const student = bill.readers as any;
+    const student = Array.isArray(bill.readers)
+      ? (bill.readers[0] as BillReader | undefined)
+      : (bill.readers as BillReader | null);
+    if (!student) continue;
     const remainingAmount = Number(bill.amount_due) - Number(bill.amount_paid);
     await sendBillReminder({
       billId: bill.id,
@@ -133,7 +140,10 @@ export async function GET(request: Request) {
   }
 
   for (const bill of rejectedProofBills ?? []) {
-    const student = bill.readers as any;
+    const student = Array.isArray(bill.readers)
+      ? (bill.readers[0] as BillReader | undefined)
+      : (bill.readers as BillReader | null);
+    if (!student) continue;
     const remainingAmount = Number(bill.amount_due) - Number(bill.amount_paid);
     await sendBillReminder({
       billId: bill.id,

@@ -13,16 +13,11 @@ type SearchParams = {
 
 interface SeatChangeRequest {
   id: string;
-  body: string;
+  reader_id: string;
+  current_seat_id: string | null;
+  requested_seat_id: string;
+  status: string;
   created_at: string;
-  metadata: {
-    reader_id?: string;
-    reader_name?: string;
-    old_seat_id?: string | null;
-    old_seat_number?: number | null;
-    new_seat_id?: string;
-    new_seat_number?: number;
-  } | null;
 }
 
 type SeatRow = {
@@ -61,10 +56,9 @@ export default async function StaffSeatsPage({
       .select("id, seat_number, status, block_reason, readers:readers!fixed_seat_id(name,id)")
       .order("seat_number", { ascending: true }),
     supabase
-      .from("notifications")
-      .select("id, body, created_at, metadata")
-      .eq("category", "seat_change_request")
-      .is("read_at", null)
+      .from("seat_change_requests")
+      .select("id, reader_id, current_seat_id, requested_seat_id, status, created_at")
+      .eq("status", "pending")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -79,9 +73,25 @@ export default async function StaffSeatsPage({
       );
     });
 
-  const requests = ((pendingRequests ?? []) as SeatChangeRequest[]).filter(
-    (req) => req.metadata?.reader_id && req.metadata?.new_seat_id,
+  const requests = (pendingRequests ?? []) as SeatChangeRequest[];
+  const requestReaderIds = Array.from(new Set(requests.map((request) => request.reader_id)));
+  const requestSeatIds = Array.from(
+    new Set(
+      requests.flatMap((request) =>
+        [request.current_seat_id, request.requested_seat_id].filter(Boolean) as string[],
+      ),
+    ),
   );
+  const [{ data: requestReaders }, { data: requestSeats }] = await Promise.all([
+    requestReaderIds.length
+      ? supabase.from("readers").select("id, name").in("id", requestReaderIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    requestSeatIds.length
+      ? supabase.from("seats").select("id, seat_number").in("id", requestSeatIds)
+      : Promise.resolve({ data: [] as { id: string; seat_number: number }[] }),
+  ]);
+  const readerMap = new Map((requestReaders ?? []).map((reader) => [reader.id, reader.name]));
+  const seatNumberMap = new Map((requestSeats ?? []).map((seat) => [seat.id, seat.seat_number]));
 
   const total = (seats ?? []).length;
   const available = (seats ?? []).filter((s) => s.status === "available").length;
@@ -158,9 +168,9 @@ export default async function StaffSeatsPage({
                 className="flex flex-wrap items-center justify-between gap-4 rounded-[1.8rem] border border-amber-200 bg-amber-50 px-6 py-4 shadow shadow-amber-100"
               >
                 <div>
-                  <p className="font-black text-amber-900">{req.metadata?.reader_name ?? "Student"}</p>
+                  <p className="font-black text-amber-900">{readerMap.get(req.reader_id) ?? "Student"}</p>
                   <p className="mt-1 text-sm font-medium text-amber-800">
-                    Seat #{req.metadata?.old_seat_number ?? "None"} to Seat #{req.metadata?.new_seat_number ?? "?"}
+                    Seat #{req.current_seat_id ? seatNumberMap.get(req.current_seat_id) ?? "?" : "None"} to Seat #{seatNumberMap.get(req.requested_seat_id) ?? "?"}
                   </p>
                   <p className="mt-0.5 text-[10px] font-bold text-amber-600">
                     {new Date(req.created_at).toLocaleDateString("en-IN", {
@@ -174,7 +184,7 @@ export default async function StaffSeatsPage({
                 </div>
                 <div className="flex gap-2">
                   <form action={approveSeatChangeAction}>
-                    <input type="hidden" name="notif_id" value={req.id} />
+                    <input type="hidden" name="request_id" value={req.id} />
                     <button
                       type="submit"
                       className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.25em] text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700"
@@ -184,7 +194,7 @@ export default async function StaffSeatsPage({
                     </button>
                   </form>
                   <form action={denySeatChangeAction}>
-                    <input type="hidden" name="notif_id" value={req.id} />
+                    <input type="hidden" name="request_id" value={req.id} />
                     <button
                       type="submit"
                       className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.25em] text-rose-700 transition hover:bg-rose-50"
