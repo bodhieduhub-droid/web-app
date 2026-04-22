@@ -65,7 +65,7 @@ export function AttendanceCard({ todayAttendance, streakCount }: AttendanceCardP
         {/* Action Section */}
         <div className="flex flex-col gap-3">
           {!todayAttendance ? (
-            <form action={checkInAction} className="flex-1 flex flex-col">
+            <form action={async (formData) => { await checkInAction(formData); }} className="flex-1 flex flex-col">
               <p className="mb-3 text-xs font-medium leading-relaxed text-[#536352]">
                 Mark your daily arrival. Please ensure you are connected to the <strong>Reading Room WiFi</strong>.
               </p>
@@ -76,7 +76,7 @@ export function AttendanceCard({ todayAttendance, streakCount }: AttendanceCardP
               />
             </form>
           ) : !todayAttendance.check_out_at ? (
-            <form action={checkOutAction} className="flex-1 flex flex-col">
+            <form action={async (formData) => { await checkOutAction(formData); }} className="flex-1 flex flex-col">
               <p className="mb-3 text-xs font-medium leading-relaxed text-[#536352]">
                 Finished for the day? Remember to check out to keep your daily logs accurate.
               </p>

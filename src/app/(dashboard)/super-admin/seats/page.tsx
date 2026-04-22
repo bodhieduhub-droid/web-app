@@ -174,6 +174,7 @@ export default async function SuperAdminSeatsPage({
           id: row.id,
           name: row.name,
           status: row.status,
+          reader_type: row.reader_type,
         }))}
       />
 

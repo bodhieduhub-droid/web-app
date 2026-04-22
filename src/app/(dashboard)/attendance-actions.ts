@@ -19,7 +19,7 @@ function errorState(message: string): SimpleActionState {
   return { status: "error", message };
 }
 
-export async function checkInAction(): Promise<SimpleActionState> {
+export async function checkInAction(formData?: FormData) {
   const { student } = await requireDashboardContext(["student"]);
   if (!student) return errorState("Student record not found.");
 
@@ -66,7 +66,7 @@ export async function checkInAction(): Promise<SimpleActionState> {
   return successState("Check-in successful! Welcome to your study session.");
 }
 
-export async function checkOutAction(): Promise<SimpleActionState> {
+export async function checkOutAction(formData?: FormData) {
   const { student } = await requireDashboardContext(["student"]);
   if (!student) return errorState("Student record not found.");
 

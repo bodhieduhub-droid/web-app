@@ -37,7 +37,7 @@ export default async function StaffStudentsPage() {
       </section>
 
       <div className="space-y-4">
-        {((students ?? []) as (StudentRecord & { seats?: { seat_number?: number } | null })[]).map((student) => (
+        {((students ?? []) as unknown as (StudentRecord & { seats?: { seat_number?: number } | null })[]).map((student) => (
           <article key={student.id} className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
