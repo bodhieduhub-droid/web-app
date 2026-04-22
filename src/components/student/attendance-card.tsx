@@ -2,7 +2,7 @@
 
 import { MapPin, Wifi, CheckCircle2, LogOut, Clock } from "lucide-react";
 import { useFormStatus } from "react-dom";
-import { checkInAction, checkOutAction } from "@/app/(dashboard)/actions";
+import { checkInAction, checkOutAction } from "@/app/(dashboard)/attendance-actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { AttendanceRecord } from "@/lib/app-types";
 
