@@ -18,5 +18,5 @@ CREATE TABLE IF NOT EXISTS document_chunks (
 );
 
 -- Add comments
-COMMENT ON TABLE chat_sessions IS 'Tracks Aruna chatbot usage for the analytics dashboard';
+COMMENT ON TABLE chat_sessions IS 'Tracks Bhanu chatbot usage for the analytics dashboard';
 COMMENT ON TABLE document_chunks IS 'Stores vector embeddings for advanced document RAG';

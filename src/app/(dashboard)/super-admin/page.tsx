@@ -105,7 +105,7 @@ export default async function SuperAdminDashboard() {
         </p>
         <Link href="/super-admin/chatbot" className="mt-6 flex w-fit items-center gap-2 rounded-xl bg-white/10 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-white/20">
           <Bot className="h-5 w-5" />
-          Access Aruna AI Dashboard
+          Access Bhanu AI Dashboard
         </Link>
       </section>
 
@@ -149,7 +149,7 @@ export default async function SuperAdminDashboard() {
               ["/super-admin/students", "Manage students"],
               ["/super-admin/billing", "Verify payments"],
               ["/super-admin/content", "Publish posts"],
-              ["/super-admin/chatbot", "Manage Aruna AI"],
+              ["/super-admin/chatbot", "Manage Bhanu AI"],
               ["/super-admin/support", "Review support"],
             ].map(([href, label]) => (
               <Link

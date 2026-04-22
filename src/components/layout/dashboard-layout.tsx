@@ -20,7 +20,7 @@ const superAdminLinks = [
   { href: "/super-admin/content", label: "Content", icon: BriefcaseBusiness },
   { href: "/super-admin/support", label: "Support", icon: Inbox },
   { href: "/super-admin/staff", label: "Staff", icon: Users },
-  { href: "/super-admin/chatbot", label: "Aruna AI", icon: Bot },
+  { href: "/super-admin/chatbot", label: "Bhanu AI", icon: Bot },
   { href: "/super-admin/exit-requests", label: "Exit Requests", icon: DoorOpen },
   { href: "/super-admin/settings", label: "Settings", icon: Settings },
 ];

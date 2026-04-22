@@ -51,7 +51,7 @@ const welcomeMessages: Message[] = [
   {
     id: "welcome-1",
     role: "assistant",
-    text: "Hi, I am Aruna. I am here to help you find the perfect study environment at Bodhi.",
+    text: "Hi, I am Bhanu. I am here to help you find the perfect study environment at Bodhi.",
     timestamp: new Date(),
   },
   {
@@ -84,7 +84,7 @@ export function LeadChatbot() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("aruna_chat_state");
+      const saved = localStorage.getItem("bhanu_chat_state");
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -107,7 +107,7 @@ export function LeadChatbot() {
   useEffect(() => {
     if (isInitialized && typeof window !== "undefined") {
       localStorage.setItem(
-        "aruna_chat_state",
+        "bhanu_chat_state",
         JSON.stringify({ messages, phase, enquiryId, selectedIntent, name, phone, visitDate, visitTime })
       );
     }
@@ -212,7 +212,7 @@ export function LeadChatbot() {
     setEnquiryId(null);
     setStatusMessage("");
     if (typeof window !== "undefined") {
-      localStorage.removeItem("aruna_chat_state");
+      localStorage.removeItem("bhanu_chat_state");
     }
   }
 
@@ -299,7 +299,7 @@ export function LeadChatbot() {
     setIsOpen(true);
     
     if (reply === "Talk on WhatsApp") {
-      window.open(`https://wa.me/919999999999?text=Hi%20Aruna,%20I%20would%20like%20to%20know%20more%20about%20the%20reading%20room.`, "_blank");
+      window.open(`https://wa.me/919999999999?text=Hi%20Bhanu,%20I%20would%20like%20to%20know%20more%20about%20the%20reading%20room.`, "_blank");
       return;  
     }
     
@@ -444,7 +444,7 @@ export function LeadChatbot() {
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#284632]/10 bg-white/60 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-[#284632]">
                   <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                  Aruna — Sales Assistant
+                  Bhanu — Sales Assistant
                 </div>
                 <div>
                   <p className="font-serif text-2xl leading-tight">Bodhi Chat</p>

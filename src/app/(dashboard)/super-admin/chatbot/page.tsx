@@ -23,11 +23,11 @@ export default async function ChatbotAdminPage() {
         <div className="relative z-10">
           <div className="flex items-center gap-3">
             <Bot className="h-8 w-8 text-emerald-400" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Aruna AI Hub</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Bhanu AI Hub</p>
           </div>
-          <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Aruna Dashboard</h1>
+          <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Bhanu Dashboard</h1>
           <p className="mt-4 max-w-3xl text-base font-medium leading-7 text-white/80">
-            Analytics and Knowledge Base Management. Train Aruna with your latest institutional guidelines.
+            Analytics and Knowledge Base Management. Train Bhanu with your latest institutional guidelines.
           </p>
         </div>
         <div className="absolute -right-20 -top-20 z-0 h-64 w-64 rounded-full bg-emerald-500/10 blur-[80px]"></div>
@@ -75,7 +75,7 @@ export default async function ChatbotAdminPage() {
         <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#dde4d9]">
           <div className="p-8 bg-white">
             <p className="text-sm font-medium leading-relaxed text-[#536352] mb-8">
-              Upload plain text documents like syllabus details, program guidelines, or marketing brochure text to train Aruna.
+              Upload plain text documents like syllabus details, program guidelines, or marketing brochure text to train Bhanu.
             </p>
             
             <form action={async (formData) => {
@@ -138,7 +138,7 @@ export default async function ChatbotAdminPage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-[#536352]">Knowledge base is empty</p>
-                    <p className="mt-1 text-xs text-[#a9b5a5]">Upload documents to begin training Aruna.</p>
+                    <p className="mt-1 text-xs text-[#a9b5a5]">Upload documents to begin training Bhanu.</p>
                   </div>
                 </div>
               )}
