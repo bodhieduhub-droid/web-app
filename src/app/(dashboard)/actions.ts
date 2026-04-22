@@ -1233,7 +1233,7 @@ export async function submitPaymentProof(
         studentName: student.name,
         amount,
         invoiceId: billId,
-        dashboardLink: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/staff/billing`,
+        dashboardLink: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.bodhieduhub.com"}/staff/billing`,
       });
       await sendEmail({
         to: settings.billing_notification_emails,
@@ -1403,7 +1403,7 @@ export async function rejectPaymentProof(formData: FormData) {
       name: reader.name ?? "Student",
       invoiceId: transaction.bill_id,
       reason: notes,
-      reuploadLink: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student/payments?invoiceId=${transaction.bill_id}`,
+      reuploadLink: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.bodhieduhub.com"}/student/payments?invoiceId=${transaction.bill_id}`,
     });
     await sendEmail({
       to: [reader.email],
@@ -1905,7 +1905,7 @@ export async function createPostAction(formData: FormData) {
           title: post.title,
           category: post.exam_category,
           summary: post.summary,
-          link: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student/exams`,
+          link: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.bodhieduhub.com"}/student/exams`,
         });
         await sendEmailBatched({
           to: emails,
@@ -1960,7 +1960,7 @@ export async function createPostAction(formData: FormData) {
         const emailTemplate = emailTemplates.studentAnnouncement({
           title: post.title,
           summary: post.summary,
-          link: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student/announcements`,
+          link: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.bodhieduhub.com"}/student/announcements`,
         });
         await sendEmailBatched({
           to: emails,
@@ -1991,7 +1991,7 @@ export async function createPostAction(formData: FormData) {
           summary: post.summary,
           link:
             post.link_url ||
-            `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${
+            `${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.bodhieduhub.com"}${
               post.type === "blog"
                 ? "/blogs"
                 : post.type === "job"
@@ -2107,7 +2107,7 @@ async function deliverPublishedPostUpdate(post: {
         title: post.title,
         category: post.exam_category,
         summary: post.summary,
-        link: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student/exams`,
+        link: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.bodhieduhub.com"}/student/exams`,
       });
       await sendEmailBatched({
         to: emails,
@@ -2144,7 +2144,7 @@ async function deliverPublishedPostUpdate(post: {
       const emailTemplate = emailTemplates.studentAnnouncement({
         title: post.title,
         summary: post.summary,
-        link: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/student/announcements`,
+        link: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.bodhieduhub.com"}/student/announcements`,
       });
       await sendEmailBatched({
         to: emails,
@@ -2171,7 +2171,7 @@ async function deliverPublishedPostUpdate(post: {
         summary: post.summary,
         link:
           post.link_url ||
-          `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}${
+          `${process.env.NEXT_PUBLIC_APP_URL ?? "https://www.bodhieduhub.com"}${
             post.type === "blog"
               ? "/blogs"
               : post.type === "job"

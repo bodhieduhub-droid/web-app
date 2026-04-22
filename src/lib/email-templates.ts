@@ -14,7 +14,7 @@ function formatInr(amount: number) {
   }).format(amount);
 }
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.bodhieduhub.com";
 const brand = "Bodhi Edu Hub";
 
 function renderEmail(options: {
@@ -24,35 +24,123 @@ function renderEmail(options: {
   ctaUrl?: string;
   footerNote?: string;
 }): string {
-  return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; background: #f5f7f9; padding: 24px 0;">
-      <tr>
-        <td align="center">
-          <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 12px; padding: 32px; color: #1f2a37;">
-            <tr>
-              <td style="font-size: 20px; font-weight: 700; padding-bottom: 8px;">${brand}</td>
-            </tr>
-            <tr>
-              <td style="font-size: 18px; font-weight: 600; padding: 4px 0 12px 0;">${options.title}</td>
-            </tr>
-            <tr>
-              <td style="font-size: 15px; line-height: 1.6; color: #374151;">${options.body}</td>
-            </tr>
-            ${
-              options.ctaLabel && options.ctaUrl
-                ? `<tr><td style="padding: 20px 0;"><a href="${options.ctaUrl}" style="display:inline-block; background:#0f172a; color:#ffffff; padding:12px 18px; border-radius:8px; text-decoration:none; font-weight:600;">${options.ctaLabel}</a></td></tr>`
-                : ""
-            }
-            <tr>
-              <td style="font-size: 12px; color: #6b7280; padding-top: 24px;">${
-                options.footerNote || "You are receiving this because you have an account or enquiry with Bodhi Edu Hub."
-              }</td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  `;
+  return `<!DOCTYPE html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>${options.title}</title>
+  <!--[if mso]>
+  <noscript>
+  <xml>
+  <o:OfficeDocumentSettings>
+    <o:PixelsPerInch>96</o:PixelsPerInch>
+  </o:OfficeDocumentSettings>
+  </xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    :root {
+      color-scheme: light dark;
+      supported-color-schemes: light dark;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      word-break: break-word;
+      -webkit-font-smoothing: antialiased;
+      background-color: #f3f4f6;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    /* Light Mode Default */
+    .wrapper { background-color: #f3f4f6; }
+    .container { background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .brand { color: #111827 !important; }
+    .title { color: #1f2937 !important; border-bottom: 1px solid #e5e7eb !important; }
+    .body-text { color: #4b5563 !important; }
+    .btn { background-color: #0f172a !important; color: #ffffff !important; }
+    .footer { color: #6b7280 !important; border-top: 1px solid #e5e7eb !important; }
+    .footer-note { color: #9ca3af !important; }
+    .logo-box { background-color: #0f172a !important; color: #ffffff !important; }
+    .link { color: #2563eb !important; text-decoration: underline !important; }
+
+    /* Dark Mode */
+    @media (prefers-color-scheme: dark) {
+      body, .wrapper { background-color: #111827 !important; }
+      .container { background-color: #1f2937 !important; border-color: #374151 !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important; }
+      .brand { color: #f9fafb !important; }
+      .title { color: #f3f4f6 !important; border-color: #374151 !important; }
+      .body-text { color: #d1d5db !important; }
+      .btn { background-color: #3b82f6 !important; color: #ffffff !important; }
+      .footer { color: #9ca3af !important; border-color: #374151 !important; }
+      .footer-note { color: #6b7280 !important; }
+      .logo-box { background-color: #3b82f6 !important; color: #ffffff !important; }
+      strong { color: #f9fafb !important; }
+      h1, h2, h3, h4, h5, h6 { color: #f3f4f6 !important; }
+      .link, a { color: #60a5fa !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+  <table class="wrapper" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #f3f4f6; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table class="container" width="600" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #ffffff; border-radius: 16px; padding: 40px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          <tr>
+            <td align="center" style="padding-bottom: 24px; font-family: 'Inter', Helvetica, Arial, sans-serif;">
+              <table cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td class="logo-box" align="center" valign="middle" style="width: 48px; height: 48px; background-color: #0f172a; border-radius: 12px; font-size: 24px; font-weight: 800; color: #ffffff;">
+                    B
+                  </td>
+                </tr>
+              </table>
+              <div class="brand" style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #111827; margin-top: 16px;">${brand}</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="title" style="font-family: 'Inter', Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 600; padding: 8px 0 20px 0; border-bottom: 1px solid #e5e7eb; color: #1f2937;">
+              ${options.title}
+            </td>
+          </tr>
+          <tr>
+            <td class="body-text" style="font-family: 'Inter', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #4b5563; padding-top: 24px;">
+              ${options.body}
+            </td>
+          </tr>
+          ${
+            options.ctaLabel && options.ctaUrl
+              ? `<tr>
+                  <td align="center" style="padding: 32px 0 16px 0;">
+                    <a href="${options.ctaUrl}" class="btn" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-family: 'Inter', Helvetica, Arial, sans-serif; font-size: 15px;">${options.ctaLabel}</a>
+                  </td>
+                </tr>`
+              : ""
+          }
+          <tr>
+            <td class="footer" style="font-family: 'Inter', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #6b7280; padding-top: 32px; border-top: 1px solid #e5e7eb; margin-top: 32px; text-align: center;">
+              ${options.footerNote || "You are receiving this because you have an account or enquiry with Bodhi Edu Hub."}
+            </td>
+          </tr>
+        </table>
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="padding: 20px 0;">
+          <tr>
+            <td align="center" class="footer-note" style="font-family: 'Inter', Helvetica, Arial, sans-serif; font-size: 12px; color: #9ca3af;">
+              &copy; ${new Date().getFullYear()} ${brand}. All rights reserved.<br>
+              <a href="${appUrl}" class="link" style="color: #2563eb; text-decoration: underline;">Visit our website</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 export const emailTemplates = {
