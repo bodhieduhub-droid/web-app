@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 
 import { assignSeatFromMapAction, blockSeatForEnquiry, releaseSeat } from "@/app/(dashboard)/actions";
+import { Spinner } from "@/components/ui/spinner";
 
 type SeatCard = {
   id: string;
@@ -12,6 +13,7 @@ type SeatCard = {
   status: "available" | "occupied" | "blocked";
   student_name?: string | null;
   assigned_reader_id?: string | null;
+  reader_type?: string | null;
   block_reason?: string | null;
 };
 
@@ -19,6 +21,7 @@ type CandidateStudent = {
   id: string;
   name: string;
   status: string;
+  reader_type: string;
 };
 
 export function SeatMapBoard({
@@ -29,10 +32,14 @@ export function SeatMapBoard({
   candidates: CandidateStudent[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [dragStudentId, setDragStudentId] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [blockReasons, setBlockReasons] = useState<Record<string, string>>({});
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const rolePrefix = pathname.startsWith("/staff") ? "/staff" : "/super-admin";
 
   const candidateMap = useMemo(() => new Map(candidates.map((s) => [s.id, s])), [candidates]);
   const occupancy = useMemo(() => {
@@ -57,34 +64,40 @@ export function SeatMapBoard({
     }
 
     setMessage(`Assigning ${student.name} to Seat ${seat.seat_number}...`);
+    setProcessingId(seat.id);
     startTransition(async () => {
       const form = new FormData();
       form.set("reader_id", student.id);
       form.set("seat_id", seat.id);
       await assignSeatFromMapAction(form);
       setMessage(`Assigned ${student.name} to Seat ${seat.seat_number}.`);
+      setProcessingId(null);
       router.refresh();
     });
   };
 
   const onBlockSeat = (seat: SeatCard) => {
     const reason = (blockReasons[seat.id] ?? "").trim();
+    setProcessingId(seat.id);
     startTransition(async () => {
       const form = new FormData();
       form.set("seat_id", seat.id);
       if (reason) form.set("reason", reason);
       await blockSeatForEnquiry(form);
       setMessage(`Seat ${seat.seat_number} blocked.`);
+      setProcessingId(null);
       router.refresh();
     });
   };
 
   const onReleaseSeat = (seat: SeatCard) => {
+    setProcessingId(seat.id);
     startTransition(async () => {
       const form = new FormData();
       form.set("seat_id", seat.id);
       await releaseSeat(form);
       setMessage(`Seat ${seat.seat_number} released.`);
+      setProcessingId(null);
       router.refresh();
     });
   };
@@ -112,10 +125,13 @@ export function SeatMapBoard({
               type="button"
               draggable
               onDragStart={() => setDragStudentId(student.id)}
-              className="rounded-xl border border-[#d7ddd3] bg-white px-3 py-2 text-xs font-bold text-[#1b3022]"
-              title={`Status: ${student.status.replaceAll("_", " ")}`}
+              className="rounded-xl border border-[#d7ddd3] bg-white px-3 py-2 text-xs font-bold text-[#1b3022] hover:bg-[#f7faf5]"
+              title={`Plan: ${student.reader_type} | Status: ${student.status.replaceAll("_", " ")}`}
             >
               {student.name}
+              <span className="ml-2 rounded-md bg-[#eef3ea] px-1 py-0.5 text-[9px] uppercase text-[#6b7b69]">
+                {student.reader_type[0]}
+              </span>
             </button>
           ))}
           {candidates.length === 0 ? <p className="text-sm font-semibold text-[#6d7c6c]">No unassigned active/pending students.</p> : null}
@@ -170,23 +186,45 @@ export function SeatMapBoard({
               className={`rounded-2xl border p-3 ${seatClass}`}
             >
               <p className="text-sm font-black text-[#1b3022]">Seat {seat.seat_number}</p>
-              <p className="mt-1 text-xs font-semibold text-[#435442] uppercase tracking-[0.14em]">{seat.status}</p>
-              <p className="mt-2 text-xs font-semibold text-[#1b3022]">{seat.student_name || "Unassigned"}</p>
+              <p className="mt-1 text-xs font-semibold text-[#435442] uppercase tracking-[0.14em]">
+                {seat.status} {seat.reader_type ? `(${seat.reader_type})` : ""}
+              </p>
+              <p className="mt-2 text-xs font-black text-[#1b3022] truncate">{seat.student_name || "Unassigned"}</p>
               <p className="mt-1 text-[11px] font-semibold text-[#556455]">Reason: {seat.block_reason || "None"}</p>
 
-              {seat.status === "occupied" && seat.assigned_reader_id ? (
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Link
-                  href={`/super-admin/students/${seat.assigned_reader_id}`}
-                  className="mt-2 inline-flex rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#1b3022]"
+                  href={`${rolePrefix}/seats/${seat.id}/history`}
+                  className="rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#6d7c6c] hover:bg-[#f3f7f0]"
                 >
-                  Open Student
+                  History
                 </Link>
-              ) : null}
+                {seat.status === "occupied" && seat.assigned_reader_id ? (
+                  <>
+                    <Link
+                      href={`${rolePrefix}/students/${seat.assigned_reader_id}`}
+                      className="rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#1b3022]"
+                    >
+                      Details
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={!!processingId}
+                      onClick={() => onReleaseSeat(seat)}
+                      className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                    >
+                      {processingId === seat.id ? <Spinner className="h-3 w-3" /> : null}
+                      Release
+                    </button>
+                  </>
+                ) : null}
+              </div>
 
               {seat.status === "available" ? (
                 <div className="mt-2 space-y-2">
                   <input
                     value={blockReasons[seat.id] ?? ""}
+                    disabled={!!processingId}
                     onChange={(event) =>
                       setBlockReasons((prev) => ({
                         ...prev,
@@ -194,13 +232,15 @@ export function SeatMapBoard({
                       }))
                     }
                     placeholder="Reason for block"
-                    className="w-full rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[11px] font-semibold text-[#1b3022]"
+                    className="w-full rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[11px] font-semibold text-[#1b3022] outline-none focus:ring-1 focus:ring-[#1b3022]/20"
                   />
                   <button
                     type="button"
+                    disabled={!!processingId}
                     onClick={() => onBlockSeat(seat)}
-                    className="w-full rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#1b3022]"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#1b3022] hover:bg-[#f3f7f0] disabled:opacity-50"
                   >
+                    {processingId === seat.id ? <Spinner className="h-3 w-3" /> : null}
                     Block Seat
                   </button>
                 </div>
@@ -209,9 +249,11 @@ export function SeatMapBoard({
               {seat.status === "blocked" ? (
                 <button
                   type="button"
+                  disabled={!!processingId}
                   onClick={() => onReleaseSeat(seat)}
-                  className="mt-2 w-full rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#1b3022]"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#cdd7c8] bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#1b3022] hover:bg-[#f3f7f0] disabled:opacity-50"
                 >
+                  {processingId === seat.id ? <Spinner className="h-3 w-3" /> : null}
                   Release Block
                 </button>
               ) : null}

@@ -19,6 +19,8 @@ import {
 } from "@/app/(dashboard)/actions";
 import { ExitRequestForm } from "@/components/student/exit-request-form";
 import { SupportTicketForm } from "@/components/student/support-ticket-form";
+import { AttendanceCard } from "@/components/student/attendance-card";
+import { BadgesSection } from "@/components/student/badges-section";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type {
   BillRecord,
@@ -29,6 +31,8 @@ import type {
   StudentCalendarEntryRecord,
   StudentSupportTicketRecord,
   TodoItemRecord,
+  AttendanceRecord,
+  StudentBadgeRecord,
 } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -62,6 +66,9 @@ export default async function StudentDashboard() {
     { data: nightLogs },
     { data: plannerEntries },
     { data: supportTickets },
+    todayAttendanceData,
+    badgesData,
+    recentAttendanceData,
   ] = await Promise.all([
     supabase.from("bills").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
     supabase.from("notifications").select("*").or(`audience_id.eq.${student.id},audience_id.eq.${profile.id},audience_type.eq.broadcast_role`).order("created_at", { ascending: false }).limit(20),
@@ -74,6 +81,9 @@ export default async function StudentDashboard() {
     supabase.from("night_logs").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
     supabase.from("student_calendar_entries").select("*").eq("reader_id", student.id).gte("starts_at", new Date().toISOString()).order("starts_at", { ascending: true }).limit(12),
     supabase.from("student_support_tickets").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
+    supabase.from("attendance").select("*").eq("reader_id", student.id).eq("date", new Date().toISOString().split("T")[0]).maybeSingle(),
+    supabase.from("student_badges").select("*").eq("reader_id", student.id),
+    supabase.from("attendance").select("date").eq("reader_id", student.id).order("date", { ascending: false }).limit(31),
   ]);
 
   const categories = (interests ?? []).map((i) => i.category as string);
@@ -139,6 +149,36 @@ export default async function StudentDashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
+  // Streak calculation
+  const streakHistory = (recentAttendanceData?.data ?? []) as { date: string }[];
+  let currentStreak = 0;
+  if (streakHistory.length > 0) {
+    const today = new Date().toISOString().split("T")[0];
+    const firstDate = streakHistory[0].date;
+    
+    // Start streak if first visit is today or yesterday
+    const d1 = new Date(today);
+    const d2 = new Date(firstDate);
+    const diff = (d1.getTime() - d2.getTime()) / (1000 * 3600 * 24);
+    
+    if (diff <= 1) {
+      currentStreak = 1;
+      for (let i = 0; i < streakHistory.length - 1; i++) {
+        const dateA = new Date(streakHistory[i].date);
+        const dateB = new Date(streakHistory[i+1].date);
+        const dDiff = (dateA.getTime() - dateB.getTime()) / (1000 * 3600 * 24);
+        if (Math.round(dDiff) === 1) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  const todayAttendance = todayAttendanceData?.data as AttendanceRecord | null;
+  const earnedBadges = (badgesData?.data ?? []) as StudentBadgeRecord[];
+
   return (
     <div className="space-y-8">
       {/* ── Hero ── */}
@@ -153,6 +193,14 @@ export default async function StudentDashboard() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* ── Attendance & Badges ── */}
+      <section className="grid gap-6 lg:grid-cols-[1fr_auto]">
+        <AttendanceCard todayAttendance={todayAttendance} streakCount={currentStreak} />
+        <div className="flex-1 min-w-0">
+          <BadgesSection badges={earnedBadges} />
+        </div>
       </section>
 
       {/* ── Stats bar ── */}

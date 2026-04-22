@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requireDashboardContext } from "@/lib/auth";
@@ -445,6 +446,234 @@ export async function convertEnquiryToStudent(formData: FormData) {
   return;
 }
 
+export async function onboardStudentAction(formData: FormData) {
+  const { profile } = await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+
+  const name = getString(formData, "name");
+  const email = getOptionalString(formData, "email");
+  const phone = getString(formData, "phone");
+  const readerType = normalizePlanType(getString(formData, "reader_type"));
+  const seatId = getString(formData, "seat_id");
+  const monthlyFee = getNumber(formData, "monthly_fee", 0);
+  const joinDateValue = getOptionalString(formData, "join_date");
+  const joinDate = joinDateValue ? new Date(joinDateValue) : new Date();
+
+  const address = getOptionalString(formData, "address");
+  const purpose = getOptionalString(formData, "purpose");
+  const preparingForExam = getString(formData, "preparing_for_exam") === "yes";
+  const examDetails = getOptionalString(formData, "exam_details");
+  const idProofFile = getFile(formData, "id_proof");
+
+  const isQuickEntry = readerType === "daily" || readerType === "weekly";
+
+  if (!name || !phone || !seatId) {
+    await notifyActor(profile.id, "Onboarding failed", "Name, phone, and seat are required.");
+    return;
+  }
+
+  // Handle ID Proof Upload (Skip for quick entry)
+  let idProofUrl = null;
+  let idProofPublicId = null;
+
+  if (!isQuickEntry && idProofFile) {
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (idProofFile.size <= MAX_FILE_SIZE && idProofFile.type.startsWith("image/")) {
+      try {
+        const uploaded = await uploadToCloudinary(idProofFile, "bodhi-id-proofs");
+        idProofUrl = uploaded.secureUrl;
+        idProofPublicId = uploaded.publicId;
+      } catch (err) {
+        console.error("[onboardStudentAction] ID upload failed:", err);
+      }
+    }
+  }
+
+  // Check if seat is available
+  const { data: seat } = await supabase
+    .from("seats")
+    .select("id, status, seat_number")
+    .eq("id", seatId)
+    .maybeSingle();
+
+  if (!seat) {
+    await notifyActor(profile.id, "Onboarding failed", "Selected seat does not exist.");
+    return;
+  }
+
+  // Monthly students MUST have an available seat
+  if (readerType === "monthly" && seat.status !== "available") {
+    await notifyActor(profile.id, "Onboarding failed", "Monthly students require an available seat.");
+    return;
+  }
+
+  const password = `Bodhi${randomBytes(4).toString("hex")}!`;
+  let userId: string | null = null;
+
+  // Account creation (Skip for quick entry)
+  if (!isQuickEntry && email) {
+    const { data: createdUser, error: createUserError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: name },
+    });
+
+    if (createUserError) {
+      const { data: users } = await supabase.auth.admin.listUsers();
+      const existingUser = users.users.find((u) => u.email === email);
+      if (existingUser) {
+        userId = existingUser.id;
+        await supabase.auth.admin.updateUserById(userId, {
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: name },
+        });
+      } else {
+        await notifyActor(profile.id, "Onboarding failed", `Auth error: ${createUserError.message}`);
+        return;
+      }
+    } else {
+      userId = createdUser.user?.id ?? null;
+    }
+
+    if (userId) {
+      await supabase.from("profiles").upsert({
+        id: userId,
+        full_name: name,
+        role: "student",
+        onboarding_required: false,
+      });
+    }
+  }
+
+  const settings = await getHubSettings();
+  const effectivePlanFee = Math.max(0, monthlyFee || planDefaultPrice(readerType, settings));
+
+  const { data: student, error: studentError } = await supabase
+    .from("readers")
+    .insert({
+      user_id: userId,
+      name,
+      email,
+      phone,
+      reader_type: readerType,
+      status: "pending_payment",
+      fixed_seat_id: seatId,
+      monthly_fee: effectivePlanFee,
+      onboarding_completed: isQuickEntry || !!idProofUrl, // true for quick entry or if ID uploaded
+      join_date: joinDate.toISOString(),
+      address,
+      purpose,
+      preparing_for_exam: preparingForExam,
+      exam_details: examDetails,
+      id_proof_url: idProofUrl,
+      id_proof_public_id: idProofPublicId,
+      credentials_sent_at: email ? new Date().toISOString() : null,
+    })
+    .select("id")
+    .single();
+
+  if (studentError || !student) {
+    await notifyActor(profile.id, "Onboarding failed", studentError?.message || "Reader profile creation failed.");
+    return;
+  }
+
+  if (seat.status === "available") {
+    await supabase
+      .from("seats")
+      .update({
+        status: "occupied",
+        assigned_reader_id: student.id,
+        linked_enquiry_id: null,
+        blocked_by_profile_id: null,
+        block_reason: null,
+      })
+      .eq("id", seatId);
+  }
+
+  const invoice =
+    readerType === "monthly"
+      ? calculateMonthlyAdmissionAmount(joinDate, effectivePlanFee)
+      : calculateInvoiceAmount({
+          planType: readerType,
+          monthlyFee: effectivePlanFee,
+          includeAdmissionFees: false,
+          joinDate,
+        });
+
+  const invoiceTitle = readerType === "monthly" ? "Admission invoice" : `${formatPlanLabel(readerType)} plan invoice`;
+  const invoiceKind = readerType === "monthly" ? "admission" : "manual";
+  const dueDate = getIsoDateOnly(joinDate);
+
+  const { data: admissionBill } = await supabase
+    .from("bills")
+    .insert({
+      reader_id: student.id,
+      month: joinDate.getMonth() + 1,
+      year: joinDate.getFullYear(),
+      due_date: dueDate,
+      invoice_kind: invoiceKind,
+      title: invoiceTitle,
+      base_amount: invoice.baseAmount,
+      registration_amount: invoice.registrationAmount,
+      caution_amount: invoice.cautionAmount,
+      prorated_days: (invoice as any).remainingDays ?? null,
+      amount_due: invoice.totalAmount,
+      amount_paid: 0,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (email) {
+    const credentialEmail = emailTemplates.credentials({
+      name,
+      email,
+      password,
+    });
+    await sendEmail({
+      to: [email],
+      subject: credentialEmail.subject,
+      html: credentialEmail.html,
+      text: credentialEmail.text,
+    });
+
+    if (admissionBill?.id) {
+      const admissionEmail = emailTemplates.admissionInvoice({
+        name,
+        invoiceId: admissionBill.id,
+        registration: invoice.registrationAmount,
+        caution: invoice.cautionAmount,
+        monthly: invoice.baseAmount,
+        proratedDays: (invoice as any).remainingDays ?? null,
+        total: invoice.totalAmount,
+        dueDate,
+        qrUrl: settings.static_upi_qr_url,
+        upiId: settings.static_upi_id,
+      });
+      await sendEmail({
+        to: [email],
+        subject: admissionEmail.subject,
+        html: admissionEmail.html,
+        text: admissionEmail.text,
+      });
+    }
+  }
+
+  revalidatePath("/super-admin/students");
+  revalidatePath("/staff/students");
+  revalidatePath("/super-admin/seats");
+  revalidatePath("/staff/seats");
+  
+  const role = normalizeRole(profile.role);
+  if (role === "super_admin") {
+    redirect("/super-admin/students");
+  } else {
+    redirect("/staff/students");
+  }
+}
+
 export async function blockSeatForEnquiry(formData: FormData) {
   const { profile } = await requireRole(["super_admin", "staff"]);
   const supabase = createAdminClient();
@@ -615,6 +844,14 @@ export async function submitOnboarding(
 
   if (!address || !purpose || !idProof) {
     return { error: "Please fill all required fields and upload an ID proof." };
+  }
+
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  if (idProof.size > MAX_FILE_SIZE) {
+    return { error: "ID proof file is too large. Please upload an image under 5MB." };
+  }
+  if (!idProof.type.startsWith("image/")) {
+    return { error: "Invalid file type. Please upload an image for ID proof." };
   }
 
   try {
@@ -942,6 +1179,14 @@ export async function submitPaymentProof(
     };
   }
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  if (proofFile.size > MAX_FILE_SIZE) {
+    return { status: "error", message: "Payment proof file is too large. Please upload an image under 5MB.", billId };
+  }
+  if (!proofFile.type.startsWith("image/")) {
+    return { status: "error", message: "Invalid file type. Please upload an image for payment proof.", billId };
+  }
+
   let uploadedProof: { secureUrl: string; publicId: string } | null = null;
 
   try {
@@ -1061,14 +1306,23 @@ export async function verifyPaymentProof(formData: FormData) {
   }
 
   if (transaction.bills?.invoice_kind === "admission") {
-    await supabase
-      .from("readers")
-      .update({
-        registration_paid: true,
-        caution_paid: true,
-        status: transaction.readers?.onboarding_completed ? "active" : "pending_onboarding",
-      })
-      .eq("id", transaction.reader_id);
+    // Check if the bill is now fully paid after this verification
+    const { data: updatedBill } = await supabase
+      .from("bills")
+      .select("status")
+      .eq("id", transaction.bill_id)
+      .single();
+
+    if (updatedBill?.status === "paid") {
+      await supabase
+        .from("readers")
+        .update({
+          registration_paid: true,
+          caution_paid: true,
+          status: transaction.readers?.onboarding_completed ? "active" : "pending_onboarding",
+        })
+        .eq("id", transaction.reader_id);
+    }
   }
 
   await notifyReader(transaction.reader_id, {
@@ -1255,6 +1509,30 @@ export async function updateBillFromAdminAction(formData: FormData) {
     })
     .eq("id", billId);
 
+  // Update admission flags if this is an admission bill that is now paid
+  const { data: billInfo } = await supabase
+    .from("bills")
+    .select("reader_id, invoice_kind")
+    .eq("id", billId)
+    .single();
+
+  if (billInfo?.invoice_kind === "admission" && nextStatus === "paid") {
+    const { data: reader } = await supabase
+      .from("readers")
+      .select("onboarding_completed")
+      .eq("id", billInfo.reader_id)
+      .single();
+
+    await supabase
+      .from("readers")
+      .update({
+        registration_paid: true,
+        caution_paid: true,
+        status: reader?.onboarding_completed ? "active" : "pending_onboarding",
+      })
+      .eq("id", billInfo.reader_id);
+  }
+
   await supabase.from("bill_audit_logs").insert({
     bill_id: billId,
     actor_profile_id: profile.id,
@@ -1292,7 +1570,7 @@ export async function recordOfflinePaymentAction(formData: FormData) {
 
   const { data: bill } = await supabase
     .from("bills")
-    .select("id, reader_id")
+    .select("id, reader_id, invoice_kind")
     .eq("id", billId)
     .maybeSingle();
   if (!bill) return;
@@ -1309,6 +1587,32 @@ export async function recordOfflinePaymentAction(formData: FormData) {
     verified_at: new Date().toISOString(),
     verified_by_profile_id: profile.id,
   });
+  
+  // Update admission flags if this is an admission bill that is now paid
+  if (bill.invoice_kind === "admission") {
+    const { data: updatedBill } = await supabase
+      .from("bills")
+      .select("status")
+      .eq("id", billId)
+      .single();
+      
+    if (updatedBill?.status === "paid") {
+      const { data: reader } = await supabase
+        .from("readers")
+        .select("onboarding_completed")
+        .eq("id", bill.reader_id)
+        .single();
+        
+      await supabase
+        .from("readers")
+        .update({
+          registration_paid: true,
+          caution_paid: true,
+          status: reader?.onboarding_completed ? "active" : "pending_onboarding",
+        })
+        .eq("id", bill.reader_id);
+    }
+  }
 
   await supabase.from("bill_audit_logs").insert({
     bill_id: bill.id,
@@ -2160,6 +2464,11 @@ export async function updateHubSettingsAction(formData: FormData) {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
+    allowed_attendance_ips: getString(formData, "allowed_attendance_ips")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+    updated_at: new Date().toISOString(),
   }).eq("id", 1);
 
   revalidatePath("/super-admin/settings");
@@ -3617,4 +3926,76 @@ export async function updateStudentSeatAction(formData: FormData) {
 
   revalidatePath("/super-admin/students");
   revalidatePath("/staff/students");
+}
+
+export async function createExpenseAction(formData: FormData) {
+  const { profile } = await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+  
+  const amount = getNumber(formData, "amount", 0);
+  const category = getString(formData, "category");
+  const description = getOptionalString(formData, "description");
+  const date = getString(formData, "date") || new Date().toISOString().split("T")[0];
+
+  if (amount <= 0 || !category) {
+    return { error: "Please provide a valid amount and category." };
+  }
+
+  const { error } = await supabase.from("expenses").insert({
+    amount,
+    category,
+    description,
+    date,
+    recorded_by_profile_id: profile.id,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/super-admin/expenses");
+  revalidatePath("/staff/expenses");
+  return { success: true };
+}
+
+export async function updateExpenseAction(formData: FormData) {
+  const { profile } = await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+  
+  const id = getString(formData, "id");
+  const amount = getNumber(formData, "amount", 0);
+  const category = getString(formData, "category");
+  const description = getOptionalString(formData, "description");
+  const date = getString(formData, "date");
+
+  if (!id || amount <= 0 || !category) {
+    return { error: "Invalid data." };
+  }
+
+  const { error } = await supabase
+    .from("expenses")
+    .update({
+      amount,
+      category,
+      description,
+      date,
+    })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/super-admin/expenses");
+  revalidatePath("/staff/expenses");
+  return { success: true };
+}
+
+export async function deleteExpenseAction(formData: FormData) {
+  await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+  
+  const id = getString(formData, "id");
+  if (!id) return;
+
+  await supabase.from("expenses").delete().eq("id", id);
+
+  revalidatePath("/super-admin/expenses");
+  revalidatePath("/staff/expenses");
 }

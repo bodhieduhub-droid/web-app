@@ -110,7 +110,7 @@ export function PaymentProofForm({
           id={fileId}
           name="payment_proof"
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/jpg"
+          accept="image/*"
           className="w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none"
           aria-describedby={clientError ? `${guidanceId} ${errorId}` : guidanceId}
           onChange={handleFileChange}

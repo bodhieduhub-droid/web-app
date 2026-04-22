@@ -12,6 +12,7 @@ type SearchParams = {
   status?: string;
   billing?: string;
   page?: string;
+  type?: string;
 };
 
 type BillingAggregate = {
@@ -84,6 +85,7 @@ export default async function SuperAdminStudentsPage({
   const supabase = createAdminClient();
   const query = (resolvedSearchParams.q ?? "").trim();
   const statusFilter = (resolvedSearchParams.status ?? "all").trim();
+  const typeFilter = (resolvedSearchParams.type ?? "all").trim();
   const billingFilter = (resolvedSearchParams.billing ?? "all").trim();
   const page = Math.max(1, Number(resolvedSearchParams.page ?? 1) || 1);
   const pageSize = 25;
@@ -95,6 +97,9 @@ export default async function SuperAdminStudentsPage({
 
   if (statusFilter !== "all") {
     idsQuery = idsQuery.eq("status", statusFilter);
+  }
+  if (typeFilter !== "all") {
+    idsQuery = idsQuery.eq("reader_type", typeFilter);
   }
   if (query) {
     const q = safeLike(query);
@@ -171,12 +176,20 @@ export default async function SuperAdminStudentsPage({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Students Control</p>
-        <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Student Listing</h1>
+      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 flex items-center justify-between">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Students Control</p>
+          <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Student Listing</h1>
+        </div>
+        <Link
+          href="/super-admin/students/onboard"
+          className="rounded-2xl bg-[#1b3022] px-6 py-3 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-[#1b3022]/20 transition hover:bg-[#27452e]"
+        >
+          Add Student
+        </Link>
       </section>
 
-      <form className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_220px_220px_auto]">
+      <form className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_160px_160px_160px_auto]">
         <input
           name="q"
           defaultValue={resolvedSearchParams.q ?? ""}
@@ -194,6 +207,16 @@ export default async function SuperAdminStudentsPage({
               {status.replaceAll("_", " ")}
             </option>
           ))}
+        </select>
+        <select
+          name="type"
+          defaultValue={typeFilter}
+          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
+        >
+          <option value="all">All plans</option>
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+          <option value="daily">Daily</option>
         </select>
         <select
           name="billing"
@@ -289,7 +312,12 @@ export default async function SuperAdminStudentsPage({
                       <input type="checkbox" name="reader_ids" value={student.id} className="h-4 w-4 rounded border-[#c7d2c1]" />
                     </td>
                     <td className="px-4 py-4">
-                      <p className="font-black text-[#1b3022]">{student.name}</p>
+                      <p className="font-black text-[#1b3022]">
+                        {student.name}
+                        <span className="ml-2 rounded-md bg-[#eef3ea] px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-[#6b7b69]">
+                          {student.reader_type}
+                        </span>
+                      </p>
                       <p className="text-xs font-medium text-[#536352]">{student.email || "No email"}</p>
                       <p className="text-xs font-medium text-[#536352]">{student.phone}</p>
                     </td>
@@ -345,13 +373,13 @@ export default async function SuperAdminStudentsPage({
         </p>
         <div className="flex gap-2">
           <Link
-            href={`?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}&billing=${encodeURIComponent(billingFilter)}&page=${Math.max(1, currentPage - 1)}`}
+            href={`?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}&type=${encodeURIComponent(typeFilter)}&billing=${encodeURIComponent(billingFilter)}&page=${Math.max(1, currentPage - 1)}`}
             className={`rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black ${currentPage <= 1 ? "pointer-events-none opacity-40" : "text-[#1b3022]"}`}
           >
             Previous
           </Link>
           <Link
-            href={`?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}&billing=${encodeURIComponent(billingFilter)}&page=${Math.min(totalPages, currentPage + 1)}`}
+            href={`?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}&type=${encodeURIComponent(typeFilter)}&billing=${encodeURIComponent(billingFilter)}&page=${Math.min(totalPages, currentPage + 1)}`}
             className={`rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black ${currentPage >= totalPages ? "pointer-events-none opacity-40" : "text-[#1b3022]"}`}
           >
             Next

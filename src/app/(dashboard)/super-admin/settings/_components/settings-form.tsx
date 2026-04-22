@@ -64,6 +64,21 @@ export function SettingsForms({ settings }: { settings: HubSettings }) {
           </div>
         </section>
 
+        <section className="space-y-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">Attendance Restriction</p>
+          <div className="space-y-3">
+            <textarea 
+              name="allowed_attendance_ips" 
+              defaultValue={settings.allowed_attendance_ips?.join(", ") ?? ""} 
+              placeholder="Allowed WiFi Public IPs, comma separated (e.g. 1.2.3.4)" 
+              className="min-h-20 w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-4 text-sm font-semibold text-[#1b3022]" 
+            />
+            <p className="text-[10px] font-medium text-[#6d7c6c] italic">
+              Leave empty to allow attendance from any network. If set, students can only check in from these IPs.
+            </p>
+          </div>
+        </section>
+
         <PendingSubmitButton
           idleLabel="Save All Settings"
           pendingLabel="Saving..."

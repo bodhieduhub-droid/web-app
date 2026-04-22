@@ -16,6 +16,7 @@ export interface HubSettings {
   static_upi_qr_url: string | null;
   enquiry_notification_emails: string[];
   billing_notification_emails: string[];
+  allowed_attendance_ips: string[];
 }
 
 export const DEFAULT_SETTINGS: HubSettings = {
@@ -34,6 +35,7 @@ export const DEFAULT_SETTINGS: HubSettings = {
   static_upi_qr_url: null,
   enquiry_notification_emails: [],
   billing_notification_emails: [],
+  allowed_attendance_ips: [],
 };
 
 export async function getHubSettings(): Promise<HubSettings> {

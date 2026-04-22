@@ -239,6 +239,24 @@ export interface SeatChangeRequestRecord {
   updated_at: string;
 }
 
+export interface AttendanceRecord {
+  id: string;
+  reader_id: string;
+  date: string;
+  check_in_at: string;
+  check_out_at: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface StudentBadgeRecord {
+  id: string;
+  reader_id: string;
+  badge_type: string;
+  awarded_at: string;
+  metadata: Record<string, any>;
+}
+
 export interface DashboardContext {
   profile: ProfileRecord;
   normalizedRole: AppRole;

@@ -650,6 +650,30 @@ create trigger trigger_refresh_bill_update
 after update on public.transactions
 for each row execute function public.refresh_bill_after_transaction();
 
+
+create table if not exists public.expenses (
+  id uuid primary key default uuid_generate_v4(),
+  amount numeric not null,
+  category text not null,
+  description text,
+  date date not null default current_date,
+  recorded_by_profile_id uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+alter table public.expenses enable row level security;
+
+create policy "staff_and_admin_manage_expenses"
+on public.expenses
+for all
+using (public.get_user_role() in ('super_admin', 'staff'))
+with check (public.get_user_role() in ('super_admin', 'staff'));
+
+create trigger trigger_touch_expenses
+before update on public.expenses
+for each row execute function public.touch_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.hub_settings enable row level security;
 alter table public.enquiries enable row level security;

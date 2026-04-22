@@ -2,6 +2,7 @@ import { ArrowRightLeft, CheckCircle2, XCircle } from "lucide-react";
 
 import { approveSeatChangeAction, denySeatChangeAction } from "@/app/(dashboard)/actions";
 import { SeatMapBoard } from "@/components/dashboard/seat-map-board";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +54,7 @@ export default async function SuperAdminSeatsPage({
   const [{ data: seats, error }, { data: pendingRequests }, { data: unassignedStudents }] = await Promise.all([
     supabase
       .from("seats")
-      .select("id, seat_number, status, block_reason, readers:readers!fixed_seat_id(name,id)")
+      .select("id, seat_number, status, block_reason, readers:readers!fixed_seat_id(name,id,reader_type)")
       .order("seat_number", { ascending: true }),
     supabase
       .from("seat_change_requests")
@@ -62,7 +63,7 @@ export default async function SuperAdminSeatsPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("readers")
-      .select("id,name,status")
+      .select("id,name,status,reader_type")
       .is("fixed_seat_id", null)
       .in("status", ["active", "pending_payment", "pending_onboarding"])
       .order("created_at", { ascending: false })
@@ -113,6 +114,7 @@ export default async function SuperAdminSeatsPage({
       status: seat.status,
       student_name: student?.name ?? null,
       assigned_reader_id: student?.id ?? null,
+      reader_type: (seat.readers as any)?.reader_type ?? null,
       block_reason: seat.block_reason ?? null,
     };
   });
@@ -209,23 +211,19 @@ export default async function SuperAdminSeatsPage({
                 <div className="flex gap-2">
                   <form action={approveSeatChangeAction}>
                     <input type="hidden" name="request_id" value={req.id} />
-                    <button
-                      type="submit"
+                    <PendingSubmitButton
+                      idleLabel="Approve"
+                      pendingLabel="Approving..."
                       className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.25em] text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Approve
-                    </button>
+                    />
                   </form>
                   <form action={denySeatChangeAction}>
                     <input type="hidden" name="request_id" value={req.id} />
-                    <button
-                      type="submit"
+                    <PendingSubmitButton
+                      idleLabel="Decline"
+                      pendingLabel="Declining..."
                       className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.25em] text-rose-700 transition hover:bg-rose-50"
-                    >
-                      <XCircle className="h-3.5 w-3.5" />
-                      Decline
-                    </button>
+                    />
                   </form>
                 </div>
               </div>

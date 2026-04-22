@@ -182,26 +182,22 @@ export default async function StaffSeatsPage({
                     })}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                 <div className="flex gap-2">
                   <form action={approveSeatChangeAction}>
                     <input type="hidden" name="request_id" value={req.id} />
-                    <button
-                      type="submit"
+                    <PendingSubmitButton
+                      idleLabel="Approve"
+                      pendingLabel="Approving..."
                       className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.25em] text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Approve
-                    </button>
+                    />
                   </form>
                   <form action={denySeatChangeAction}>
                     <input type="hidden" name="request_id" value={req.id} />
-                    <button
-                      type="submit"
+                    <PendingSubmitButton
+                      idleLabel="Decline"
+                      pendingLabel="Declining..."
                       className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.25em] text-rose-700 transition hover:bg-rose-50"
-                    >
-                      <XCircle className="h-3.5 w-3.5" />
-                      Decline
-                    </button>
+                    />
                   </form>
                 </div>
               </div>

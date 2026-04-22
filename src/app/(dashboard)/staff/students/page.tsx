@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createRejoinInvoiceAction, rejoinStudentAction } from "@/app/(dashboard)/actions";
 import type { StudentRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,8 +10,9 @@ export default async function StaffStudentsPage() {
   const [{ data: students }, { data: openBills }] = await Promise.all([
     supabase
       .from("readers")
-      .select("*, seats:fixed_seat_id(seat_number)")
-      .order("created_at", { ascending: false }),
+      .select("id, name, phone, status, reader_type, monthly_fee, onboarding_completed, caution_refunded, seats:seats!fixed_seat_id(seat_number)")
+      .order("created_at", { ascending: false })
+      .limit(200),
     supabase
       .from("bills")
       .select("reader_id, status")
@@ -21,9 +23,17 @@ export default async function StaffStudentsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Students</p>
-        <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Student Records</h1>
+      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 flex items-center justify-between">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Students</p>
+          <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Student Records</h1>
+        </div>
+        <Link
+          href="/staff/students/onboard"
+          className="rounded-2xl bg-[#1b3022] px-6 py-3 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-[#1b3022]/20 transition hover:bg-[#27452e]"
+        >
+          Add Student
+        </Link>
       </section>
 
       <div className="space-y-4">
@@ -31,8 +41,10 @@ export default async function StaffStudentsPage() {
           <article key={student.id} className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-2xl font-black text-[#1b3022]">{student.name}</p>
-                <p className="mt-2 text-sm font-medium text-[#556455]">{student.phone}</p>
+                <h2 className="text-xl font-black text-[#1b3022]">{student.name}</h2>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#6d7c6c]">
+                  {student.reader_type} Plan · {student.status.replaceAll("_", " ")}
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#6d7c6c]">{student.reader_type}</p>

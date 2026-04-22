@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, BookOpen, BriefcaseBusiness, CalendarDays, CircleDollarSign, ClipboardList, DoorOpen, GraduationCap, Home, Inbox, LogOut, Megaphone, NotebookPen, Settings, Timer, User, Users, Wallet, Bot } from "lucide-react";
+import { Bell, BookOpen, BriefcaseBusiness, CalendarDays, CircleDollarSign, ClipboardList, DoorOpen, GraduationCap, Home, Inbox, LogOut, Megaphone, NotebookPen, Settings, Timer, User, Users, Wallet, Bot, CheckCircle2 } from "lucide-react";
 import { type ReactNode } from "react";
 
 import type { AppRole } from "@/lib/billing-utils";
@@ -15,12 +15,14 @@ const superAdminLinks = [
   { href: "/super-admin/enquiries", label: "Enquiries", icon: ClipboardList },
   { href: "/super-admin/students", label: "Students", icon: Users },
   { href: "/super-admin/seats", label: "Seats", icon: NotebookPen },
+  { href: "/super-admin/attendance", label: "Attendance", icon: CheckCircle2 },
   { href: "/super-admin/night-logs", label: "Night Logs", icon: Timer },
   { href: "/super-admin/billing", label: "Billing", icon: CircleDollarSign },
   { href: "/super-admin/content", label: "Content", icon: BriefcaseBusiness },
   { href: "/super-admin/support", label: "Support", icon: Inbox },
   { href: "/super-admin/staff", label: "Staff", icon: Users },
   { href: "/super-admin/chatbot", label: "Bhanu AI", icon: Bot },
+  { href: "/super-admin/expenses", label: "Expenses", icon: Wallet },
   { href: "/super-admin/exit-requests", label: "Exit Requests", icon: DoorOpen },
   { href: "/super-admin/settings", label: "Settings", icon: Settings },
 ];
@@ -30,8 +32,10 @@ const staffLinks = [
   { href: "/staff/enquiries", label: "Enquiries", icon: ClipboardList },
   { href: "/staff/students", label: "Students", icon: Users },
   { href: "/staff/seats", label: "Seats", icon: NotebookPen },
+  { href: "/staff/attendance", label: "Attendance", icon: CheckCircle2 },
   { href: "/staff/billing", label: "Billing", icon: CircleDollarSign },
   { href: "/staff/content", label: "Content", icon: BriefcaseBusiness },
+  { href: "/staff/expenses", label: "Expenses", icon: Wallet },
   { href: "/staff/support", label: "Support", icon: Inbox },
   { href: "/staff/exit-requests", label: "Exit Requests", icon: DoorOpen },
 ];
