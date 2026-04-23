@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Megaphone, Newspaper } from "lucide-react";
 
 import { ExpandableText } from "@/components/student/expandable-text";
 import type { PostRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ListSkeleton } from "@/components/dashboard/suspense-skeletons";
 
 export const dynamic = "force-dynamic";
 
@@ -21,18 +23,9 @@ const announcementFilters = [
   ["note", "Notes"],
 ] as const;
 
-export default async function StudentAnnouncementsPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ filter?: string }>;
-}) {
-  await requireDashboardContext(["student"]);
+// Async component — fetches posts independently
+async function AnnouncementsFeed({ activeFilter }: { activeFilter: string }) {
   const supabase = createAdminClient();
-  const resolvedSearchParams = (await searchParams) ?? {};
-  const activeFilter = announcementFilters.some(([value]) => value === resolvedSearchParams.filter)
-    ? resolvedSearchParams.filter!
-    : "all";
-
   const { data: posts } = await supabase
     .from("posts")
     .select("*")
@@ -46,8 +39,63 @@ export default async function StudentAnnouncementsPage({
     ? allPosts
     : allPosts.filter((post) => post.type === activeFilter);
 
+  if (filteredPosts.length === 0) {
+    return (
+      <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-12 text-center shadow-lg shadow-[#27452e]/6">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#eef3ea]">
+          <Newspaper className="h-8 w-8 text-[#6d7c6c]" />
+        </div>
+        <p className="mt-4 text-lg font-black text-[#1b3022]">
+          {activeFilter === "all" ? "No announcements yet" : `No ${activeFilter.replaceAll("_", " ")} posts yet`}
+        </p>
+        <p className="mt-2 text-sm font-medium text-[#536352]">Staff announcements will show up here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {filteredPosts.map((post) => (
+        <div key={post.id} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-5 shadow shadow-[#27452e]/4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-black text-[#1b3022]">{post.title}</p>
+              {post.summary && <p className="mt-2 text-sm leading-6 text-[#536352]">{post.summary}</p>}
+            </div>
+            <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.22em] ${typeBadge[post.type] ?? "bg-[#f2f6ef] text-[#60705f] border-[#d8e0d4]"}`}>
+              {post.type.replaceAll("_", " ")}
+            </span>
+          </div>
+          <div className="mt-4">
+            <ExpandableText text={post.content} />
+          </div>
+          <p className="mt-3 text-[10px] font-bold text-[#8a9d88]">
+            {post.published_at
+              ? new Date(post.published_at).toLocaleDateString("en-IN", {
+                  day: "numeric", month: "short", year: "numeric",
+                })
+              : ""}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default async function StudentAnnouncementsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ filter?: string }>;
+}) {
+  await requireDashboardContext(["student"]);
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const activeFilter = announcementFilters.some(([value]) => value === resolvedSearchParams.filter)
+    ? resolvedSearchParams.filter!
+    : "all";
+
   return (
     <div className="space-y-8">
+      {/* ── Hero (INSTANT) ── */}
       <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
         <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Announcements</p>
         <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Hub Pinboard</h1>
@@ -56,6 +104,7 @@ export default async function StudentAnnouncementsPage({
         </p>
       </section>
 
+      {/* ── Filter Tabs (INSTANT — no data needed) ── */}
       <section className="flex flex-wrap gap-2">
         {announcementFilters.map(([value, label]) => {
           const active = value === activeFilter;
@@ -74,46 +123,12 @@ export default async function StudentAnnouncementsPage({
         })}
       </section>
 
-      {filteredPosts.length > 0 ? (
-        <div className="space-y-3">
-          {filteredPosts.map((post) => (
-            <div key={post.id} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-5 shadow shadow-[#27452e]/4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-lg font-black text-[#1b3022]">{post.title}</p>
-                  {post.summary && <p className="mt-2 text-sm leading-6 text-[#536352]">{post.summary}</p>}
-                </div>
-                <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.22em] ${typeBadge[post.type] ?? "bg-[#f2f6ef] text-[#60705f] border-[#d8e0d4]"}`}>
-                  {post.type.replaceAll("_", " ")}
-                </span>
-              </div>
-              <div className="mt-4">
-                <ExpandableText text={post.content} />
-              </div>
-              <p className="mt-3 text-[10px] font-bold text-[#8a9d88]">
-                {post.published_at
-                  ? new Date(post.published_at).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : ""}
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-12 text-center shadow-lg shadow-[#27452e]/6">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#eef3ea]">
-            <Newspaper className="h-8 w-8 text-[#6d7c6c]" />
-          </div>
-          <p className="mt-4 text-lg font-black text-[#1b3022]">
-            {activeFilter === "all" ? "No announcements yet" : `No ${activeFilter.replaceAll("_", " ")} posts yet`}
-          </p>
-          <p className="mt-2 text-sm font-medium text-[#536352]">Staff announcements will show up here.</p>
-        </div>
-      )}
+      {/* ── Feed (SUSPENSE — streams independently) ── */}
+      <Suspense fallback={<ListSkeleton rows={4} />}>
+        <AnnouncementsFeed activeFilter={activeFilter} />
+      </Suspense>
 
+      {/* ── Footer tip (INSTANT) ── */}
       <div className="rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 text-xs font-semibold text-[#536352]">
         <p className="inline-flex items-center gap-2">
           <Megaphone className="h-4 w-4" />

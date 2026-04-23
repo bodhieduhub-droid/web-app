@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ArrowRightLeft, FileCheck, MapPin } from "lucide-react";
 
 import { updateExamInterestsAction } from "@/app/(dashboard)/actions";
@@ -6,6 +7,7 @@ import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { SeatChangeRequestRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CardsSkeleton } from "@/components/dashboard/suspense-skeletons";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +31,8 @@ const statusColor: Record<string, string> = {
   archived: "bg-purple-50 text-purple-700 border-purple-200",
 };
 
-export default async function ProfilePage() {
-  const { student } = await requireDashboardContext(["student"]);
-  if (!student) return null;
-
+// Async component — loads all profile data independently
+async function ProfileContent({ studentId }: { studentId: string }) {
   const supabase = createAdminClient();
 
   const [
@@ -41,62 +41,69 @@ export default async function ProfilePage() {
     { data: availableSeats },
     { data: pendingSeatRequest },
   ] = await Promise.all([
-    supabase.from("student_exam_interests").select("category").eq("reader_id", student.id),
-    student.fixed_seat_id
-      ? supabase.from("seats").select("seat_number").eq("id", student.fixed_seat_id).maybeSingle()
-      : Promise.resolve({ data: null }),
+    supabase.from("student_exam_interests").select("category").eq("reader_id", studentId),
+    supabase.from("seats").select("seat_number, id").eq("status", "available").order("seat_number", { ascending: true }).limit(1),
     supabase.from("seats").select("id, seat_number").eq("status", "available").order("seat_number", { ascending: true }),
     supabase
       .from("seat_change_requests")
       .select("*")
-      .eq("reader_id", student.id)
+      .eq("reader_id", studentId)
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
   ]);
 
+  // Fetch current assigned seat for student
+  const { data: studentRow } = await supabase
+    .from("readers")
+    .select("fixed_seat_id, status, name, email, phone, address, purpose, join_date, monthly_fee, registration_paid, caution_paid, id_proof_url, preparing_for_exam")
+    .eq("id", studentId)
+    .maybeSingle();
+
   const selectedCategories = (interests ?? []).map((i) => i.category as string);
-  const seatNumber = (currentSeatData as { seat_number?: number } | null)?.seat_number ?? null;
   const seats = (availableSeats ?? []) as { id: string; seat_number: number }[];
   const activeSeatRequest = pendingSeatRequest as SeatChangeRequestRecord | null;
-  const { data: requestedSeatData } = activeSeatRequest
-    ? await supabase
-        .from("seats")
-        .select("seat_number")
-        .eq("id", activeSeatRequest.requested_seat_id)
-        .maybeSingle()
-    : { data: null as { seat_number?: number } | null };
-  const requestedSeatNumber = requestedSeatData?.seat_number ?? null;
 
-  const joinDate = new Date(student.join_date).toLocaleDateString("en-IN", {
-    day: "numeric", month: "long", year: "numeric",
-  });
+  // Get current seat number
+  let seatNumber: number | null = null;
+  if (studentRow?.fixed_seat_id) {
+    const { data: seatData } = await supabase
+      .from("seats")
+      .select("seat_number")
+      .eq("id", studentRow.fixed_seat_id)
+      .maybeSingle();
+    seatNumber = (seatData as { seat_number?: number } | null)?.seat_number ?? null;
+  }
+
+  // Get requested seat number
+  let requestedSeatNumber: number | null = null;
+  if (activeSeatRequest) {
+    const { data: reqSeat } = await supabase
+      .from("seats")
+      .select("seat_number")
+      .eq("id", activeSeatRequest.requested_seat_id)
+      .maybeSingle();
+    requestedSeatNumber = (reqSeat as { seat_number?: number } | null)?.seat_number ?? null;
+  }
+
+  const joinDate = studentRow?.join_date
+    ? new Date(studentRow.join_date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+    : "—";
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
-        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">My Profile</p>
-        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">{student.name}</h1>
-        {seatNumber && (
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2">
-            <MapPin className="h-3.5 w-3.5" />
-            <span className="text-sm font-bold">Seat #{seatNumber}</span>
-          </div>
-        )}
-      </section>
-
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Personal Info */}
         <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
           <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Personal Details</p>
           <div className="mt-5 space-y-3">
             {[
-              { label: "Full Name", value: student.name },
-              { label: "Email", value: student.email ?? "—" },
-              { label: "Phone", value: student.phone },
-              { label: "Address", value: student.address ?? "—" },
-              { label: "Purpose", value: student.purpose ?? "—" },
+              { label: "Full Name", value: studentRow?.name ?? "—" },
+              { label: "Email", value: studentRow?.email ?? "—" },
+              { label: "Phone", value: studentRow?.phone ?? "—" },
+              { label: "Address", value: studentRow?.address ?? "—" },
+              { label: "Purpose", value: studentRow?.purpose ?? "—" },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-2xl bg-[#f7faf5] px-4 py-3">
                 <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#8a9d88]">{label}</p>
@@ -114,13 +121,13 @@ export default async function ProfilePage() {
             <div className="mt-5 space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm font-bold text-[#536352]">Status</p>
-                <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] ${statusColor[student.status] ?? "bg-[#f2f6ef] text-[#60705f] border-[#d8e0d4]"}`}>
-                  {statusLabel[student.status] ?? student.status}
+                <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] ${statusColor[studentRow?.status ?? ""] ?? "bg-[#f2f6ef] text-[#60705f] border-[#d8e0d4]"}`}>
+                  {statusLabel[studentRow?.status ?? ""] ?? (studentRow?.status ?? "—")}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm font-bold text-[#536352]">Monthly Fee</p>
-                <p className="text-lg font-black text-[#1b3022]">₹{student.monthly_fee}</p>
+                <p className="text-lg font-black text-[#1b3022]">₹{studentRow?.monthly_fee ?? "—"}</p>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm font-bold text-[#536352]">Joined</p>
@@ -141,8 +148,8 @@ export default async function ProfilePage() {
             <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Fee Deposits</p>
             <div className="mt-4 space-y-3">
               {[
-                { label: "Registration Fee", paid: student.registration_paid },
-                { label: "Caution Deposit", paid: student.caution_paid },
+                { label: "Registration Fee", paid: studentRow?.registration_paid },
+                { label: "Caution Deposit", paid: studentRow?.caution_paid },
               ].map(({ label, paid }) => (
                 <div key={label} className="flex items-center justify-between gap-4">
                   <p className="text-sm font-bold text-[#536352]">{label}</p>
@@ -155,11 +162,11 @@ export default async function ProfilePage() {
           </div>
 
           {/* ID Proof */}
-          {student.id_proof_url && (
+          {studentRow?.id_proof_url && (
             <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
               <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">ID Proof</p>
               <a
-                href={student.id_proof_url}
+                href={studentRow.id_proof_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-[#d8e0d4] px-4 py-2.5 text-sm font-bold text-[#1b3022] transition hover:bg-[#f3f7f0]"
@@ -172,7 +179,7 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      {/* ── Seat Change Request ── */}
+      {/* Seat Change Request */}
       <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eef3ea]">
@@ -183,7 +190,7 @@ export default async function ProfilePage() {
             <h2 className="mt-1 text-2xl font-black text-[#1b3022]">Request Seat Change</h2>
             <p className="mt-1 text-sm font-medium text-[#536352]">
               {seatNumber
-                ? `You are currently on Seat #${seatNumber}. Select an available seat below to notify staff of a change request.`
+                ? `You are on Seat #${seatNumber}. Select an available seat to notify staff.`
                 : "You don't have a seat assigned yet. Once assigned, you can request a change here."}
             </p>
           </div>
@@ -193,19 +200,15 @@ export default async function ProfilePage() {
           <div className="mt-6 rounded-[1.6rem] border border-amber-200 bg-amber-50 px-5 py-4">
             <p className="text-sm font-semibold text-amber-800">Seat-change request pending</p>
             <p className="mt-2 text-lg font-black text-amber-900">
-              {seatNumber ? `Seat #${seatNumber}` : "No current seat"} to {requestedSeatNumber ? `Seat #${requestedSeatNumber}` : "requested seat"}
+              {seatNumber ? `Seat #${seatNumber}` : "No current seat"} → {requestedSeatNumber ? `Seat #${requestedSeatNumber}` : "requested seat"}
             </p>
             <p className="mt-2 text-sm font-medium leading-6 text-amber-800">
-              Staff has your request already. You can submit another request once this one is approved or declined.
+              Staff has your request. You can submit another once this one is resolved.
             </p>
             <p className="mt-3 text-sm font-medium text-amber-700">
               Requested on{" "}
               {new Date(activeSeatRequest.created_at).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
+                day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
               })}
             </p>
           </div>
@@ -218,7 +221,7 @@ export default async function ProfilePage() {
         )}
       </div>
 
-      {/* ── Exam Interests ── */}
+      {/* Exam Interests */}
       <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
         <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Exam Preferences</p>
         <h2 className="mt-3 text-2xl font-black text-[#1b3022]">Update Your Exam Goals</h2>
@@ -231,11 +234,11 @@ export default async function ProfilePage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#8a9d88]">Preparing for exams?</p>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 text-sm font-semibold text-[#1b3022]">
-                <input type="radio" name="preparing_for_exam" value="yes" defaultChecked={student.preparing_for_exam} />
+                <input type="radio" name="preparing_for_exam" value="yes" defaultChecked={studentRow?.preparing_for_exam ?? false} />
                 Yes
               </label>
               <label className="flex items-center gap-2 text-sm font-semibold text-[#1b3022]">
-                <input type="radio" name="preparing_for_exam" value="no" defaultChecked={!student.preparing_for_exam} />
+                <input type="radio" name="preparing_for_exam" value="no" defaultChecked={!(studentRow?.preparing_for_exam ?? false)} />
                 No
               </label>
             </div>
@@ -269,6 +272,29 @@ export default async function ProfilePage() {
           />
         </form>
       </div>
+    </div>
+  );
+}
+
+export default async function ProfilePage() {
+  const { student } = await requireDashboardContext(["student"]);
+  if (!student) return null;
+
+  return (
+    <div className="space-y-8">
+      {/* ── Hero (INSTANT) ── */}
+      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
+        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">My Profile</p>
+        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">{student.name}</h1>
+        <p className="mt-4 text-base font-medium leading-7 text-white/80">
+          Manage your membership details, seat preference, and exam goals.
+        </p>
+      </section>
+
+      {/* ── Profile Content (SUSPENSE — streams independently) ── */}
+      <Suspense fallback={<CardsSkeleton count={4} cols={2} />}>
+        <ProfileContent studentId={student.id} />
+      </Suspense>
     </div>
   );
 }

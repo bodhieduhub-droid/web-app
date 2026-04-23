@@ -210,6 +210,7 @@ async function CalendarContent({
 
   return (
     <div className="space-y-6">
+      {/* Stats strip */}
       <div className="grid gap-3 sm:grid-cols-3">
         {[{ label: "Total Items", value: plannerEntries.length }, { label: "Planned", value: plannedCount }, { label: "Completed", value: completedCount }].map((stat) => (
           <div key={stat.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-md">
@@ -218,46 +219,8 @@ async function CalendarContent({
           </div>
         ))}
       </div>
-    <div className="space-y-6 lg:space-y-8">
-      <section className="rounded-[2rem] bg-[#1b3022] p-5 text-white shadow-2xl shadow-[#1b3022]/15 sm:p-7 lg:rounded-[2.4rem] lg:p-8">
-        <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-white/50 sm:text-[11px]">My Calendar</p>
-        <h1 className="mt-4 text-3xl font-black uppercase tracking-tight sm:text-4xl lg:text-5xl">Goals, Events, And Reminders</h1>
-        <p className="mt-3 max-w-3xl text-sm font-medium leading-6 text-white/80 sm:text-base sm:leading-7">
-          This calendar belongs to the student. Add your own study goals, mock tests, revision reminders, personal events, and daily plans without depending on staff updates.
-        </p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "Total Items", value: plannerEntries.length },
-            { label: "Planned", value: plannedCount },
-            { label: "Completed", value: completedCount },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-[1.4rem] border border-white/10 bg-white/8 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/55">{stat.label}</p>
-              <p className="mt-2 text-2xl font-black text-white">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      <section className="flex flex-wrap gap-2 sm:gap-3">
-        {viewOptions.map(([value, label]) => {
-          const active = value === view;
-          return (
-            <Link
-              key={value}
-              href={buildViewHref(value, monthDate, selectedDate)}
-              prefetch={false}
-              className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition sm:text-sm ${
-                active ? "border-[#1b3022] bg-[#1b3022] text-white" : "border-[#d8e0d4] bg-white text-[#536352]"
-              }`}
-            >
-              {label}
-            </Link>
-          );
-        })}
-      </section>
-
-      {view === "month" ? (
+      {activeView === "month" ? (
         <div className="space-y-6">
           <section className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 sm:p-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -393,7 +356,7 @@ async function CalendarContent({
                     ["add", "Add"],
                     ["manage", "Manage"],
                   ].map(([value, label]) => {
-                    const active = panel === value;
+                    const active = activePanel === value;
                     return (
                       <Link
                         key={value}
@@ -409,7 +372,7 @@ async function CalendarContent({
                   })}
                 </div>
 
-                {panel === "overview" ? (
+                {activePanel === "overview" ? (
                   <div className="mt-5 rounded-[1.6rem] border border-dashed border-[#d8e0d4] bg-[#fbfcfa] p-5">
                     <p className="text-lg font-black text-[#1b3022]">Keep the month grid in focus</p>
                     <p className="mt-2 text-sm font-medium leading-6 text-[#536352]">
@@ -435,7 +398,7 @@ async function CalendarContent({
                   </div>
                 ) : null}
 
-                {panel === "add" ? (
+                {activePanel === "add" ? (
                   <div className="mt-5">
                     <CalendarAddForm
                       defaultStartsAt={plannerDefaultStart}
@@ -445,7 +408,7 @@ async function CalendarContent({
                   </div>
                 ) : null}
 
-                {panel === "manage" ? (
+                {activePanel === "manage" ? (
                   plannerEntries.length === 0 ? (
                     <div className="mt-5 rounded-[1.6rem] border border-dashed border-[#d8e0d4] bg-[#f7faf5] p-8 text-center">
                       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-white shadow-sm">
@@ -535,7 +498,6 @@ async function CalendarContent({
           ))}
         </div>
       )}
-    </div>
     </div>
   );
 }

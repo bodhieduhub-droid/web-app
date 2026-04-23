@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 import { PaymentProofForm } from "@/components/student/payment-proof-form";
@@ -8,6 +9,7 @@ import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getHubSettings } from "@/lib/settings";
 import { getOptimizedImage } from "@/lib/utils";
+import { CardsSkeleton, ListSkeleton } from "@/components/dashboard/suspense-skeletons";
 
 export const dynamic = "force-dynamic";
 
@@ -23,57 +25,25 @@ const statusColor: Record<string, string> = {
 };
 
 const TRANSACTION_PAGE_SIZE = 12;
-
 const remoteImageLoader = ({ src }: { src: string }) => src;
 
-export default async function PaymentsPage({
-  searchParams,
+// Async: summary stats + UPI info + open invoices
+async function PaymentsSummary({
+  studentId,
+  focusedInvoiceId,
 }: {
-  searchParams?: Promise<{ invoiceId?: string; txCursor?: string }>;
+  studentId: string;
+  focusedInvoiceId: string | null;
 }) {
-  const { student } = await requireDashboardContext(["student"]);
-  if (!student) return null;
-
   const supabase = createAdminClient();
-  const settings = await getHubSettings();
-  const resolvedSearchParams = (await searchParams) ?? {};
-  const txCursor = resolvedSearchParams.txCursor ?? null;
-  const focusedInvoiceId = resolvedSearchParams.invoiceId ?? null;
-
-  const { data: bills } = await supabase
-    .from("bills")
-    .select("*")
-    .eq("reader_id", student.id)
-    .order("created_at", { ascending: false })
-    .limit(120);
-
-  const { data: transactionRows } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("reader_id", student.id)
-    .order("created_at", { ascending: false })
-    .limit(120);
-
-  const transactionHistoryQuery = supabase
-    .from("transactions")
-    .select("*")
-    .eq("reader_id", student.id)
-    .order("submitted_at", { ascending: false })
-    .limit(TRANSACTION_PAGE_SIZE + 1);
-
-  if (txCursor) {
-    transactionHistoryQuery.lt("submitted_at", txCursor);
-  }
-
-  const { data: transactionHistoryRows } = await transactionHistoryQuery;
+  const [settings, { data: bills }, { data: transactionRows }] = await Promise.all([
+    getHubSettings(),
+    supabase.from("bills").select("*").eq("reader_id", studentId).order("created_at", { ascending: false }).limit(120),
+    supabase.from("transactions").select("*").eq("reader_id", studentId).order("created_at", { ascending: false }).limit(120),
+  ]);
 
   const allBills = (bills ?? []) as BillRecord[];
   const allTransactions = (transactionRows ?? []) as TransactionRecord[];
-  const pagedTransactions = ((transactionHistoryRows ?? []) as TransactionRecord[]).slice(0, TRANSACTION_PAGE_SIZE);
-  const nextTxCursor =
-    (transactionHistoryRows ?? []).length > TRANSACTION_PAGE_SIZE
-      ? pagedTransactions[pagedTransactions.length - 1]?.submitted_at ?? null
-      : null;
   const openBills = allBills.filter((b) => b.status !== "paid");
   const paidBills = allBills.filter((b) => b.status === "paid");
   const latestRejectedByBill = allTransactions
@@ -83,26 +53,14 @@ export default async function PaymentsPage({
       return acc;
     }, {});
   const pendingTransactionBillIds = new Set(
-    allTransactions.filter((transaction) => transaction.verification_status === "pending").map((transaction) => transaction.bill_id),
+    allTransactions.filter((t) => t.verification_status === "pending").map((t) => t.bill_id),
   );
-
   const totalDue = openBills.reduce((s, b) => s + (b.amount_due - b.amount_paid), 0);
-  const totalPaid = allTransactions
-    .filter((t) => t.verification_status === "verified")
-    .reduce((s, t) => s + t.amount, 0);
-  const ledgerAdjustments = allTransactions.filter((t) => ["refund", "manual_adjustment"].includes(t.type)).slice(0, 20);
+  const totalPaid = allTransactions.filter((t) => t.verification_status === "verified").reduce((s, t) => s + t.amount, 0);
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
-        <p className="text-sm font-semibold text-white/60">Payments</p>
-        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Billing & Dues</h1>
-        <p className="mt-4 text-base font-medium leading-7 text-white/80">
-          Track your invoices, submit UPI payment screenshots, and view verified transactions.
-        </p>
-      </section>
-
-      {/* Summary */}
+      {/* Summary Cards */}
       <section className="grid gap-4 sm:grid-cols-3">
         {[
           { label: "Total Due", value: `₹${totalDue.toFixed(0)}`, accent: totalDue > 0 },
@@ -140,6 +98,7 @@ export default async function PaymentsPage({
               <div className="rounded-2xl border border-[#d8e0d4] bg-[#f7faf5] p-3">
                 <p className="text-sm font-semibold text-[#6d7c6c]">UPI QR</p>
                 <Image
+                  loader={remoteImageLoader}
                   src={getOptimizedImage(settings.static_upi_qr_url, 300)}
                   alt="Hub UPI QR"
                   width={144}
@@ -214,85 +173,6 @@ export default async function PaymentsPage({
         )}
       </div>
 
-      {/* Transaction History */}
-      <div>
-        <p className="mb-4 text-sm font-semibold text-[#6d7c6c]">Transaction History</p>
-        {pagedTransactions.length > 0 ? (
-          <div className="space-y-3">
-            {pagedTransactions.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-4 rounded-[1.6rem] border border-[#d8e0d4] bg-white px-5 py-4 shadow shadow-[#27452e]/4">
-                <div>
-                  <p className={`font-black ${t.amount < 0 ? "text-red-700" : "text-[#1b3022]"}`}>
-                    {t.amount < 0 ? `-₹${Math.abs(t.amount)}` : `₹${t.amount}`}
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-[#60705f]">
-                    {new Date(t.submitted_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[#6d7c6c]">
-                    {t.type.replaceAll("_", " ")}
-                  </p>
-                  {t.verification_notes ? (
-                    <p className="mt-1 text-sm font-semibold text-[#536352]">{t.verification_notes}</p>
-                  ) : null}
-                  {t.payment_proof_url && (
-                    <a href={t.payment_proof_url} target="_blank" rel="noreferrer" className="mt-2 inline-block">
-                      <Image
-                        src={getOptimizedImage(t.payment_proof_url, 200)}
-                        alt="Payment proof"
-                        width={48}
-                        height={48}
-                        className="h-12 w-12 rounded-lg border border-[#d8e0d4] object-cover"
-                      />
-                    </a>
-                  )}
-                </div>
-                <span className={`rounded-full border px-3 py-1 text-sm font-semibold uppercase ${statusColor[t.verification_status] ?? "bg-[#f2f6ef] text-[#60705f] border-[#d8e0d4]"}`}>
-                  {t.verification_status.replaceAll("_", " ")}
-                </span>
-              </div>
-            ))}
-            {nextTxCursor ? (
-              <div className="pt-2">
-                <Link
-                  href={`/student/payments?txCursor=${encodeURIComponent(nextTxCursor)}`}
-                  className="inline-flex rounded-2xl border border-[#d8e0d4] px-4 py-3 text-sm font-semibold text-[#1b3022] transition hover:bg-[#f3f7f0]"
-                >
-                  Load older transactions
-                </Link>
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 text-sm font-medium text-[#536352] shadow-lg shadow-[#27452e]/6">
-            No transactions recorded yet.
-          </div>
-        )}
-      </div>
-
-      {/* Refund / Adjustment Ledger */}
-      <div>
-        <p className="mb-4 text-sm font-semibold text-[#6d7c6c]">Refund & Adjustment Ledger</p>
-        {ledgerAdjustments.length > 0 ? (
-          <div className="space-y-3">
-            {ledgerAdjustments.map((entry) => (
-              <div key={entry.id} className="rounded-[1.6rem] border border-[#d8e0d4] bg-white px-5 py-4 shadow shadow-[#27452e]/4">
-                <p className={`font-black ${entry.amount < 0 ? "text-red-700" : "text-[#1b3022]"}`}>
-                  {entry.amount < 0 ? `Refund -₹${Math.abs(entry.amount)}` : `Adjustment +₹${entry.amount}`}
-                </p>
-                <p className="mt-1 text-sm font-medium text-[#60705f]">
-                  {new Date(entry.submitted_at).toLocaleString("en-IN")}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#536352]">{entry.verification_notes || "No note"}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 text-sm font-medium text-[#536352] shadow-lg shadow-[#27452e]/6">
-            No refund or manual adjustment entries yet.
-          </div>
-        )}
-      </div>
-
       {/* Paid Invoices */}
       {paidBills.length > 0 && (
         <div>
@@ -310,6 +190,144 @@ export default async function PaymentsPage({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Async: transaction history (paginated separately)
+async function TransactionHistory({
+  studentId,
+  txCursor,
+}: {
+  studentId: string;
+  txCursor: string | null;
+}) {
+  const supabase = createAdminClient();
+  const query = supabase
+    .from("transactions")
+    .select("*")
+    .eq("reader_id", studentId)
+    .order("submitted_at", { ascending: false })
+    .limit(TRANSACTION_PAGE_SIZE + 1);
+
+  if (txCursor) query.lt("submitted_at", txCursor);
+  const { data: rows } = await query;
+
+  const allTransactions = (rows ?? []) as TransactionRecord[];
+  const paged = allTransactions.slice(0, TRANSACTION_PAGE_SIZE);
+  const nextTxCursor =
+    allTransactions.length > TRANSACTION_PAGE_SIZE
+      ? paged[paged.length - 1]?.submitted_at ?? null
+      : null;
+  const ledgerAdjustments = paged.filter((t) => ["refund", "manual_adjustment"].includes(t.type));
+
+  return (
+    <div className="space-y-8">
+      {/* Transaction History */}
+      <div>
+        <p className="mb-4 text-sm font-semibold text-[#6d7c6c]">Transaction History</p>
+        {paged.length > 0 ? (
+          <div className="space-y-3">
+            {paged.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-4 rounded-[1.6rem] border border-[#d8e0d4] bg-white px-5 py-4 shadow shadow-[#27452e]/4">
+                <div>
+                  <p className={`font-black ${t.amount < 0 ? "text-red-700" : "text-[#1b3022]"}`}>
+                    {t.amount < 0 ? `-₹${Math.abs(t.amount)}` : `₹${t.amount}`}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-[#60705f]">
+                    {new Date(t.submitted_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-[#6d7c6c]">{t.type.replaceAll("_", " ")}</p>
+                  {t.verification_notes && <p className="mt-1 text-sm font-semibold text-[#536352]">{t.verification_notes}</p>}
+                  {t.payment_proof_url && (
+                    <a href={t.payment_proof_url} target="_blank" rel="noreferrer" className="mt-2 inline-block">
+                      <Image
+                        loader={remoteImageLoader}
+                        src={getOptimizedImage(t.payment_proof_url, 200)}
+                        alt="Payment proof"
+                        width={48}
+                        height={48}
+                        className="h-12 w-12 rounded-lg border border-[#d8e0d4] object-cover"
+                      />
+                    </a>
+                  )}
+                </div>
+                <span className={`rounded-full border px-3 py-1 text-sm font-semibold uppercase ${statusColor[t.verification_status] ?? "bg-[#f2f6ef] text-[#60705f] border-[#d8e0d4]"}`}>
+                  {t.verification_status.replaceAll("_", " ")}
+                </span>
+              </div>
+            ))}
+            {nextTxCursor && (
+              <div className="pt-2">
+                <Link
+                  href={`/student/payments?txCursor=${encodeURIComponent(nextTxCursor)}`}
+                  className="inline-flex rounded-2xl border border-[#d8e0d4] px-4 py-3 text-sm font-semibold text-[#1b3022] transition hover:bg-[#f3f7f0]"
+                >
+                  Load older transactions
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 text-sm font-medium text-[#536352] shadow-lg shadow-[#27452e]/6">
+            No transactions recorded yet.
+          </div>
+        )}
+      </div>
+
+      {/* Refund / Adjustment Ledger */}
+      {ledgerAdjustments.length > 0 && (
+        <div>
+          <p className="mb-4 text-sm font-semibold text-[#6d7c6c]">Refund &amp; Adjustment Ledger</p>
+          <div className="space-y-3">
+            {ledgerAdjustments.map((entry) => (
+              <div key={entry.id} className="rounded-[1.6rem] border border-[#d8e0d4] bg-white px-5 py-4 shadow shadow-[#27452e]/4">
+                <p className={`font-black ${entry.amount < 0 ? "text-red-700" : "text-[#1b3022]"}`}>
+                  {entry.amount < 0 ? `Refund -₹${Math.abs(entry.amount)}` : `Adjustment +₹${entry.amount}`}
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#60705f]">{new Date(entry.submitted_at).toLocaleString("en-IN")}</p>
+                <p className="mt-1 text-sm font-semibold text-[#536352]">{entry.verification_notes || "No note"}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default async function PaymentsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ invoiceId?: string; txCursor?: string }>;
+}) {
+  const { student } = await requireDashboardContext(["student"]);
+  if (!student) return null;
+
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const txCursor = resolvedSearchParams.txCursor ?? null;
+  const focusedInvoiceId = resolvedSearchParams.invoiceId ?? null;
+
+  return (
+    <div className="space-y-8">
+      {/* ── Hero (INSTANT) ── */}
+      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
+        <p className="text-sm font-semibold text-white/60">Payments</p>
+        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Billing &amp; Dues</h1>
+        <p className="mt-4 text-base font-medium leading-7 text-white/80">
+          Track your invoices, submit UPI payment screenshots, and view verified transactions.
+        </p>
+      </section>
+
+      {/* ── Summary + Invoices (SUSPENSE — streams independently) ── */}
+      <Suspense fallback={<CardsSkeleton count={3} cols={3} />}>
+        <PaymentsSummary studentId={student.id} focusedInvoiceId={focusedInvoiceId} />
+      </Suspense>
+
+      {/* ── Transaction History (SUSPENSE — streams independently) ── */}
+      <Suspense fallback={<ListSkeleton rows={4} />}>
+        <TransactionHistory studentId={student.id} txCursor={txCursor} />
+      </Suspense>
     </div>
   );
 }

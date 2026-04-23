@@ -50,21 +50,6 @@ async function ResourcesContent({ studentId, view, category }: { studentId: stri
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
-        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Resources</p>
-        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Study Materials</h1>
-        <p className="mt-4 text-base font-medium leading-7 text-white/80">
-          Notes and resources published by Bodhi Edu Hub staff
-          {categories.length > 0 ? `, personalized for ${categories.join(", ")}` : ""}.
-        </p>
-        {categories.length > 0 && (
-          <div className="mt-5 flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <span key={cat} className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">{cat}</span>
-            ))}
-          </div>
-        )}
-      </section>
 
       <section className="space-y-3">
         <div className="flex flex-wrap gap-2">

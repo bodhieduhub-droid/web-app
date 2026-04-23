@@ -368,40 +368,210 @@ export function StudyTimerClient({ insights }: { insights: StudyInsights }) {
     };
   }, [finishWorkSession, phase, preset.rest, preset.work, quotes.length, running]);
 
-  return (
-    <div ref={rootRef} className={isFullscreen ? "min-h-screen bg-[#eef3ea] px-6 py-8" : "space-y-8"}>
-      {isFullscreen ? (
-        <section className="flex items-center justify-between gap-4 rounded-[2rem] bg-[#1b3022] px-6 py-5 text-white shadow-2xl shadow-[#1b3022]/15">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Fullscreen Focus</p>
-            <h1 className="mt-2 text-2xl font-black uppercase tracking-tight">Stay With The Block</h1>
-          </div>
-          <button
-            onClick={toggleFullscreen}
-            className="rounded-2xl border border-white/20 px-5 py-3 text-[11px] font-black uppercase tracking-[0.28em] text-white"
-          >
-            Exit Fullscreen
-          </button>
-        </section>
-      ) : (
-        <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
-          <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Study Timer</p>
-          <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Focus Mode</h1>
-          <p className="mt-4 text-base font-medium leading-7 text-white/80">
-            Use the Pomodoro technique to maximize deep work. Study hard, rest smart.
-          </p>
-        </section>
-      )}
+  /* ─── Fullscreen overlay: timer only ─────────────────────────── */
+  if (isFullscreen) {
+    const fsCircumference = 2 * Math.PI * 110;
+    return (
+      <div
+        ref={rootRef}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          background: "#0e1f14",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "clamp(16px, 3vh, 32px)",
+          padding: "clamp(16px, 4vw, 48px)",
+          fontFamily: "inherit",
+        }}
+      >
+        {/* Phase badge */}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            borderRadius: 999,
+            padding: "6px 18px",
+            fontSize: "clamp(10px, 1.2vw, 13px)",
+            fontWeight: 900,
+            letterSpacing: "0.3em",
+            textTransform: "uppercase",
+            background: phase === "work" ? "#34d399" : "#1b3022",
+            color: phase === "work" ? "#0e1f14" : "#34d399",
+          }}
+        >
+          {phase === "work" ? <Target style={{ width: 14, height: 14 }} /> : <Coffee style={{ width: 14, height: 14 }} />}
+          {phase === "work" ? "Focus" : "Rest"}
+        </span>
 
-      <div className={`grid gap-6 ${isFullscreen ? "xl:grid-cols-[1.25fr_0.75fr]" : "lg:grid-cols-[1fr_380px]"}`}>
-        <div className={`flex flex-col items-center rounded-[2rem] border border-[#d8e0d4] bg-white p-8 shadow-xl shadow-[#27452e]/8 ${isFullscreen ? "justify-center" : ""}`}>
+        {/* SVG ring + time */}
+        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg
+            viewBox="0 0 240 240"
+            style={{
+              width: "clamp(200px, 38vmin, 380px)",
+              height: "clamp(200px, 38vmin, 380px)",
+              transform: "rotate(-90deg)",
+            }}
+          >
+            <circle cx="120" cy="120" r="110" fill="none" stroke="#1b3022" strokeWidth="12" />
+            <circle
+              cx="120" cy="120" r="110"
+              fill="none"
+              stroke={phase === "work" ? "#34d399" : "#4ade80"}
+              strokeWidth="12"
+              strokeDasharray={fsCircumference}
+              strokeDashoffset={fsCircumference * (1 - progress)}
+              strokeLinecap="round"
+              style={{ transition: "stroke-dashoffset 1s linear" }}
+            />
+          </svg>
+          <div
+            style={{
+              position: "absolute",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "clamp(36px, 8vmin, 96px)",
+                fontWeight: 900,
+                fontVariantNumeric: "tabular-nums",
+                color: "#f0fdf4",
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {formatTime(secondsLeft)}
+            </p>
+            <p
+              style={{
+                marginTop: 6,
+                fontSize: "clamp(9px, 1.1vmin, 12px)",
+                fontWeight: 700,
+                letterSpacing: "0.25em",
+                textTransform: "uppercase",
+                color: "#4d7a5e",
+              }}
+            >
+              {phase === "work" ? "minutes left" : "rest time"}
+            </p>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div style={{ display: "flex", gap: "clamp(8px, 2vw, 16px)", flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={() => {
+              if (!running && phase === "work" && !sessionStartedAt) {
+                setSessionStartedAt(new Date().toISOString());
+              }
+              setRunning((c) => !c);
+            }}
+            style={{
+              background: "#34d399",
+              color: "#0e1f14",
+              border: "none",
+              borderRadius: 16,
+              padding: "clamp(10px, 1.8vmin, 18px) clamp(28px, 5vw, 56px)",
+              fontSize: "clamp(11px, 1.4vmin, 14px)",
+              fontWeight: 900,
+              letterSpacing: "0.3em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              boxShadow: "0 0 32px #34d39944",
+            }}
+          >
+            {running ? "Pause" : "Start"}
+          </button>
+          <button
+            onClick={() => resetTimer(true)}
+            style={{
+              background: "transparent",
+              color: "#4d7a5e",
+              border: "1px solid #1b3022",
+              borderRadius: 16,
+              padding: "clamp(10px, 1.8vmin, 18px) clamp(18px, 3vw, 36px)",
+              fontSize: "clamp(11px, 1.4vmin, 14px)",
+              fontWeight: 900,
+              letterSpacing: "0.3em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+            }}
+          >
+            Reset
+          </button>
+        </div>
+
+        {/* Session dots */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {Array.from({ length: Math.max(sessions, 4) }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                width: "clamp(8px, 1.2vmin, 12px)",
+                height: "clamp(8px, 1.2vmin, 12px)",
+                borderRadius: "50%",
+                background: i < sessions ? "#34d399" : "#1b3022",
+              }}
+            />
+          ))}
+          <p style={{ marginLeft: 8, fontSize: "clamp(10px, 1.2vmin, 12px)", fontWeight: 700, color: "#4d7a5e", letterSpacing: "0.1em" }}>
+            {sessions} session{sessions !== 1 ? "s" : ""} today
+          </p>
+        </div>
+
+        {/* Exit button */}
+        <button
+          onClick={toggleFullscreen}
+          style={{
+            position: "absolute",
+            top: "clamp(12px, 2vw, 24px)",
+            right: "clamp(12px, 2vw, 24px)",
+            background: "transparent",
+            color: "#4d7a5e",
+            border: "1px solid #1b3022",
+            borderRadius: 12,
+            padding: "8px 16px",
+            fontSize: 11,
+            fontWeight: 900,
+            letterSpacing: "0.28em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          ✕ Exit
+        </button>
+      </div>
+    );
+  }
+
+  /* ─── Normal (non-fullscreen) layout ──────────────────────────── */
+  return (
+    <div ref={rootRef} className="space-y-8">
+      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
+        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Study Timer</p>
+        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Focus Mode</h1>
+        <p className="mt-4 text-base font-medium leading-7 text-white/80">
+          Use the Pomodoro technique to maximize deep work. Study hard, rest smart.
+        </p>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        <div className="flex flex-col items-center rounded-[2rem] border border-[#d8e0d4] bg-white p-8 shadow-xl shadow-[#27452e]/8">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.3em] ${phase === "work" ? "bg-[#1b3022] text-white" : "bg-emerald-100 text-emerald-800"}`}>
             {phase === "work" ? <Target className="h-3.5 w-3.5" /> : <Coffee className="h-3.5 w-3.5" />}
             {phase === "work" ? "Focus" : "Rest"}
           </span>
 
           <div className="relative mt-8 flex items-center justify-center">
-            <svg viewBox="0 0 240 240" className={`${isFullscreen ? "h-72 w-72" : "h-56 w-56"} -rotate-90`}>
+            <svg viewBox="0 0 240 240" className="h-56 w-56 -rotate-90">
               <circle cx="120" cy="120" r="110" fill="none" stroke="#eef3ea" strokeWidth="12" />
               <circle
                 cx="120"
@@ -417,7 +587,7 @@ export function StudyTimerClient({ insights }: { insights: StudyInsights }) {
               />
             </svg>
             <div className="absolute flex flex-col items-center">
-              <p className={`${isFullscreen ? "text-6xl" : "text-5xl"} font-black tabular-nums text-[#1b3022]`}>{formatTime(secondsLeft)}</p>
+              <p className="text-5xl font-black tabular-nums text-[#1b3022]">{formatTime(secondsLeft)}</p>
               <p className="mt-1 text-xs font-bold uppercase tracking-widest text-[#8a9d88]">
                 {phase === "work" ? "minutes left" : "rest time"}
               </p>
@@ -587,8 +757,7 @@ export function StudyTimerClient({ insights }: { insights: StudyInsights }) {
             </div>
           </div>
 
-          {!isFullscreen ? (
-            <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
+          <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
               <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Your Exam</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {["DEFAULT", "UPSC", "SSC", "PSC", "BANKING", "RAILWAY"].map((category) => (
@@ -602,10 +771,8 @@ export function StudyTimerClient({ insights }: { insights: StudyInsights }) {
                 ))}
               </div>
             </div>
-          ) : null}
 
-          {!isFullscreen ? (
-            <div className="rounded-[2rem] border border-[#d8e0d4] bg-[#fafdf8] p-6 shadow-lg shadow-[#27452e]/6">
+          <div className="rounded-[2rem] border border-[#d8e0d4] bg-[#fafdf8] p-6 shadow-lg shadow-[#27452e]/6">
               <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Today&apos;s Thought</p>
               <p className="mt-4 text-base font-bold italic leading-7 text-[#1b3022]">
                 &ldquo;{quotes[quoteIndex % quotes.length]}&rdquo;
@@ -617,7 +784,6 @@ export function StudyTimerClient({ insights }: { insights: StudyInsights }) {
                 Next quote →
               </button>
             </div>
-          ) : null}
         </div>
       </div>
     </div>
