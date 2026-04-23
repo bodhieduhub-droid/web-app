@@ -9,19 +9,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export async function submitEnquiry(data: {
   name: string;
   phone: string;
-  email?: string;
+  email: string;
   visit_date?: string;
   visit_time?: string;
 }) {
   const supabase = createAdminClient();
   const name = data.name.trim();
   const phone = data.phone.trim();
-  const email = data.email?.trim() || null;
+  const email = data.email.trim();
   const visit_date = data.visit_date || null;
   const visit_time = data.visit_time || null;
 
-  if (!name || !phone) {
-    return { error: "Name and phone are required." };
+  if (!name || !phone || !email) {
+    return { error: "Name, phone, and email are required." };
   }
 
   const { data: lead, error } = await supabase.from("enquiries").insert({

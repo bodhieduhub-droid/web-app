@@ -11,6 +11,52 @@ export const dynamic = "force-dynamic";
 
 export default async function BlogDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
+  
+  // Handle dummy blog fallback if it matches dummy IDs
+  if (resolvedParams.id.startsWith("dummy-")) {
+    const dummyPost = {
+      id: resolvedParams.id,
+      title: "Sample Blog Post",
+      type: "blog",
+      status: "published",
+      published_at: new Date().toISOString(),
+      content: "This is a placeholder blog post. In a real scenario, this content would be fetched from your Supabase 'posts' table. Once you add real published blogs to the database, these dummy posts will disappear.",
+      cover_image_url: null,
+    };
+    
+    const htmlContent = parseMarkdown(dummyPost.content);
+
+    return (
+      <main className="min-h-screen bg-[#f9f8f6] text-[#1b3022]">
+        <MarketingNavbar />
+
+        <article className="mx-auto max-w-3xl px-6 py-20 lg:py-32">
+          <div className="mb-12">
+            <Link href="/blogs" className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-[#6b795f] hover:text-[#1b3022] transition-colors mb-8">
+              <ArrowLeft className="w-4 h-4" /> Back to Blogs
+            </Link>
+            
+            <h1 className="font-serif text-4xl leading-tight text-[#1b3022] md:text-5xl lg:text-6xl mb-6">
+              {dummyPost.title}
+            </h1>
+            
+            <div className="flex items-center gap-2 text-sm font-bold text-[#6b795f] uppercase tracking-widest">
+              <Calendar className="w-4 h-4" />
+              {new Date(dummyPost.published_at).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" })}
+            </div>
+          </div>
+
+          <div 
+            className="prose prose-lg prose-emerald max-w-none break-words"
+            dangerouslySetInnerHTML={{ __html: htmlContent }} 
+          />
+        </article>
+
+        <MarketingFooter />
+      </main>
+    );
+  }
+
   const supabase = createAdminClient();
   const { data: post, error } = await supabase
     .from("posts")

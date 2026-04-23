@@ -25,8 +25,6 @@ const publicChatPaths = new Set([
   "/notes",
   "/job-opportunities",
   "/contact-us",
-  "/register",
-  "/login",
 ]);
 
 const starterReplies = [
@@ -375,12 +373,7 @@ export function LeadChatbot() {
         pushAssistant("Got it. Which date would you like to visit us? (Type e.g., Tomorrow, Monday, or a specific date)");
       } else {
         setPhase("email");
-        pushAssistant("Optional: share your email too. If you prefer not to, type skip.");
-        // Submit draft lead
-        startTransition(async () => {
-          const result = await submitEnquiry({ name, phone: trimmed });
-          if (result.id) setEnquiryId(result.id);
-        });
+        pushAssistant("Please share your email address to proceed.");
       }
       return;
     }
@@ -395,35 +388,29 @@ export function LeadChatbot() {
     if (phase === "scheduling_time") {
       setVisitTime(trimmed);
       setPhase("email");
-      pushAssistant("Almost done! Optional: share your email too. If you prefer not to, type skip.");
-      // Submit draft lead with visit context
-      startTransition(async () => {
-        const result = await submitEnquiry({ name, phone, visit_date: visitDate, visit_time: trimmed });
-        if (result.id) setEnquiryId(result.id);
-      });
+      pushAssistant("Almost done! Please share your email address.");
       return;
     }
 
     if (phase === "email") {
-      const emailValue = trimmed.toLowerCase() === "skip" ? "" : trimmed;
+      if (!trimmed.includes("@")) {
+        pushAssistant("That doesn't look like a valid email. Please try again.");
+        return;
+      }
+      const emailValue = trimmed.toLowerCase();
       
       startTransition(async () => {
-        if (emailValue && enquiryId) {
-          await updateEnquiryEmail(enquiryId, emailValue);
-        } else if (!enquiryId) {
-          // Fallback if draft failed
-          const result = await submitEnquiry({
-            name,
-            phone,
-            email: emailValue || undefined,
-            visit_date: visitDate,
-            visit_time: visitTime,
-          });
-          if (result.error) {
-            setStatusMessage(result.error);
-            pushAssistant("I couldn’t submit that enquiry right now. Please try again in a moment.");
-            return;
-          }
+        const result = await submitEnquiry({
+          name,
+          phone,
+          email: emailValue,
+          visit_date: visitDate,
+          visit_time: visitTime,
+        });
+        if (result.error) {
+          setStatusMessage(result.error);
+          pushAssistant("I couldn’t submit that enquiry right now. Please try again in a moment.");
+          return;
         }
         
         setPhase("done");

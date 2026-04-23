@@ -1,12 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Loader2, LockKeyhole, Mail } from "lucide-react";
+import { Loader2, LockKeyhole, Mail, ArrowLeft } from "lucide-react";
 import { useActionState } from "react";
-
-import { MarketingFooter } from "@/components/marketing/footer";
-import { MarketingHeroBackground } from "@/components/marketing/hero-background";
-import { MarketingNavbar } from "@/components/marketing/navbar";
 import { loginWithPassword } from "./actions";
 
 interface LoginState {
@@ -25,82 +21,46 @@ export default function LoginPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#f3f0e7] text-[#1b3022]">
-      <MarketingNavbar />
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#050806] font-sans selection:bg-[#345b41] selection:text-white">
+      {/* Background Mesh Gradient */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute -top-[10%] left-[10%] h-[40rem] w-[40rem] animate-pulse rounded-full bg-[#1b3022]/40 blur-[120px] mix-blend-screen" style={{ animationDuration: '8s' }} />
+        <div className="absolute bottom-[0%] right-[-10%] h-[35rem] w-[35rem] animate-pulse rounded-full bg-[#27452e]/30 blur-[100px] mix-blend-screen" style={{ animationDuration: '10s' }} />
+        <div className="absolute left-[30%] top-[40%] h-[25rem] w-[25rem] animate-pulse rounded-full bg-[#132418]/50 blur-[80px] mix-blend-screen" style={{ animationDuration: '7s' }} />
+        {/* Subtle noise overlay */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+      </div>
 
-      <section className="border-b border-[#d5d2c6] bg-[linear-gradient(135deg,#f3f0e7_0%,#ece6d8_45%,#e5eddc_100%)] px-6 py-16 lg:py-20">
-        <div className="relative mx-auto max-w-6xl space-y-8">
-          <MarketingHeroBackground />
-          <div className="max-w-2xl space-y-3">
-            <p className="text-[11px] font-black uppercase tracking-[0.32em] text-[#6b795f]">
-              Login
-            </p>
-            <h1 className="font-serif text-5xl leading-[0.94] text-[#18281d] sm:text-6xl">
-              Sign in and continue your study routine.
-            </h1>
-            <p className="max-w-xl text-base leading-7 text-[#405042] md:text-lg">
-              If you already have your credentials, log in below. If not, start with an enquiry.
-            </p>
-          </div>
+      <div className="relative z-10 w-full max-w-[28rem] px-6 py-12 lg:px-8">
+        <Link
+          href="/"
+          className="group mb-8 flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white/70 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          Back home
+        </Link>
 
-          <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-          <section className="relative hidden overflow-hidden rounded-[2.5rem] border border-[#d8ddcf] bg-[#1f3828] p-8 text-white shadow-[0_26px_70px_rgba(24,40,29,0.18)] lg:block lg:p-12">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(236,230,216,0.16),transparent_32%),linear-gradient(160deg,rgba(255,255,255,0.04),transparent_48%)]" />
-            <div className="relative space-y-8">
-              <div className="space-y-4">
-                <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">
-                  Portal Login
-                </p>
-                <h1 className="max-w-xl font-serif text-5xl leading-[0.94] sm:text-6xl">
-                  Sign in and continue your routine.
-                </h1>
-                <p className="max-w-xl text-base font-medium leading-7 text-white/80">
-                  Student, staff, and team access all start here. If you already have your credentials, log in below.
-                </p>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-[1.75rem] border border-white/10 bg-white/6 p-5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/50">Students</p>
-                  <p className="mt-3 text-lg font-black">Dashboard access</p>
-                  <p className="mt-2 text-sm font-medium leading-6 text-white/75">Use the credentials sent after approval.</p>
-                </div>
-                <div className="rounded-[1.75rem] border border-white/10 bg-white/6 p-5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/50">New Here?</p>
-                  <p className="mt-3 text-lg font-black">Send enquiry</p>
-                  <p className="mt-2 text-sm font-medium leading-6 text-white/75">We&apos;ll help you get started first.</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/register?open=1"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#f0e6d2] px-6 py-3 text-xs font-black uppercase tracking-[0.22em] text-[#1b3022] transition-colors hover:bg-[#ead9b7]"
-                >
-                  Need An Account?
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              </div>
-            </div>
-          </section>
-
-          <form
-            action={formAction}
-            className="space-y-5 rounded-[2rem] border border-[#d8ddcf] bg-[#fffdf7] p-8 shadow-[0_18px_45px_rgba(39,69,46,0.08)] lg:p-8"
-          >
-            <div className="space-y-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-[#6a7b69]">Login</p>
-              <h2 className="font-serif text-4xl leading-tight text-[#1b3022]">Welcome back.</h2>
-              <p className="text-sm font-medium leading-6 text-[#576457]">
-                Enter your credentials to access the Bodhi portal.
-              </p>
-            </div>
-
+        <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/5 p-8 shadow-[0_40px_80px_rgba(0,0,0,0.4)] backdrop-blur-2xl lg:p-10">
+          <form action={formAction} className="space-y-8">
             <div className="space-y-4">
-              <label className="block space-y-2">
-                <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#6a7b69]">Email</span>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6a7b69]" />
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-white/10 text-white shadow-inner ring-1 ring-white/20">
+                <LockKeyhole className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="font-serif text-[2.5rem] leading-tight text-white">
+                  Welcome back.
+                </h2>
+                <p className="mt-2 text-[15px] font-medium leading-relaxed text-white/60">
+                  Log in to access your portal.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="ml-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/50">Email</label>
+                <div className="relative group">
+                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-white" />
                   <input
                     name="email"
                     type="email"
@@ -108,31 +68,33 @@ export default function LoginPage() {
                     placeholder="student@email.com"
                     required
                     disabled={isPending}
-                    className="w-full rounded-2xl border border-[#d8ddcf] bg-white px-11 py-4 text-sm font-semibold text-[#1b3022] outline-none transition-all focus:border-[#1b3022] focus:ring-2 focus:ring-[#1b3022]/10 disabled:opacity-60"
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:border-white/30 focus:bg-white/10 focus:ring-4 focus:ring-white/5 disabled:opacity-50"
                   />
                 </div>
-              </label>
+              </div>
 
-              <label className="block space-y-2">
-                <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#6a7b69]">Password</span>
-                <div className="relative">
-                  <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6a7b69]" />
+              <div className="space-y-2">
+                <label className="ml-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/50">Password</label>
+                <div className="relative group">
+                  <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-white" />
                   <input
                     name="password"
                     type="password"
                     autoComplete="current-password"
-                    placeholder="Enter password"
+                    placeholder="••••••••"
                     required
                     disabled={isPending}
-                    className="w-full rounded-2xl border border-[#d8ddcf] bg-white px-11 py-4 text-sm font-semibold text-[#1b3022] outline-none transition-all focus:border-[#1b3022] focus:ring-2 focus:ring-[#1b3022]/10 disabled:opacity-60"
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:border-white/30 focus:bg-white/10 focus:ring-4 focus:ring-white/5 disabled:opacity-50"
                   />
                 </div>
-              </label>
+              </div>
             </div>
 
             {state?.error ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-[#e7d0d0] bg-[#fff5f5] px-4 py-3 text-sm font-semibold text-[#8a2f2f]">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#8a2f2f]" />
+              <div className="flex items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3.5 text-sm font-medium text-red-200 backdrop-blur-md animate-in fade-in slide-in-from-top-1">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-500/20">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                </span>
                 {state.error}
               </div>
             ) : null}
@@ -140,28 +102,29 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="group w-full rounded-full bg-[#1b3022] px-5 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white transition-all hover:shadow-lg hover:shadow-[#1b3022]/25 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              className="group relative w-full overflow-hidden rounded-2xl bg-white px-5 py-4 text-[13px] font-black uppercase tracking-[0.2em] text-[#0a0f0d] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
             >
               {isPending ? (
                 <span className="inline-flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   Logging in...
                 </span>
               ) : (
-                "Login"
+                "Sign In"
               )}
             </button>
 
-            <div className="flex items-center justify-between pt-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#6a7b69]">
-              <Link href="/">Back Home</Link>
-              <Link href="/register?open=1">Send Enquiry</Link>
+            <div className="flex justify-center pt-2">
+              <p className="text-sm font-medium text-white/50">
+                New here?{" "}
+                <Link href="/register?open=1" className="font-bold text-white transition-colors hover:text-emerald-400">
+                  Send an enquiry
+                </Link>
+              </p>
             </div>
           </form>
         </div>
       </div>
-      </section>
-
-      <MarketingFooter />
     </main>
   );
 }
