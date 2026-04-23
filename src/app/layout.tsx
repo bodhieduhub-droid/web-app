@@ -53,8 +53,7 @@ export const viewport: Viewport = {
   themeColor: "#1b3022",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Allow free rotation — portrait + landscape both work
 };
 
 export default function RootLayout({
