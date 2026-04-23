@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 
 import {
@@ -12,6 +13,7 @@ import {
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { BillRecord, TransactionRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getOptimizedImage } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -123,9 +125,20 @@ export default async function BillingDetailPage({
                 <p className="text-sm font-black text-[#1b3022]">Proof amount: {asMoney(transaction.amount)}</p>
                 <p className="text-xs font-semibold text-[#6d7c6c]">Status: {safeText(transaction.verification_status, "pending").replaceAll("_", " ")}</p>
                 {transaction.payment_proof_url ? (
-                  <a className="mt-2 inline-block text-sm font-bold text-[#1b3022] underline" href={transaction.payment_proof_url} target="_blank" rel="noreferrer">
-                    Open uploaded screenshot
-                  </a>
+                  <div className="mt-2 flex items-start gap-3">
+                    <a className="inline-block" href={transaction.payment_proof_url} target="_blank" rel="noreferrer">
+                      <Image
+                        src={getOptimizedImage(transaction.payment_proof_url, 300)}
+                        alt="Proof thumbnail"
+                        width={80}
+                        height={80}
+                        className="rounded-xl border border-[#d8e0d4] object-cover shadow-sm"
+                      />
+                    </a>
+                    <a className="text-sm font-bold text-[#1b3022] underline" href={transaction.payment_proof_url} target="_blank" rel="noreferrer">
+                      Open full screenshot
+                    </a>
+                  </div>
                 ) : null}
                 <div className="mt-3 grid gap-3 xl:grid-cols-3">
                   <form action={verifyPaymentProof} className="space-y-2">

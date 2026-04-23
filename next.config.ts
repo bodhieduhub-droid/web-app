@@ -36,12 +36,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Cache SVG/PNG/WebP assets aggressively
-        source: "/:path*.{svg,png,webp,avif,ico}",
+        // Cache SVG/PNG/WebP/JPG assets for 1 year (Immutable)
+        source: "/:path*.{svg,png,webp,avif,ico,jpg,jpeg}",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=86400, stale-while-revalidate=3600",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },

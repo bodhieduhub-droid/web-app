@@ -7,6 +7,7 @@ import type { BillRecord, TransactionRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getHubSettings } from "@/lib/settings";
+import { getOptimizedImage } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -139,9 +140,7 @@ export default async function PaymentsPage({
               <div className="rounded-2xl border border-[#d8e0d4] bg-[#f7faf5] p-3">
                 <p className="text-sm font-semibold text-[#6d7c6c]">UPI QR</p>
                 <Image
-                  loader={remoteImageLoader}
-                  unoptimized
-                  src={settings.static_upi_qr_url}
+                  src={getOptimizedImage(settings.static_upi_qr_url, 300)}
                   alt="Hub UPI QR"
                   width={144}
                   height={144}
@@ -238,9 +237,7 @@ export default async function PaymentsPage({
                   {t.payment_proof_url && (
                     <a href={t.payment_proof_url} target="_blank" rel="noreferrer" className="mt-2 inline-block">
                       <Image
-                        loader={remoteImageLoader}
-                        unoptimized
-                        src={t.payment_proof_url}
+                        src={getOptimizedImage(t.payment_proof_url, 200)}
                         alt="Payment proof"
                         width={48}
                         height={48}

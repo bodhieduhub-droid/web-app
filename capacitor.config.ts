@@ -7,7 +7,8 @@ const config: CapacitorConfig = {
   server: {
     url: "https://bodhieduhub.com", 
     cleartext: true,
-    allowNavigation: ["bodhieduhub.com", "*.bodhieduhub.com"]
+    allowNavigation: ["bodhieduhub.com", "*.bodhieduhub.com"],
+    androidDiskCache: true
   },
   plugins: {
     SplashScreen: {

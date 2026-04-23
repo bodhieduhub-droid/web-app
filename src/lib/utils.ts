@@ -30,3 +30,21 @@ export function formatDateToIST(date: string | Date | null | undefined, formatTy
 
   return d.toLocaleDateString("en-IN", options);
 }
+
+/**
+ * Optimizes a Cloudinary image URL by adding transformation parameters.
+ * @param url - The original Cloudinary URL.
+ * @param width - Optional width to resize the image.
+ * @returns Optimized URL string.
+ */
+export function getOptimizedImage(url: string | null | undefined, width: number = 800): string {
+  if (!url) return "";
+  if (!url.includes("cloudinary.com")) return url;
+
+  // Insert transformations after /upload/
+  // f_auto: best format (WebP/AVIF)
+  // q_auto: best compression
+  // w_xxx: resize to specific width
+  const transformation = `upload/f_auto,q_auto,w_${width}/`;
+  return url.replace("upload/", transformation);
+}
