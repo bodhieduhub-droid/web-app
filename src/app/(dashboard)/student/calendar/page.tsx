@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Target } from "lucide-react";
 
 import { CalendarMonthGrid } from "@/components/calendar/month-grid";
@@ -27,6 +28,7 @@ import {
   startOfMonth,
 } from "@/lib/calendar-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ChartSkeleton } from "@/components/dashboard/suspense-skeletons";
 
 export const dynamic = "force-dynamic";
 
@@ -177,31 +179,20 @@ function plannerBadgeClasses(item: PlannerItem) {
   return "border-[#d4dfcb] bg-[#eef3ea] text-[#1b3022]";
 }
 
-export default async function StudentCalendarPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ view?: string; month?: string; date?: string; panel?: string }>;
-}) {
-  const { student } = await requireDashboardContext(["student"]);
-  if (!student) return null;
-
+// Async component — fetches calendar data independently
+async function CalendarContent({
+  studentId, view, rawMonth, rawDate, panel,
+}: { studentId: string; view: string; rawMonth: string | undefined; rawDate: string | undefined; panel: string }) {
   const supabase = createAdminClient();
-  const { view: rawView, month: rawMonth, date: rawDate, panel: rawPanel } = await searchParams;
   const now = new Date();
   const requestedDate = parseDayParam(rawDate);
   const monthDate = parseMonthParam(rawMonth, requestedDate ?? now);
-  const view = viewOptions.some(([value]) => value === rawView) ? rawView! : "month";
-  const panel = rawPanel === "add" || rawPanel === "manage" ? rawPanel : "overview";
+  const activeView = viewOptions.some(([v]) => v === view) ? view as typeof viewOptions[number][0] : "month";
+  const activePanel = panel === "add" || panel === "manage" ? panel : "overview";
   const fallbackSelectedDate = isSameMonth(now, monthDate) ? startOfDay(now) : startOfMonth(monthDate);
   const selectedDate = requestedDate && isSameMonth(requestedDate, monthDate) ? requestedDate : fallbackSelectedDate;
 
-  const { data: entries } = await supabase
-    .from("student_calendar_entries")
-    .select("*")
-    .eq("reader_id", student.id)
-    .order("starts_at", { ascending: true })
-    .limit(180);
-
+  const { data: entries } = await supabase.from("student_calendar_entries").select("*").eq("reader_id", studentId).order("starts_at", { ascending: true }).limit(180);
   const plannerEntries = (entries ?? []) as StudentCalendarEntryRecord[];
   const plannerItems = plannerEntries.map(toPlannerItem);
   const gridDays = getCalendarGridDays(monthDate);
@@ -209,15 +200,24 @@ export default async function StudentCalendarPage({
   const gridEnd = endOfDay(gridDays[gridDays.length - 1]);
   const monthItems = plannerItems.filter((item) => eventIntersectsRange(item, gridStart, gridEnd));
   const selectedDateItems = monthItems.filter((item) => eventOccursOnDay(item, selectedDate));
-  const agendaItems = plannerItems.filter((item) => matchesAgendaView(item, view, now));
+  const agendaItems = plannerItems.filter((item) => matchesAgendaView(item, activeView, now));
   const groupedItems = groupedAgenda(agendaItems);
   const previousMonth = addMonths(monthDate, -1);
   const nextMonth = addMonths(monthDate, 1);
   const plannerDefaultStart = formatSelectedDateDefault(selectedDate);
-  const plannedCount = plannerEntries.filter((entry) => entry.status === "planned").length;
-  const completedCount = plannerEntries.filter((entry) => entry.status === "completed").length;
+  const plannedCount = plannerEntries.filter((e) => e.status === "planned").length;
+  const completedCount = plannerEntries.filter((e) => e.status === "completed").length;
 
   return (
+    <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[{ label: "Total Items", value: plannerEntries.length }, { label: "Planned", value: plannedCount }, { label: "Completed", value: completedCount }].map((stat) => (
+          <div key={stat.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-md">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{stat.label}</p>
+            <p className="mt-2 text-2xl font-black text-[#1b3022]">{stat.value}</p>
+          </div>
+        ))}
+      </div>
     <div className="space-y-6 lg:space-y-8">
       <section className="rounded-[2rem] bg-[#1b3022] p-5 text-white shadow-2xl shadow-[#1b3022]/15 sm:p-7 lg:rounded-[2.4rem] lg:p-8">
         <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-white/50 sm:text-[11px]">My Calendar</p>
@@ -535,6 +535,51 @@ export default async function StudentCalendarPage({
           ))}
         </div>
       )}
+    </div>
+    </div>
+  );
+}
+
+export default async function StudentCalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; month?: string; date?: string; panel?: string }>;
+}) {
+  const { student } = await requireDashboardContext(["student"]);
+  if (!student) return null;
+
+  const { view: rawView, month: rawMonth, date: rawDate, panel: rawPanel } = await searchParams;
+  const view = viewOptions.some(([v]) => v === rawView) ? rawView! : "month";
+  const panel = rawPanel === "add" || rawPanel === "manage" ? rawPanel : "overview";
+
+  return (
+    <div className="space-y-6 lg:space-y-8">
+      {/* ── Hero (INSTANT) ── */}
+      <section className="rounded-[2rem] bg-[#1b3022] p-5 text-white shadow-2xl shadow-[#1b3022]/15 sm:p-7 lg:rounded-[2.4rem] lg:p-8">
+        <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-white/50 sm:text-[11px]">My Calendar</p>
+        <h1 className="mt-4 text-3xl font-black uppercase tracking-tight sm:text-4xl lg:text-5xl">Goals, Events, And Reminders</h1>
+        <p className="mt-3 max-w-3xl text-sm font-medium leading-6 text-white/80 sm:text-base sm:leading-7">
+          Add your own study goals, mock tests, revision reminders, personal events, and daily plans.
+        </p>
+      </section>
+
+      {/* ── View Tabs (INSTANT — no data) ── */}
+      <section className="flex flex-wrap gap-2 sm:gap-3">
+        {viewOptions.map(([value, label]) => {
+          const active = value === view;
+          return (
+            <Link key={value} href={`/student/calendar?view=${value}`} prefetch={false}
+              className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition sm:text-sm ${active ? "border-[#1b3022] bg-[#1b3022] text-white" : "border-[#d8e0d4] bg-white text-[#536352]"}`}>
+              {label}
+            </Link>
+          );
+        })}
+      </section>
+
+      {/* ── Calendar Content (SUSPENSE — streams independently) ── */}
+      <Suspense fallback={<ChartSkeleton />}>
+        <CalendarContent studentId={student.id} view={view} rawMonth={rawMonth} rawDate={rawDate} panel={panel} />
+      </Suspense>
     </div>
   );
 }

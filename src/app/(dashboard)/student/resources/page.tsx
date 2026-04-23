@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { BookOpen, Briefcase, ChevronRight, FolderOpen } from "lucide-react";
 
 import { toggleSavedPostAction, updatePostRevisionAction } from "@/app/(dashboard)/actions";
@@ -8,6 +9,7 @@ import type { PostRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { getPublicPostHref, isExternalHref } from "@/lib/post-links";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ListSkeleton } from "@/components/dashboard/suspense-skeletons";
 
 export const dynamic = "force-dynamic";
 
@@ -25,83 +27,26 @@ const resourceViews = [
   ["jobs", "Jobs"],
 ] as const;
 
-export default async function ResourcesPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ view?: string; category?: string }>;
-}) {
-  const { student } = await requireDashboardContext(["student"]);
-  if (!student) return null;
-
+// Async component — fetches all resource data independently
+async function ResourcesContent({ studentId, view, category }: { studentId: string; view: string; category: string }) {
   const supabase = createAdminClient();
-  const resolvedSearchParams = (await searchParams) ?? {};
-
   const [{ data: interests }, { data: notes }, { data: jobs }, { data: activityRows }] = await Promise.all([
-    supabase
-      .from("student_exam_interests")
-      .select("category")
-      .eq("reader_id", student.id),
-    supabase
-      .from("posts")
-      .select("*")
-      .eq("status", "published")
-      .eq("type", "note")
-      .in("audience", ["student", "public"])
-      .order("published_at", { ascending: false })
-      .limit(30),
-    supabase
-      .from("posts")
-      .select("*")
-      .eq("status", "published")
-      .eq("type", "job")
-      .in("audience", ["student", "public"])
-      .order("published_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("student_post_activity")
-      .select("*")
-      .eq("reader_id", student.id),
+    supabase.from("student_exam_interests").select("category").eq("reader_id", studentId),
+    supabase.from("posts").select("*").eq("status", "published").eq("type", "note").in("audience", ["student", "public"]).order("published_at", { ascending: false }).limit(30),
+    supabase.from("posts").select("*").eq("status", "published").eq("type", "job").in("audience", ["student", "public"]).order("published_at", { ascending: false }).limit(20),
+    supabase.from("student_post_activity").select("*").eq("reader_id", studentId),
   ]);
-
   const categories = (interests ?? []).map((i) => i.category as string);
-
   const allNotes = (notes ?? []) as PostRecord[];
   const allJobs = (jobs ?? []) as PostRecord[];
-  const activityByPostId = new Map(
-    (activityRows ?? []).map((row) => [row.post_id as string, row as {
-      is_saved: boolean;
-      is_revised: boolean;
-      revision_due_on?: string | null;
-      revised_at?: string | null;
-    }]),
-  );
-
-  // Personalized = posts matching their exam categories
-  const personalizedNotes = categories.length > 0
-    ? allNotes.filter((n) => !n.exam_category || categories.includes(n.exam_category))
-    : allNotes;
-  const resourceCategories = Array.from(
-    new Set([...personalizedNotes, ...allJobs].map((post) => post.exam_category).filter(Boolean) as string[]),
-  );
-  const activeView = resourceViews.some(([value]) => value === resolvedSearchParams.view)
-    ? resolvedSearchParams.view!
-    : "all";
-  const activeCategory = resolvedSearchParams.category && resourceCategories.includes(resolvedSearchParams.category)
-    ? resolvedSearchParams.category
-    : "all";
-  const filteredNotes = activeCategory === "all"
-    ? personalizedNotes
-    : personalizedNotes.filter((post) => post.exam_category === activeCategory);
-  const filteredJobs = activeCategory === "all"
-    ? allJobs
-    : allJobs.filter((post) => post.exam_category === activeCategory);
-  const revisionQueue = personalizedNotes
-    .filter((note) => activityByPostId.get(note.id)?.is_saved)
-    .sort((left, right) => {
-      const leftDue = activityByPostId.get(left.id)?.revision_due_on ?? "9999-12-31";
-      const rightDue = activityByPostId.get(right.id)?.revision_due_on ?? "9999-12-31";
-      return leftDue.localeCompare(rightDue);
-    });
+  const activityByPostId = new Map((activityRows ?? []).map((row) => [row.post_id as string, row as { is_saved: boolean; is_revised: boolean; revision_due_on?: string | null; revised_at?: string | null }]));
+  const personalizedNotes = categories.length > 0 ? allNotes.filter((n) => !n.exam_category || categories.includes(n.exam_category)) : allNotes;
+  const resourceCategories = Array.from(new Set([...personalizedNotes, ...allJobs].map((p) => p.exam_category).filter(Boolean) as string[]));
+  const activeView = resourceViews.some(([v]) => v === view) ? view : "all";
+  const activeCategory = category && resourceCategories.includes(category) ? category : "all";
+  const filteredNotes = activeCategory === "all" ? personalizedNotes : personalizedNotes.filter((p) => p.exam_category === activeCategory);
+  const filteredJobs = activeCategory === "all" ? allJobs : allJobs.filter((p) => p.exam_category === activeCategory);
+  const revisionQueue = personalizedNotes.filter((note) => activityByPostId.get(note.id)?.is_saved).sort((l, r) => (activityByPostId.get(l.id)?.revision_due_on ?? "9999").localeCompare(activityByPostId.get(r.id)?.revision_due_on ?? "9999"));
 
   return (
     <div className="space-y-8">
@@ -344,6 +289,36 @@ export default async function ResourcesPage({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+export default async function ResourcesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ view?: string; category?: string }>;
+}) {
+  const { student } = await requireDashboardContext(["student"]);
+  if (!student) return null;
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const view = resolvedSearchParams.view ?? "all";
+  const category = resolvedSearchParams.category ?? "all";
+
+  return (
+    <div className="space-y-8">
+      {/* ── Hero (INSTANT) ── */}
+      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
+        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Resources</p>
+        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Study Materials</h1>
+        <p className="mt-4 text-base font-medium leading-7 text-white/80">
+          Notes and resources published by Bodhi Edu Hub staff.
+        </p>
+      </section>
+
+      {/* ── Content (SUSPENSE — streams independently) ── */}
+      <Suspense fallback={<ListSkeleton rows={5} />}>
+        <ResourcesContent studentId={student.id} view={view} category={category} />
+      </Suspense>
     </div>
   );
 }

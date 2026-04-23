@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   Bell,
   BookOpen,
@@ -22,17 +23,15 @@ import { SupportTicketForm } from "@/components/student/support-ticket-form";
 import { AttendanceCard } from "@/components/student/attendance-card";
 import { BadgesSection } from "@/components/student/badges-section";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
+import { StudentBillsSection, BillsSkeleton } from "@/components/student/dashboard/bills-section";
+import { StudentNotificationsSection, NotificationsSkeleton } from "@/components/student/dashboard/notifications-section";
 import type {
-  BillRecord,
-  ExitRequestRecord,
-  NotificationRecord,
-  NightLogRecord,
-  PostRecord,
-  StudentCalendarEntryRecord,
-  StudentSupportTicketRecord,
-  TodoItemRecord,
   AttendanceRecord,
   StudentBadgeRecord,
+  TodoItemRecord,
+  NightLogRecord,
+  ExitRequestRecord,
+  StudentSupportTicketRecord,
 } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -56,107 +55,38 @@ export default async function StudentDashboard() {
 
   const supabase = createAdminClient();
 
+  // ONLY fetch critical, fast data at the top level
   const [
-    { data: bills },
-    { data: notifications },
-    { data: todoItems },
-    { data: interests },
-    { data: exitRequests },
     { data: seatData },
-    { data: nightLogs },
-    { data: plannerEntries },
-    { data: supportTickets },
     todayAttendanceData,
     badgesData,
     recentAttendanceData,
+    { data: todoItems },
+    { data: exitRequests },
+    { data: nightLogs },
+    { data: supportTickets },
   ] = await Promise.all([
-    supabase.from("bills").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
-    supabase.from("notifications").select("*").or(`audience_id.eq.${student.id},audience_id.eq.${profile.id},audience_type.eq.broadcast_role`).order("created_at", { ascending: false }).limit(20),
-    supabase.from("todo_items").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
-    supabase.from("student_exam_interests").select("category").eq("reader_id", student.id),
-    supabase.from("exit_requests").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
     student.fixed_seat_id
       ? supabase.from("seats").select("seat_number").eq("id", student.fixed_seat_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase.from("night_logs").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
-    supabase.from("student_calendar_entries").select("*").eq("reader_id", student.id).gte("starts_at", new Date().toISOString()).order("starts_at", { ascending: true }).limit(12),
-    supabase.from("student_support_tickets").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
     supabase.from("attendance").select("*").eq("reader_id", student.id).eq("date", new Date().toISOString().split("T")[0]).maybeSingle(),
     supabase.from("student_badges").select("*").eq("reader_id", student.id),
     supabase.from("attendance").select("date").eq("reader_id", student.id).order("date", { ascending: false }).limit(31),
+    supabase.from("todo_items").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
+    supabase.from("exit_requests").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
+    supabase.from("night_logs").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
+    supabase.from("student_support_tickets").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
   ]);
-
-  const categories = (interests ?? []).map((i) => i.category as string);
-  const allBills = (bills ?? []) as BillRecord[];
-  const openBills = allBills.filter((b) => b.status !== "paid");
-  const totalDue = openBills.reduce((s, b) => s + (b.amount_due - b.amount_paid), 0);
-  const allNotificationRows = (notifications ?? []) as (NotificationRecord & { metadata?: Record<string, unknown> })[];
-  const scopedNotifications = allNotificationRows.filter((n) => {
-    if (n.audience_type === "reader") return n.audience_id === student.id;
-    if (n.audience_type === "profile") return n.audience_id === profile.id;
-    if (n.audience_type === "broadcast_role") return n.metadata?.role === "student";
-    return false;
-  });
-  const notificationIds = scopedNotifications.map((n) => n.id);
-  const { data: notificationReads } = notificationIds.length
-    ? await supabase
-        .from("notification_reads")
-        .select("notification_id, read_at")
-        .eq("profile_id", profile.id)
-        .in("notification_id", notificationIds)
-    : { data: [] as { notification_id: string; read_at: string }[] };
-  const readMap = new Map((notificationReads ?? []).map((row) => [row.notification_id, row.read_at]));
-  const recentNotifications = scopedNotifications
-    .map((n) => ({
-      ...n,
-      effective_read_at: readMap.get(n.id) ?? (n.audience_type !== "broadcast_role" ? n.read_at : null),
-    }))
-    .slice(0, 4);
-  const unreadCount = recentNotifications.filter((n) => !n.effective_read_at).length;
-  const allTodos = (todoItems ?? []) as TodoItemRecord[];
-  const pendingTodos = allTodos.filter((t) => !t.is_completed);
-  const activeExitRequest = ((exitRequests ?? []) as ExitRequestRecord[]).find((r) => r.status === "pending");
-  const recentNightLogs = (nightLogs ?? []) as NightLogRecord[];
-  const activeNightLog = recentNightLogs.find((log) => log.status === "active" && !log.actual_exit_time);
-  const supportTicketRows = (supportTickets ?? []) as StudentSupportTicketRecord[];
-  const upcomingPlannerEntries = ((plannerEntries ?? []) as StudentCalendarEntryRecord[])
-    .filter((entry) => entry.status !== "cancelled");
-  const upcomingCalendarItems = upcomingPlannerEntries
-    .map((entry) => ({
-      id: `planner-${entry.id}`,
-      title: entry.title,
-      starts_at: entry.starts_at,
-      is_all_day: entry.is_all_day,
-      meta: `${entry.entry_type.replaceAll("_", " ")} · ${entry.status.replaceAll("_", " ")}`,
-    }))
-    .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime())
-    .slice(0, 3);
-
-  // Recent exam alerts
-  let alertPosts: PostRecord[] = [];
-  if (categories.length > 0) {
-    const { data } = await supabase
-      .from("posts")
-      .select("*")
-      .eq("status", "published")
-      .eq("type", "exam_alert")
-      .in("exam_category", categories)
-      .order("published_at", { ascending: false })
-      .limit(2);
-    alertPosts = (data ?? []) as PostRecord[];
-  }
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  // Streak calculation
+  // Streak calculation (Fast, client-side logic)
   const streakHistory = (recentAttendanceData?.data ?? []) as { date: string }[];
   let currentStreak = 0;
   if (streakHistory.length > 0) {
     const today = new Date().toISOString().split("T")[0];
     const firstDate = streakHistory[0].date;
-    
-    // Start streak if first visit is today or yesterday
     const d1 = new Date(today);
     const d2 = new Date(firstDate);
     const diff = (d1.getTime() - d2.getTime()) / (1000 * 3600 * 24);
@@ -167,35 +97,31 @@ export default async function StudentDashboard() {
         const dateA = new Date(streakHistory[i].date);
         const dateB = new Date(streakHistory[i+1].date);
         const dDiff = (dateA.getTime() - dateB.getTime()) / (1000 * 3600 * 24);
-        if (Math.round(dDiff) === 1) {
-          currentStreak++;
-        } else {
-          break;
-        }
+        if (Math.round(dDiff) === 1) currentStreak++;
+        else break;
       }
     }
   }
 
   const todayAttendance = todayAttendanceData?.data as AttendanceRecord | null;
   const earnedBadges = (badgesData?.data ?? []) as StudentBadgeRecord[];
+  const allTodos = (todoItems ?? []) as TodoItemRecord[];
+  const pendingTodos = allTodos.filter((t) => !t.is_completed);
+  const activeExitRequest = ((exitRequests ?? []) as ExitRequestRecord[]).find((r) => r.status === "pending");
+  const recentNightLogs = (nightLogs ?? []) as NightLogRecord[];
+  const activeNightLog = recentNightLogs.find((log) => log.status === "active" && !log.actual_exit_time);
+  const supportTicketRows = (supportTickets ?? []) as StudentSupportTicketRecord[];
 
   return (
     <div className="space-y-8">
-      {/* ── Hero ── */}
+      {/* ── Hero (INSTANT RENDER) ── */}
       <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
         <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Student Dashboard</p>
         <h1 className="mt-3 text-5xl font-black uppercase tracking-tight">{greeting},</h1>
         <h2 className="text-3xl font-black uppercase tracking-tight text-white/80">{student.name}</h2>
-        {categories.length > 0 && (
-          <div className="mt-5 flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <span key={cat} className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">{cat}</span>
-            ))}
-          </div>
-        )}
       </section>
 
-      {/* ── Attendance & Badges ── */}
+      {/* ── Attendance & Badges (FAST DATA) ── */}
       <section className="grid gap-6 lg:grid-cols-[1fr_auto]">
         <AttendanceCard todayAttendance={todayAttendance} streakCount={currentStreak} />
         <div className="flex-1 min-w-0">
@@ -206,35 +132,13 @@ export default async function StudentDashboard() {
       {/* ── Stats bar ── */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          {
-            label: "Status",
-            value: student.status === "active" ? "Active" : student.status.replaceAll("_", " "),
-            accent: student.status !== "active",
-          },
-          {
-            label: "Monthly Fee",
-            value: `₹${student.monthly_fee}`,
-            accent: false,
-          },
-          {
-            label: "Pending Due",
-            value: totalDue > 0 ? `₹${totalDue.toFixed(0)}` : "₹0 — Cleared!",
-            accent: totalDue > 0,
-          },
-          {
-            label: "Seat",
-            value: seatData?.seat_number ? `Seat #${seatData.seat_number}` : "Not Assigned",
-            accent: !student.fixed_seat_id,
-          },
+          { label: "Status", value: student.status === "active" ? "Active" : student.status.replaceAll("_", " "), accent: student.status !== "active" },
+          { label: "Monthly Fee", value: `₹${student.monthly_fee}`, accent: false },
+          { label: "Seat", value: seatData?.seat_number ? `Seat #${seatData.seat_number}` : "Not Assigned", accent: !student.fixed_seat_id },
         ].map((stat) => (
-          <div
-            key={stat.label}
-            className={`rounded-[1.8rem] border p-5 shadow-md ${stat.accent ? "border-amber-200 bg-amber-50" : "border-[#d8e0d4] bg-white"}`}
-          >
+          <div key={stat.label} className={`rounded-[1.8rem] border p-5 shadow-md ${stat.accent ? "border-amber-200 bg-amber-50" : "border-[#d8e0d4] bg-white"}`}>
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">{stat.label}</p>
-            <p className={`mt-3 text-2xl font-black capitalize ${stat.accent ? "text-amber-800" : "text-[#1b3022]"}`}>
-              {stat.value}
-            </p>
+            <p className={`mt-3 text-2xl font-black capitalize ${stat.accent ? "text-amber-800" : "text-[#1b3022]"}`}>{stat.value}</p>
           </div>
         ))}
       </section>
@@ -259,8 +163,8 @@ export default async function StudentDashboard() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        {/* ── Left: Todos ── */}
         <div className="space-y-6">
+          {/* ── Todos ── */}
           <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -275,245 +179,51 @@ export default async function StudentDashboard() {
             </div>
 
             <form action={createTodoItemAction} className="mt-5 grid gap-2 sm:grid-cols-[1fr_160px_auto]">
-              <input
-                name="title"
-                placeholder="Add a study task…"
-                className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none placeholder:text-[#a5b5a3]"
-              />
-              <input
-                name="due_date"
-                type="date"
-                className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none"
-              />
-              <PendingSubmitButton
-                idleLabel="Add"
-                pendingLabel="Adding…"
-                className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white shadow-md shadow-[#1b3022]/20 disabled:opacity-50"
-              />
+              <input name="title" placeholder="Add a study task…" className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none" />
+              <input name="due_date" type="date" className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none" />
+              <PendingSubmitButton idleLabel="Add" pendingLabel="..." className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase text-white" />
             </form>
 
             <div className="mt-4 space-y-2">
-              {allTodos.length > 0 ? (
-                allTodos.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-[#f5f8f3] px-4 py-3">
-                    <form action={toggleTodoItemAction} className="flex min-w-0 flex-1 items-center gap-3">
-                      <input type="hidden" name="todo_id" value={item.id} />
-                      <input type="hidden" name="completed" value={item.is_completed ? "true" : "false"} />
-                      <div className={`h-2 w-2 shrink-0 rounded-full ${item.is_completed ? "bg-[#b5c9b3]" : "bg-[#1b3022]"}`} />
-                      <div className="min-w-0 flex-1">
-                        <p className={`truncate text-sm font-bold ${item.is_completed ? "line-through text-[#8a9d88]" : "text-[#1b3022]"}`}>
-                          {item.title}
-                        </p>
-                        {item.due_date && (
-                          <p className="text-[10px] font-medium text-[#8a9d88]">Due {item.due_date}</p>
-                        )}
-                      </div>
-                      <PendingSubmitButton
-                        idleLabel={item.is_completed ? "Undo" : "Done"}
-                        pendingLabel="…"
-                        className="shrink-0 rounded-xl border border-[#d7ddd3] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#536352] hover:bg-white transition disabled:opacity-40"
-                      />
-                    </form>
-                    <form action={deleteTodoItemAction}>
-                      <input type="hidden" name="todo_id" value={item.id} />
-                      <PendingSubmitButton
-                        idleLabel="Delete"
-                        pendingLabel="…"
-                        className="shrink-0 rounded-xl border border-red-200 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-red-700 hover:bg-red-50 transition disabled:opacity-40"
-                      />
-                    </form>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-2xl bg-[#f5f8f3] p-4 text-center text-sm font-medium text-[#8a9d88]">
-                  No tasks yet — add your first study goal above.
+              {allTodos.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-[#f5f8f3] px-4 py-3">
+                  <form action={toggleTodoItemAction} className="flex flex-1 items-center gap-3">
+                    <input type="hidden" name="todo_id" value={item.id} />
+                    <div className={`h-2 w-2 rounded-full ${item.is_completed ? "bg-gray-300" : "bg-[#1b3022]"}`} />
+                    <p className={`text-sm font-bold ${item.is_completed ? "line-through text-gray-400" : "text-[#1b3022]"}`}>{item.title}</p>
+                    <PendingSubmitButton idleLabel={item.is_completed ? "Undo" : "Done"} pendingLabel="…" className="ml-auto text-[10px] font-black uppercase" />
+                  </form>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
 
-        {/* ── Right: Recent activity ── */}
         <div className="space-y-5">
-          {/* Pending bills alert */}
-          {openBills.length > 0 && (
-            <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-5 shadow shadow-amber-100">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-amber-700">Payment Due</p>
-                  <p className="mt-2 text-2xl font-black text-amber-900">₹{totalDue.toFixed(0)}</p>
-                  <p className="mt-1 text-xs font-medium text-amber-700">
-                    {openBills.length} open invoice{openBills.length > 1 ? "s" : ""}
-                  </p>
-                </div>
-                <Link
-                  href="/student/payments"
-                  className="shrink-0 rounded-2xl bg-amber-700 px-4 py-2 text-[11px] font-black uppercase tracking-[0.25em] text-white transition hover:bg-amber-800"
-                >
-                  Pay Now →
-                </Link>
-              </div>
-            </div>
-          )}
+          {/* ── SLOW DATA (SUSPENSE) ── */}
+          <Suspense fallback={<BillsSkeleton />}>
+            <StudentBillsSection studentId={student.id} />
+          </Suspense>
 
-          {/* Calendar planner */}
-          {upcomingCalendarItems.length > 0 && (
-            <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Upcoming Planner</p>
-                <Link href="/student/calendar" className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1b3022]">View all →</Link>
-              </div>
-              <div className="mt-4 space-y-3">
-                {upcomingCalendarItems.map((item) => (
-                  <div key={item.id} className="rounded-2xl bg-[#f5f8f3] px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-black text-[#1b3022]">{item.title}</p>
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-amber-700">
-                        {item.meta}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs font-medium leading-5 text-[#536352]">
-                      {item.is_all_day
-                        ? new Date(item.starts_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-                        : new Date(item.starts_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <Suspense fallback={<NotificationsSkeleton />}>
+            <StudentNotificationsSection studentId={student.id} profileId={profile.id} />
+          </Suspense>
 
-          {/* Recent exam alerts */}
-          {alertPosts.length > 0 && (
-            <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Latest Exam Alerts</p>
-                <Link href="/student/exams" className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1b3022]">View all →</Link>
-              </div>
-              <div className="mt-4 space-y-3">
-                {alertPosts.map((post) => (
-                  <div key={post.id} className="rounded-2xl bg-[#f5f8f3] px-4 py-3">
-                    <p className="text-sm font-black text-[#1b3022]">{post.title}</p>
-                    {post.summary && <p className="mt-1 text-xs font-medium leading-5 text-[#536352]">{post.summary}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Notifications */}
-          <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Notifications</p>
-                {unreadCount > 0 && (
-                  <span className="rounded-full bg-[#1b3022] px-2 py-0.5 text-[9px] font-black text-white">{unreadCount}</span>
-                )}
-              </div>
-              <Link href="/student/notifications" className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1b3022]">View all →</Link>
-            </div>
-            <div className="mt-4 space-y-2">
-              {recentNotifications.length > 0 ? (
-                recentNotifications.map((n) => (
-                  <div key={n.id} className={`rounded-2xl px-4 py-3 ${!n.effective_read_at ? "bg-[#f0f7ed]" : "bg-[#f5f8f3]"}`}>
-                    <p className="text-sm font-black text-[#1b3022]">{n.title}</p>
-                    <p className="mt-0.5 text-xs font-medium leading-5 text-[#536352]">{n.body}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm font-medium text-[#8a9d88]">No notifications yet.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Night log / late sitting */}
-          <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Night Sitting Log</p>
-            {activeNightLog ? (
-              <div className="mt-4 space-y-3">
-                <div className="rounded-2xl bg-[#f5f8f3] px-4 py-3 text-sm font-medium text-[#536352]">
-                  <p><strong>Entry:</strong> {new Date(activeNightLog.entry_time).toLocaleString("en-IN")}</p>
-                  <p className="mt-1"><strong>Planned Exit:</strong> {new Date(activeNightLog.planned_exit_time).toLocaleString("en-IN")}</p>
-                </div>
-                <form action={endNightLogAction}>
-                  <input type="hidden" name="night_log_id" value={activeNightLog.id} />
-                  <PendingSubmitButton
-                    idleLabel="End Session"
-                    pendingLabel="Saving…"
-                    className="rounded-2xl border border-[#d8e0d4] px-5 py-3 text-[11px] font-black uppercase tracking-[0.25em] text-[#1b3022] transition hover:bg-[#f3f7f0] disabled:opacity-50"
-                  />
-                </form>
-              </div>
-            ) : (
-              <form action={startNightLogAction} className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <input
-                  name="planned_exit_time"
-                  type="datetime-local"
-                  required
-                  className="flex-1 rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none"
-                />
-                <PendingSubmitButton
-                  idleLabel="Start Night Log"
-                  pendingLabel="Starting…"
-                  className="shrink-0 rounded-2xl border border-[#d8e0d4] px-5 py-3 text-[11px] font-black uppercase tracking-[0.25em] text-[#1b3022] transition hover:bg-[#f3f7f0] disabled:opacity-50"
-                />
-              </form>
-            )}
-            {recentNightLogs.length > 0 && (
-              <p className="mt-3 text-xs font-medium text-[#8a9d88]">
-                Last status: {recentNightLogs[0].status}
-              </p>
-            )}
-          </div>
-
-          {/* Feedback / complaint */}
+          {/* Support Ticket form (Client Action) */}
           <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
             <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Support Desk</p>
-            <p className="mt-2 text-sm font-medium leading-6 text-[#536352]">
-              Use this form for billing issues, portal bugs, facility concerns, or anything that needs a staff follow-up.
-            </p>
             <SupportTicketForm />
-            {supportTicketRows.length > 0 && (
-              <div className="mt-5 space-y-2 border-t border-[#e5ebe1] pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#8a9d88]">Recent Tickets</p>
-                {supportTicketRows.map((ticket) => (
-                  <div key={ticket.id} className="rounded-2xl bg-[#f5f8f3] px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-black text-[#1b3022]">{ticket.subject}</p>
-                      <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] ${ticket.status === "resolved" || ticket.status === "closed" ? "bg-emerald-100 text-emerald-700" : ticket.status === "in_review" ? "bg-amber-100 text-amber-700" : "bg-[#1b3022] text-white"}`}>
-                        {ticket.status.replaceAll("_", " ")}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs font-medium leading-5 text-[#536352]">
-                      {new Date(ticket.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Exit request */}
           <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
             <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Off-boarding</p>
             {activeExitRequest ? (
-              <div className="mt-4 rounded-2xl bg-[#f5f8f3] px-4 py-3 text-sm font-medium text-[#536352]">
+              <div className="mt-4 rounded-2xl bg-[#f5f8f3] px-4 py-3 text-sm font-medium">
                 <p><strong>Status:</strong> <span className="capitalize">{activeExitRequest.status}</span></p>
-                <p className="mt-1"><strong>Exit Date:</strong> {new Date(activeExitRequest.exit_date).toLocaleDateString("en-IN")}</p>
-                <p className="mt-1"><strong>Refund Eligible:</strong> {activeExitRequest.refund_eligible ? "Yes" : "No"}</p>
+                <p><strong>Exit Date:</strong> {new Date(activeExitRequest.exit_date).toLocaleDateString("en-IN")}</p>
               </div>
-            ) : (
-              <>
-                <p className="mt-2 text-sm font-medium leading-6 text-[#536352]">
-                  Submit a planned exit date so staff can confirm the process, seat release, and any eligible refund.
-                </p>
-                <ExitRequestForm />
-              </>
-            )}
-            <p className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-[#aab5a8]">
-              <DoorOpen className="h-3 w-3" />
-              Caution deposit refund is processed upon exit approval.
-            </p>
+            ) : <ExitRequestForm />}
           </div>
         </div>
       </section>
