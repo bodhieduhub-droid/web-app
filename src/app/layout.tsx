@@ -2,21 +2,26 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 
-import { LeadChatbot } from "@/components/marketing/lead-chatbot";
 import { NavigationProgress } from "@/components/navigation-progress";
-import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+// ssr:false dynamic imports must live in a 'use client' module
+import {
+  LeadChatbotLazy as LeadChatbot,
+  PwaInstallBannerLazy as PwaInstallBanner,
+} from "@/components/marketing/lazy-client-components";
 
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -24,6 +29,9 @@ export const metadata: Metadata = {
   description:
     "Bodhi Edu Hub Reading Hub manages enquiries, monthly student onboarding, manual UPI billing, public notes, and job opportunities.",
   manifest: "/manifest.json",
+  alternates: {
+    canonical: "https://bodhieduhub.com",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -57,6 +65,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Resource hints — resolve font CDN before browser discovers stylesheet */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+
         {/* PWA meta tags */}
         <meta name="application-name" content="Bodhi Edu Hub" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -76,6 +89,7 @@ export default function RootLayout({
             <NavigationProgress />
           </Suspense>
           {children}
+          {/* These load after the page is interactive — never block first paint */}
           <LeadChatbot />
           <PwaInstallBanner />
         </TooltipProvider>
@@ -96,4 +110,3 @@ export default function RootLayout({
     </html>
   );
 }
-
