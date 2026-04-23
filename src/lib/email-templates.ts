@@ -153,8 +153,10 @@ export const emailTemplates = {
     registration: number;
     caution: number;
     monthly: number;
+    proratedDays?: number | null;
     total: number;
     dueDate?: string | null;
+    qrUrl?: string | null;
     upiId?: string | null;
   }): EmailContent {
     const subject = `Admission Invoice: ${payload.invoiceId}`;
@@ -188,7 +190,13 @@ export const emailTemplates = {
     return { subject, html: renderEmail({ title: "Account Ready", body, ctaLabel: "Login Now", ctaUrl: `${appUrl}/login` }) };
   },
 
-  monthlyDue(payload: { name: string; amount: number; monthLabel: string; upiId?: string | null }): EmailContent {
+  onboardingReminder(payload: { name: string }): EmailContent {
+    const subject = "Complete onboarding to continue";
+    const body = `<p>Hi ${payload.name},</p><p>Please finish your onboarding form and ID proof upload to access the student dashboard.</p>`;
+    return { subject, html: renderEmail({ title: "Onboarding pending", body, ctaLabel: "Finish onboarding", ctaUrl: `${appUrl}/student/onboarding` }) };
+  },
+
+  monthlyDue(payload: { name: string; amount: number; monthLabel: string; qrUrl?: string | null; upiId?: string | null }): EmailContent {
     const subject = `Fee Due: ${payload.monthLabel}`;
     const body = `
       <p>Hi ${payload.name},</p>
@@ -202,7 +210,17 @@ export const emailTemplates = {
     return { subject, html: renderEmail({ title: "Payment Reminder", body, ctaLabel: "Open Dashboard", ctaUrl: `${appUrl}/student` }) };
   },
 
-  paymentVerified(payload: { name: string; invoiceId?: string | null; amountApplied?: number | null }): EmailContent {
+  paymentProofSubmitted(payload: { studentName: string; amount: number; invoiceId?: string | null; dashboardLink?: string }): EmailContent {
+    const subject = `Payment proof submitted by ${payload.studentName}`;
+    const body = `
+      <p>${payload.studentName} uploaded a payment screenshot${payload.invoiceId ? ` for invoice ${payload.invoiceId}` : ""}.</p>
+      <p>Amount reported: ${formatInr(payload.amount)}</p>
+      <p>Please review and verify in the billing dashboard.</p>
+    `;
+    return { subject, html: renderEmail({ title: "Payment proof pending review", body, ctaLabel: "Review now", ctaUrl: payload.dashboardLink || `${appUrl}/staff/billing` }) };
+  },
+
+  paymentVerified(payload: { name: string; invoiceId?: string | null; amountApplied?: number | null; nextDueDate?: string | null }): EmailContent {
     const subject = "Payment Verified - Bodhi Edu Hub";
     const body = `
       <p>Hi ${payload.name},</p>
@@ -216,7 +234,7 @@ export const emailTemplates = {
     return { subject, html: renderEmail({ title: "Payment Confirmed", body, ctaLabel: "View Account", ctaUrl: `${appUrl}/student` }) };
   },
 
-  paymentRejected(payload: { name: string; reason?: string }): EmailContent {
+  paymentRejected(payload: { name: string; invoiceId?: string | null; reason?: string; reuploadLink?: string }): EmailContent {
     const subject = "Payment Verification Failed";
     const body = `
       <p>Hi ${payload.name},</p>
@@ -227,7 +245,7 @@ export const emailTemplates = {
     return { subject, html: renderEmail({ title: "Action Required", body, ctaLabel: "Re-upload Proof", ctaUrl: `${appUrl}/student` }) };
   },
 
-  overdueNotice(payload: { name: string; amountDue: number }): EmailContent {
+  overdueNotice(payload: { name: string; invoiceId?: string | null; amountDue: number; lastDate?: string | null; qrUrl?: string | null; upiId?: string | null }): EmailContent {
     const subject = "URGENT: Payment Overdue";
     const body = `
       <p>Hi ${payload.name},</p>
@@ -239,7 +257,17 @@ export const emailTemplates = {
     return { subject, html: renderEmail({ title: "Overdue Notice", body, ctaLabel: "Pay Now", ctaUrl: `${appUrl}/student` }) };
   },
 
-  examAlert(payload: { title: string; category: string; link: string }): EmailContent {
+  cautionRefund(payload: { name: string; amount: number; method: string; processedAt?: string | null }): EmailContent {
+    const subject = "Caution deposit refunded";
+    const body = `
+      <p>Hi ${payload.name},</p>
+      <p>Your caution deposit has been refunded.</p>
+      <p>Amount: ${formatInr(payload.amount)}<br/>Method: ${payload.method}${payload.processedAt ? `<br/>Processed at: ${payload.processedAt}` : ""}</p>
+    `;
+    return { subject, html: renderEmail({ title: "Refund processed", body }) };
+  },
+
+  examAlert(payload: { title: string; category: string; summary?: string | null; link: string }): EmailContent {
     const subject = `[Update] ${payload.category}: ${payload.title}`;
     const body = `
       <p>A new exam update is available for <strong>${payload.category}</strong>.</p>
@@ -249,13 +277,19 @@ export const emailTemplates = {
     return { subject, html: renderEmail({ title: "New Notification", body, ctaLabel: "View Details", ctaUrl: payload.link }) };
   },
 
-  postPublished(payload: { title: string; type: string; link: string }): EmailContent {
+  postPublished(payload: { title: string; type: string; summary?: string | null; link: string }): EmailContent {
     const subject = `New ${payload.type}: ${payload.title}`;
     const body = `
       <p>We've published a new ${payload.type}.</p>
       <p><strong>${payload.title}</strong></p>
     `;
     return { subject, html: renderEmail({ title: "New Post", body, ctaLabel: "Read More", ctaUrl: payload.link }) };
+  },
+
+  studentAnnouncement(payload: { title: string; summary?: string | null; link: string }): EmailContent {
+    const subject = `Announcement: ${payload.title}`;
+    const body = `<p>${payload.summary || "A new announcement has been posted for students."}</p>`;
+    return { subject, html: renderEmail({ title: payload.title, body, ctaLabel: "Open announcement", ctaUrl: payload.link }) };
   },
 
   staffAccount(payload: { name: string; email: string; password: string }): EmailContent {

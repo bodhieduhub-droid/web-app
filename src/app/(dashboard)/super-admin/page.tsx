@@ -3,10 +3,13 @@ import { Bot } from "lucide-react";
 
 import { finalizeFinance, getFinancePeriodWindow, summarizeFinance } from "@/lib/finance-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatDateToIST } from "@/lib/utils";
+import { TrendChart } from "./components/trend-chart";
+import { RecentActivityLog, type ActivityLog } from "./components/recent-activity-log";
 
 function MetricCard({ label, value, href }: { label: string; value: string | number; href: string }) {
   return (
-    <Link href={href} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
+    <Link href={href} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 hover:bg-[#f9fbf8] transition-colors">
       <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">{label}</p>
       <p className="mt-4 text-4xl font-black text-[#1b3022]">{value}</p>
     </Link>
@@ -24,6 +27,11 @@ export default async function SuperAdminDashboard() {
   const dailyWindow = getFinancePeriodWindow("daily");
   const weeklyWindow = getFinancePeriodWindow("weekly");
   const monthlyWindow = getFinancePeriodWindow("monthly");
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  const thirtyDaysIso = thirtyDaysAgo.toISOString();
 
   const { count: enquiryCount } = await supabase
     .from("enquiries")
@@ -54,35 +62,36 @@ export default async function SuperAdminDashboard() {
     .select("*", { count: "exact", head: true })
     .in("status", ["open", "in_review"]);
 
-  const [{ count: totalSeats }, { count: occupiedSeats }, { count: pendingExits }, { count: pendingProofs }, { data: todayCollections }, { data: dailyTx }, { data: weeklyTx }, { data: monthlyTx }] = await Promise.all([
+  const [
+    { count: totalSeats }, 
+    { count: occupiedSeats }, 
+    { count: pendingExits }, 
+    { count: pendingProofs }, 
+    { data: todayCollections }, 
+    { data: dailyTx }, 
+    { data: weeklyTx }, 
+    { data: monthlyTx },
+    { data: chartTx },
+    { data: recentEnquiries },
+    { data: recentStudents },
+    { data: recentBills },
+    { data: recentTx }
+  ] = await Promise.all([
     supabase.from("seats").select("*", { count: "exact", head: true }),
     supabase.from("seats").select("*", { count: "exact", head: true }).eq("status", "occupied"),
     supabase.from("exit_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
     supabase.from("transactions").select("*", { count: "exact", head: true }).eq("verification_status", "pending"),
-    supabase
-      .from("transactions")
-      .select("amount")
-      .eq("verification_status", "verified")
-      .gte("verified_at", todayIso),
-    supabase
-      .from("transactions")
-      .select("amount,type,payment_mode")
-      .in("verification_status", ["verified", "closed"])
-      .gte("verified_at", dailyWindow.startIso)
-      .lt("verified_at", dailyWindow.endIso),
-    supabase
-      .from("transactions")
-      .select("amount,type,payment_mode")
-      .in("verification_status", ["verified", "closed"])
-      .gte("verified_at", weeklyWindow.startIso)
-      .lt("verified_at", weeklyWindow.endIso),
-    supabase
-      .from("transactions")
-      .select("amount,type,payment_mode")
-      .in("verification_status", ["verified", "closed"])
-      .gte("verified_at", monthlyWindow.startIso)
-      .lt("verified_at", monthlyWindow.endIso),
+    supabase.from("transactions").select("amount").eq("verification_status", "verified").gte("verified_at", todayIso),
+    supabase.from("transactions").select("amount,type,payment_mode").in("verification_status", ["verified", "closed"]).gte("verified_at", dailyWindow.startIso).lt("verified_at", dailyWindow.endIso),
+    supabase.from("transactions").select("amount,type,payment_mode").in("verification_status", ["verified", "closed"]).gte("verified_at", weeklyWindow.startIso).lt("verified_at", weeklyWindow.endIso),
+    supabase.from("transactions").select("amount,type,payment_mode").in("verification_status", ["verified", "closed"]).gte("verified_at", monthlyWindow.startIso).lt("verified_at", monthlyWindow.endIso),
+    supabase.from("transactions").select("amount,verified_at").eq("verification_status", "verified").gte("verified_at", thirtyDaysIso).order("verified_at", { ascending: true }),
+    supabase.from("enquiries").select("id, name, created_at").order("created_at", { ascending: false }).limit(5),
+    supabase.from("readers").select("id, name, created_at").order("created_at", { ascending: false }).limit(5),
+    supabase.from("bills").select("id, title, created_at").order("created_at", { ascending: false }).limit(5),
+    supabase.from("transactions").select("id, amount, submitted_at").order("submitted_at", { ascending: false }).limit(5)
   ]);
+  
   const occupancyPct = totalSeats ? Math.round(((occupiedSeats ?? 0) / totalSeats) * 100) : 0;
   const collectionToday = (todayCollections ?? []).reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
   const dailyFinance = finalizeFinance(summarizeFinance(dailyTx));
@@ -94,6 +103,36 @@ export default async function SuperAdminDashboard() {
     .select("id, title, body, created_at")
     .order("created_at", { ascending: false })
     .limit(5);
+
+  // Process Chart Data
+  const trendDataMap = new Map<string, number>();
+  for(let i=0; i<30; i++) {
+    const d = new Date(thirtyDaysAgo);
+    d.setDate(d.getDate() + i);
+    trendDataMap.set(d.toISOString().split('T')[0], 0);
+  }
+
+  chartTx?.forEach(tx => {
+    if (tx.verified_at) {
+      // Create date object and shift to IST to group correctly by day
+      const d = new Date(tx.verified_at);
+      const istTime = new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
+      const dateKey = istTime.toISOString().split('T')[0];
+      if (trendDataMap.has(dateKey)) {
+        trendDataMap.set(dateKey, trendDataMap.get(dateKey)! + Number(tx.amount || 0));
+      }
+    }
+  });
+
+  const trendData = Array.from(trendDataMap.entries()).map(([date, revenue]) => ({ date, revenue }));
+
+  // Process Activity Log Data
+  const activities: ActivityLog[] = [
+    ...(recentEnquiries || []).map(e => ({ id: `enq-${e.id}`, type: "enquiry" as const, title: "New Enquiry", description: `${e.name} submitted an enquiry`, timestamp: e.created_at })),
+    ...(recentStudents || []).map(s => ({ id: `stu-${s.id}`, type: "student" as const, title: "New Admission", description: `${s.name} joined Bodhi Edu Hub`, timestamp: s.created_at })),
+    ...(recentBills || []).map(b => ({ id: `bill-${b.id}`, type: "invoice" as const, title: "Invoice Generated", description: b.title || "New invoice generated", timestamp: b.created_at })),
+    ...(recentTx || []).map(t => ({ id: `tx-${t.id}`, type: "payment" as const, title: "Payment Submitted", description: `A payment of ₹${t.amount} was submitted`, timestamp: t.submitted_at }))
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 15);
 
   return (
     <div className="space-y-8">
@@ -131,13 +170,19 @@ export default async function SuperAdminDashboard() {
           { label: "This Week", summary: weeklyFinance },
           { label: "This Month", summary: monthlyFinance },
         ].map((item) => (
-          <Link key={item.label} href={`/super-admin/billing?period=${item.label === "Today" ? "daily" : item.label === "This Week" ? "weekly" : "monthly"}`} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
+          <Link key={item.label} href={`/super-admin/billing?period=${item.label === "Today" ? "daily" : item.label === "This Week" ? "weekly" : "monthly"}`} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 hover:bg-[#f9fbf8] transition-colors">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">{item.label} Finance</p>
             <p className="mt-4 text-3xl font-black text-[#1b3022]">₹{item.summary.net.toFixed(0)}</p>
             <p className="mt-2 text-sm font-semibold text-emerald-700">Revenue ₹{item.summary.revenue.toFixed(0)}</p>
             <p className="text-sm font-semibold text-[#7d2f2f]">Expense ₹{item.summary.expense.toFixed(0)}</p>
           </Link>
         ))}
+      </section>
+      
+      {/* Analytics & Activity Section */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <TrendChart data={trendData} />
+        <RecentActivityLog activities={activities} />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_0.95fr]">
@@ -155,7 +200,7 @@ export default async function SuperAdminDashboard() {
               <Link
                 key={href}
                 href={href}
-                className="rounded-[1.5rem] border border-[#dde4d9] bg-[#f5f8f3] px-5 py-4 text-sm font-bold text-[#1b3022]"
+                className="rounded-[1.5rem] border border-[#dde4d9] bg-[#f5f8f3] px-5 py-4 text-sm font-bold text-[#1b3022] hover:bg-[#eef2ec] transition-colors"
               >
                 {label}
               </Link>
@@ -169,7 +214,12 @@ export default async function SuperAdminDashboard() {
             {(recentNotifications ?? []).length > 0 ? (
               recentNotifications?.map((notification) => (
                 <div key={notification.id} className="rounded-[1.5rem] bg-[#f5f8f3] p-4">
-                  <p className="font-black text-[#1b3022]">{notification.title}</p>
+                  <div className="flex justify-between items-start">
+                    <p className="font-black text-[#1b3022]">{notification.title}</p>
+                    <span className="text-[10px] font-bold text-[#6d7c6c] shrink-0 ml-2">
+                      {formatDateToIST(notification.created_at, "datetime")}
+                    </span>
+                  </div>
                   <p className="mt-2 text-sm leading-6 text-[#536352]">{notification.body}</p>
                 </div>
               ))
