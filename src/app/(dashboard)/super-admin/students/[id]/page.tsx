@@ -9,6 +9,8 @@ import {
   updateStudentMonthlyFeeAction,
   updateStudentSeatAction,
   updateStudentStatusAction,
+  verifyStudentIdProofAction,
+  rejectStudentIdProofAction,
 } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { requireDashboardContext } from "@/lib/auth";
@@ -125,7 +127,7 @@ export default async function SuperAdminStudentDetailPage({
     supabase
     .from("readers")
     .select(
-        "id,name,email,phone,user_id,reader_type,status,monthly_fee,onboarding_completed,registration_paid,caution_paid,caution_refunded,join_date,fixed_seat_id,address,purpose,seats:fixed_seat_id(seat_number)",
+        "id,name,email,phone,user_id,reader_type,status,monthly_fee,onboarding_completed,registration_paid,caution_paid,caution_refunded,join_date,fixed_seat_id,address,purpose,preparing_for_exam,exam_details,id_proof_url,id_proof_verified,seats:fixed_seat_id(seat_number)",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -190,6 +192,10 @@ export default async function SuperAdminStudentDetailPage({
     fixed_seat_id: string | null;
     address: string | null;
     purpose: string | null;
+    preparing_for_exam: boolean;
+    exam_details: string | null;
+    id_proof_url: string | null;
+    id_proof_verified?: boolean;
     seats?: { seat_number?: number } | null;
   };
 
@@ -270,12 +276,48 @@ export default async function SuperAdminStudentDetailPage({
           <div className="text-right">
             <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#6d7c6c]">{student.reader_type}</p>
             <p className="mt-2 text-3xl font-black text-[#1b3022] capitalize">{student.status.replaceAll("_", " ")}</p>
-            <Link
-              href="/super-admin/students"
-              className="mt-3 inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022]"
-            >
-              Back to Listing
-            </Link>
+            <div className="mt-3 flex gap-2 justify-end">
+              {student.id_proof_url ? (
+                <>
+                  <a
+                    href={student.id_proof_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022]"
+                  >
+                    View ID Proof
+                  </a>
+                  {!student.id_proof_verified && (
+                    <form action={verifyStudentIdProofAction}>
+                      <input type="hidden" name="reader_id" value={student.id} />
+                      <button
+                        type="submit"
+                        className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-50"
+                      >
+                        Verify ID Proof
+                      </button>
+                    </form>
+                  )}
+                  {!student.id_proof_verified && (
+                    <form action={rejectStudentIdProofAction}>
+                      <input type="hidden" name="reader_id" value={student.id} />
+                      <button
+                        type="submit"
+                        className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#7d2f2f] hover:bg-[#f8eef0]"
+                      >
+                        Reject ID Proof
+                      </button>
+                    </form>
+                  )}
+                </>
+              ) : null}
+              <Link
+                href="/super-admin/students"
+                className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022]"
+              >
+                Back to Listing
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -302,6 +344,34 @@ export default async function SuperAdminStudentDetailPage({
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#964b4b]">Total Due</p>
             <p className="mt-2 text-2xl font-black text-[#7d2f2f]">{money(totalDue)}</p>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-[1.6rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
+        <h2 className="text-[11px] font-black uppercase tracking-[0.28em] text-[#6d7c6c]">Onboarding Details</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl bg-[#f5f8f3] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">Address</p>
+            <p className="mt-2 text-sm font-semibold text-[#1b3022] whitespace-pre-wrap">{student.address || "Not provided"}</p>
+          </div>
+          <div className="rounded-2xl bg-[#f5f8f3] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">Purpose</p>
+            <p className="mt-2 text-sm font-semibold text-[#1b3022]">{student.purpose || "Not provided"}</p>
+          </div>
+          <div className="rounded-2xl bg-[#f5f8f3] p-4 md:col-span-2 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">ID Proof Status</p>
+              <p className={`mt-2 text-sm font-black uppercase ${student.id_proof_url ? (student.id_proof_verified ? "text-emerald-700" : "text-[#9b6b1a]") : "text-[#7d2f2f]"}`}>
+                {!student.id_proof_url ? "Not Uploaded" : (student.id_proof_verified ? "Verified" : "Pending Verification")}
+              </p>
+            </div>
+          </div>
+          {student.preparing_for_exam && (
+            <div className="rounded-2xl bg-[#f5f8f3] p-4 md:col-span-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">Exam Details</p>
+              <p className="mt-2 text-sm font-semibold text-[#1b3022] whitespace-pre-wrap">{student.exam_details || "No details provided"}</p>
+            </div>
+          )}
         </div>
       </section>
 

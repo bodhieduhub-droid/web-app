@@ -674,6 +674,88 @@ export async function onboardStudentAction(formData: FormData) {
   }
 }
 
+export async function rejectStudentIdProofAction(formData: FormData) {
+  const { profile } = await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+  const readerId = getString(formData, "reader_id");
+
+  if (!readerId) return;
+
+  const { data: student } = await supabase
+    .from("readers")
+    .select("id, id_proof_public_id, email, name, user_id")
+    .eq("id", readerId)
+    .maybeSingle();
+
+  if (!student) return;
+
+  // Clear ID proof and reset onboarding
+  await supabase
+    .from("readers")
+    .update({
+      id_proof_url: null,
+      id_proof_public_id: null,
+      onboarding_completed: false,
+      id_proof_verified: false,
+    })
+    .eq("id", readerId);
+
+  // Attempt to delete from cloudinary if we have public id
+  if (student.id_proof_public_id) {
+    try {
+      await deleteFromCloudinary(student.id_proof_public_id);
+    } catch (e) {
+      console.error("[rejectStudentIdProofAction] Cloudinary delete failed:", e);
+    }
+  }
+
+  // Notify student
+  if (student.email) {
+    await sendEmail({
+      to: [student.email],
+      subject: "ID Proof Rejected - Re-upload Required",
+      html: `<p>Hi ${student.name},</p><p>The ID proof you uploaded during onboarding was rejected because it is invalid or unclear. Please log in to your dashboard and re-upload a valid ID proof to complete your onboarding.</p>`,
+      text: `Hi ${student.name},\n\nThe ID proof you uploaded during onboarding was rejected because it is invalid or unclear. Please log in to your dashboard and re-upload a valid ID proof to complete your onboarding.\n`,
+    });
+  }
+
+  if (student.user_id) {
+    await notifyReader(student.id, {
+      category: "account",
+      title: "ID Proof Rejected",
+      body: "Your uploaded ID proof was rejected. Please re-upload a clear, valid ID proof.",
+      link: "/student/onboarding",
+    });
+  }
+
+  await notifyActor(profile.id, "ID Proof Rejected", `ID proof for ${student.name} has been rejected.`);
+
+  revalidatePath("/super-admin/students");
+  revalidatePath(`/super-admin/students/${readerId}`);
+  revalidatePath("/staff/students");
+}
+
+export async function verifyStudentIdProofAction(formData: FormData) {
+  const { profile } = await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+  const readerId = getString(formData, "reader_id");
+
+  if (!readerId) return;
+
+  await supabase
+    .from("readers")
+    .update({
+      id_proof_verified: true,
+    })
+    .eq("id", readerId);
+
+  await notifyActor(profile.id, "ID Proof Verified", `ID proof has been verified.`);
+
+  revalidatePath("/super-admin/students");
+  revalidatePath(`/super-admin/students/${readerId}`);
+  revalidatePath("/staff/students");
+}
+
 export async function blockSeatForEnquiry(formData: FormData) {
   const { profile } = await requireRole(["super_admin", "staff"]);
   const supabase = createAdminClient();

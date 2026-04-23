@@ -24,6 +24,7 @@ export interface StudentRecord {
   onboarding_completed: boolean;
   id_proof_url: string | null;
   id_proof_public_id?: string | null;
+  id_proof_verified?: boolean;
   monthly_fee: number;
   registration_paid: boolean;
   caution_paid: boolean;

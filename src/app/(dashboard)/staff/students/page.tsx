@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createRejoinInvoiceAction, rejoinStudentAction } from "@/app/(dashboard)/actions";
+import { createRejoinInvoiceAction, rejoinStudentAction, verifyStudentIdProofAction, rejectStudentIdProofAction } from "@/app/(dashboard)/actions";
 import type { StudentRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -10,7 +10,7 @@ export default async function StaffStudentsPage() {
   const [{ data: students }, { data: openBills }] = await Promise.all([
     supabase
       .from("readers")
-      .select("id, name, phone, status, reader_type, monthly_fee, onboarding_completed, caution_refunded, seats:seats!fixed_seat_id(seat_number)")
+      .select("id, name, phone, status, reader_type, monthly_fee, onboarding_completed, caution_refunded, id_proof_url, id_proof_verified, seats:seats!fixed_seat_id(seat_number)")
       .order("created_at", { ascending: false })
       .limit(200),
     supabase
@@ -66,29 +66,70 @@ export default async function StaffStudentsPage() {
               </div>
             </div>
 
-            {student.status === "archived" && student.caution_refunded && (
-              <form action={rejoinStudentAction} className="mt-5">
-                <input type="hidden" name="reader_id" value={student.id} />
-                <button
-                  type="submit"
-                  className="rounded-2xl bg-[#1b3022] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-white transition hover:bg-[#27452e]"
-                >
-                  Rejoin Student
-                </button>
-              </form>
-            )}
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              {student.status === "archived" && student.caution_refunded && (
+                <form action={rejoinStudentAction}>
+                  <input type="hidden" name="reader_id" value={student.id} />
+                  <button
+                    type="submit"
+                    className="rounded-2xl bg-[#1b3022] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-white transition hover:bg-[#27452e]"
+                  >
+                    Rejoin Student
+                  </button>
+                </form>
+              )}
 
-            {student.status === "pending_payment" && !openBillReaderIds.has(student.id) && (
-              <form action={createRejoinInvoiceAction} className="mt-3">
-                <input type="hidden" name="reader_id" value={student.id} />
-                <button
-                  type="submit"
-                  className="rounded-2xl border border-[#d8e0d4] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#1b3022] transition hover:bg-[#f3f7f0]"
-                >
-                  Create Due Invoice
-                </button>
-              </form>
-            )}
+              {student.id_proof_url && (
+                <>
+                  <a
+                    href={student.id_proof_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-2xl border border-[#d8e0d4] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#1b3022] transition hover:bg-[#f3f7f0]"
+                  >
+                    View ID Proof
+                  </a>
+                  {!student.id_proof_verified ? (
+                    <form action={verifyStudentIdProofAction}>
+                      <input type="hidden" name="reader_id" value={student.id} />
+                      <button
+                        type="submit"
+                        className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700 transition hover:bg-emerald-100"
+                      >
+                        Verify ID Proof
+                      </button>
+                    </form>
+                  ) : (
+                    <span className="rounded-2xl bg-emerald-100 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-800">
+                      ID Verified ✓
+                    </span>
+                  )}
+                  {!student.id_proof_verified && (
+                    <form action={rejectStudentIdProofAction}>
+                      <input type="hidden" name="reader_id" value={student.id} />
+                      <button
+                        type="submit"
+                        className="rounded-2xl border border-[#d8e0d4] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7d2f2f] transition hover:bg-[#f8eef0]"
+                      >
+                        Reject ID Proof
+                      </button>
+                    </form>
+                  )}
+                </>
+              )}
+
+              {student.status === "pending_payment" && !openBillReaderIds.has(student.id) && (
+                <form action={createRejoinInvoiceAction}>
+                  <input type="hidden" name="reader_id" value={student.id} />
+                  <button
+                    type="submit"
+                    className="rounded-2xl border border-[#d8e0d4] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#1b3022] transition hover:bg-[#f3f7f0]"
+                  >
+                    Create Due Invoice
+                  </button>
+                </form>
+              )}
+            </div>
 
             {student.status === "pending_payment" && openBillReaderIds.has(student.id) && (
               <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">
