@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 
 import { LeadChatbot } from "@/components/marketing/lead-chatbot";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -70,6 +72,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <TooltipProvider>
+          <Suspense fallback={null}>
+            <NavigationProgress />
+          </Suspense>
           {children}
           <LeadChatbot />
           <PwaInstallBanner />
