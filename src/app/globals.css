@@ -122,3 +122,107 @@
 .hover-glow:hover {
   box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.5);
 }
+
+/* ── APP-LIKE FEEL ────────────────────────────────── */
+
+/* Smooth scrolling everywhere */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Better touch feel — no ugly highlight on tap */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scroll in main content */
+main {
+  scroll-behavior: smooth;
+}
+
+/* All interactive elements get smooth transitions */
+a, button, [role="button"] {
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+
+/* Press-down effect on all tappable items */
+a:active, button:active, [role="button"]:active {
+  transform: scale(0.97);
+}
+
+/* Page content fade-in on load */
+@keyframes pageFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+main > div > * {
+  animation: pageFadeUp 0.3s ease both;
+}
+
+main > div > *:nth-child(1) { animation-delay: 0ms; }
+main > div > *:nth-child(2) { animation-delay: 40ms; }
+main > div > *:nth-child(3) { animation-delay: 80ms; }
+main > div > *:nth-child(4) { animation-delay: 120ms; }
+main > div > *:nth-child(5) { animation-delay: 160ms; }
+
+/* Skeleton pulse override — smoother */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-pulse {
+  animation: skeletonPulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Scrollbar — clean and minimal */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c5d2bf;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a0b09a;
+}
+
+/* Safe area for mobile notch/home indicator */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Cards — add subtle hover lift */
+section, article {
+  transition: box-shadow 0.2s ease;
+}
+
+/* Input focus — snappy */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  ring: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Bottom nav active indicator animation */
+@keyframes navDotPop {
+  from { transform: scaleX(0); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+/* Smooth sidebar link transitions */
+nav a {
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
