@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MessageSquare, FileText, Upload, Brain, Database, Bot, Sparkles } from "lucide-react";
+import { addDocumentChunk } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -78,15 +79,7 @@ export default async function ChatbotAdminPage() {
               Upload plain text documents like syllabus details, program guidelines, or marketing brochure text to train Bhanu.
             </p>
             
-            <form action={async (formData) => {
-              "use server";
-              const supabase = createAdminClient();
-              const content = formData.get("content") as string;
-              const type = formData.get("type") as string;
-              if (content && type) {
-                await supabase.from("document_chunks").insert({ content, source_type: type });
-              }
-            }} className="space-y-5">
+            <form action={addDocumentChunk} className="space-y-5">
               <div>
                 <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-[#6d7c6c]">Document Type</label>
                 <select name="type" className="w-full rounded-xl border border-[#dde3d5] bg-[#f5f8f3] px-4 py-3.5 text-sm font-semibold text-[#1b3022] outline-none transition focus:border-[#284632] focus:ring-2 focus:ring-[#284632]/20 hover:border-[#b8c7b4]">
