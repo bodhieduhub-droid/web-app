@@ -3,8 +3,8 @@
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const MODEL = "google/gemma-2-9b-it";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 async function searchKnowledgeBase(query: string) {
   const supabase = createAdminClient();
@@ -34,8 +34,8 @@ async function searchKnowledgeBase(query: string) {
 }
 
 export async function getChatResponse(messages: { role: string; content: string }[]) {
-  if (!OPENROUTER_API_KEY) {
-    return { error: "OpenRouter API key not configured." };
+  if (!GEMINI_API_KEY) {
+    return { error: "Gemini API key not configured." };
   }
 
   try {
@@ -80,31 +80,34 @@ CONVERSATIONAL GUIDELINES:
 EXAMPLE:
 "Hi! Bhanu here. 👋 We are in Vazhuthacaud. Its the perfect quiet spot. Thinking of checking us out? I can help you book a visit!"`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://bodhieduhub.com", // Optional, for OpenRouter rankings
-        "X-Title": "Bodhi Edu Hub Chatbot", // Optional
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-      }),
-    });
+    // Build Gemini contents array (system prompt as first user turn)
+    const geminiContents = [
+      { role: "user", parts: [{ text: systemPrompt }] },
+      { role: "model", parts: [{ text: "Understood! I am Bhanu, ready to help." }] },
+      ...messages.map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      })),
+    ];
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: geminiContents }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("OpenRouter API Error:", errorData);
+      console.error("Gemini API Error:", errorData);
       return { error: "Failed to get response from AI." };
     }
 
     const data = await response.json();
-    return { text: data.choices[0].message.content };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    return { text };
   } catch (error) {
     console.error("Chat Action Error:", error);
     return { error: "An unexpected error occurred." };
