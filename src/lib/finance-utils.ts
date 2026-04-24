@@ -1,3 +1,5 @@
+import { getISTDate } from "./date-utils";
+
 export type FinancePeriod = "daily" | "weekly" | "monthly";
 
 export type FinanceRow = {
@@ -19,7 +21,7 @@ export type FinanceSummary = {
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 function istParts(date = new Date()) {
-  const istDate = new Date(date.getTime() + IST_OFFSET_MS);
+  const istDate = getISTDate(date);
   return {
     year: istDate.getUTCFullYear(),
     month: istDate.getUTCMonth(),

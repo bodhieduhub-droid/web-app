@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { requireDashboardContext } from "@/lib/auth";
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getISTDate, getISTDateString, getISTTimestamp } from "@/lib/date-utils";
 
 type SimpleActionState = {
   status: "idle" | "success" | "error";
@@ -46,7 +47,7 @@ export async function checkInAction(formData?: FormData) {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getISTDateString();
 
   // Check if already checked in today
   const { data: existing } = await supabase
@@ -63,7 +64,7 @@ export async function checkInAction(formData?: FormData) {
   const { error } = await supabase.from("attendance").insert({
     reader_id: student.id,
     date: today,
-    check_in_at: new Date().toISOString(),
+    check_in_at: getISTTimestamp(),
   });
 
   if (error) return errorState(error.message);
@@ -80,7 +81,7 @@ export async function checkOutAction(formData?: FormData) {
   if (!student) return errorState("Student record not found.");
 
   const supabase = createAdminClient();
-  const today = new Date().toISOString().split("T")[0];
+  const today = getISTDateString();
 
   const { data: attendance } = await supabase
     .from("attendance")
@@ -94,7 +95,7 @@ export async function checkOutAction(formData?: FormData) {
 
   const { error } = await supabase
     .from("attendance")
-    .update({ check_out_at: new Date().toISOString() })
+    .update({ check_out_at: getISTTimestamp() })
     .eq("id", attendance.id);
 
   if (error) return errorState(error.message);
@@ -105,7 +106,7 @@ export async function checkOutAction(formData?: FormData) {
 
 async function awardBadgeInternal(readerId: string) {
   const supabase = createAdminClient();
-  const now = new Date();
+  const now = getISTDate();
   
   // 1. Welcome Badge (First visit)
   const { count: totalVisits } = await supabase
@@ -117,7 +118,7 @@ async function awardBadgeInternal(readerId: string) {
     await supabase.from("student_badges").upsert({
       reader_id: readerId,
       badge_type: "welcome",
-      metadata: { awarded_on: now.toISOString() }
+      metadata: { awarded_on: getISTTimestamp() }
     }, { onConflict: "reader_id, badge_type" });
   }
 
@@ -126,7 +127,7 @@ async function awardBadgeInternal(readerId: string) {
     await supabase.from("student_badges").upsert({
       reader_id: readerId,
       badge_type: "early_bird",
-      metadata: { last_early_check_in: now.toISOString() }
+      metadata: { last_early_check_in: getISTTimestamp() }
     }, { onConflict: "reader_id, badge_type" });
   }
 

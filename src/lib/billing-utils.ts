@@ -1,3 +1,5 @@
+import { getISTDate } from "./date-utils";
+
 export type PlanType = "daily" | "weekly" | "monthly";
 export type AppRole = "super_admin" | "staff" | "student";
 export type ExamCategory = "SSC" | "UPSSC" | "PSC" | "UPSC" | "BANKING" | "RAILWAY";
@@ -57,7 +59,7 @@ export function calculateInvoiceAmount(options: {
 }) {
   const {
     planType,
-    joinDate = new Date(),
+    joinDate = getISTDate(),
     monthlyFee = HUB_PRICING.monthly,
     includeAdmissionFees = false,
   } = options;
@@ -96,7 +98,7 @@ export function calculateInvoiceAmount(options: {
   };
 }
 
-export function isRegistrationFeeApplicable(joinDate: string | Date | null | undefined, referenceDate = new Date()) {
+export function isRegistrationFeeApplicable(joinDate: string | Date | null | undefined, referenceDate = getISTDate()) {
   if (!joinDate) return true;
   const parsedJoin = joinDate instanceof Date ? joinDate : new Date(joinDate);
   if (Number.isNaN(parsedJoin.getTime())) return true;
@@ -107,12 +109,12 @@ export function isRegistrationFeeApplicable(joinDate: string | Date | null | und
 }
 
 export function startOfToday() {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
+  const date = getISTDate();
+  date.setUTCHours(0, 0, 0, 0);
   return date;
 }
 
-export function getCurrentBillingPeriod(date = new Date()) {
+export function getCurrentBillingPeriod(date = getISTDate()) {
   return {
     month: date.getMonth() + 1,
     year: date.getFullYear(),

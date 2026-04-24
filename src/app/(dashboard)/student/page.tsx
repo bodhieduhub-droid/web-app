@@ -35,6 +35,7 @@ import type {
 } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getISTDate, getISTDateString } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -66,10 +67,9 @@ export default async function StudentDashboard() {
     { data: nightLogs },
     { data: supportTickets },
   ] = await Promise.all([
-    student.fixed_seat_id
       ? supabase.from("seats").select("seat_number").eq("id", student.fixed_seat_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase.from("attendance").select("*").eq("reader_id", student.id).eq("date", new Date().toISOString().split("T")[0]).maybeSingle(),
+    supabase.from("attendance").select("*").eq("reader_id", student.id).eq("date", getISTDateString()).maybeSingle(),
     supabase.from("student_badges").select("*").eq("reader_id", student.id),
     supabase.from("attendance").select("date").eq("reader_id", student.id).order("date", { ascending: false }).limit(31),
     supabase.from("todo_items").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }),
@@ -78,14 +78,14 @@ export default async function StudentDashboard() {
     supabase.from("student_support_tickets").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
   ]);
 
-  const hour = new Date().getHours();
+  const hour = getISTDate().getUTCHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   // Streak calculation (Fast, client-side logic)
   const streakHistory = (recentAttendanceData?.data ?? []) as { date: string }[];
   let currentStreak = 0;
   if (streakHistory.length > 0) {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getISTDateString();
     const firstDate = streakHistory[0].date;
     const d1 = new Date(today);
     const d2 = new Date(firstDate);

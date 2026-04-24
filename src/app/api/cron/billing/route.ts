@@ -6,6 +6,7 @@ import { sendEmail } from "@/lib/email";
 import { emailTemplates } from "@/lib/email-templates";
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getISTDate, getISTDateString, getISTMonday } from "@/lib/date-utils";
 
 function normalizePlanType(value: string): PlanType {
   if (value === "daily" || value === "weekly" || value === "monthly") return value;
@@ -18,18 +19,7 @@ function planDefaultPrice(planType: PlanType, settings: { daily_price: number; w
   return Number(settings.default_monthly_price) || 1650;
 }
 
-function getIsoDateOnly(date = new Date()) {
-  return date.toISOString().slice(0, 10);
-}
-
-function getMondayOfCurrentWeek(date = new Date()) {
-  const monday = new Date(date);
-  const day = monday.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  monday.setDate(monday.getDate() + mondayOffset);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
-}
+// Helpers moved to date-utils.ts
 
 function formatPlanLabel(planType: PlanType) {
   if (planType === "daily") return "Daily";
@@ -48,9 +38,9 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const settings = await getHubSettings();
   const { month, year } = getCurrentBillingPeriod();
-  const today = new Date();
-  const todayDate = getIsoDateOnly(today);
-  const weekStartDate = getIsoDateOnly(getMondayOfCurrentWeek(today));
+  const today = getISTDate();
+  const todayDate = getISTDateString(today);
+  const weekStartDate = getISTDateString(getISTMonday(today));
 
   const { data: students } = await supabase
     .from("readers")

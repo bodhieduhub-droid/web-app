@@ -23,6 +23,7 @@ import { emailTemplates } from "@/lib/email-templates";
 import { createNotification, notifyProfileIds, notifyReader } from "@/lib/notifications";
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getISTDate, getISTDateString, getISTTimestamp } from "@/lib/date-utils";
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -99,11 +100,11 @@ function planDefaultPrice(
   return Number(settings.default_monthly_price) || 1650;
 }
 
-function getIsoDateOnly(date = new Date()) {
+function getIsoDateOnly(date = getISTDate()) {
   return date.toISOString().slice(0, 10);
 }
 
-function getMondayOfCurrentWeek(date = new Date()) {
+function getMondayOfCurrentWeek(date = getISTDate()) {
   const monday = new Date(date);
   const day = monday.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
@@ -198,7 +199,7 @@ export async function convertEnquiryToStudent(formData: FormData) {
   const portalAccess = getString(formData, "portal_access") === "yes";
   const planFeeInput = getNumber(formData, "plan_fee", 0) || getNumber(formData, "monthly_fee", 0);
   const joinDateValue = getOptionalString(formData, "join_date");
-  const joinDate = joinDateValue ? new Date(joinDateValue) : new Date();
+  const joinDate = joinDateValue ? new Date(joinDateValue) : getISTDate();
 
   if (!enquiryId || !seatId || !email) {
     await notifyActor(profile.id, "Conversion failed", "Enquiry, seat, and email are required to convert a student.");
@@ -303,7 +304,7 @@ export async function convertEnquiryToStudent(formData: FormData) {
       monthly_fee: effectivePlanFee,
       onboarding_completed: !createPortalLogin,
       converted_from_enquiry_id: enquiryId,
-      credentials_sent_at: new Date().toISOString(),
+      credentials_sent_at: getISTTimestamp(),
       join_date: joinDate.toISOString(),
     })
     .select("id")
@@ -347,7 +348,7 @@ export async function convertEnquiryToStudent(formData: FormData) {
     .update({
       status: "converted",
       converted_reader_id: student.id,
-      converted_at: new Date().toISOString(),
+      converted_at: getISTTimestamp(),
       assigned_to: profile.id,
     })
     .eq("id", enquiryId);
@@ -457,7 +458,7 @@ export async function onboardStudentAction(formData: FormData) {
   const seatId = getString(formData, "seat_id");
   const monthlyFee = getNumber(formData, "monthly_fee", 0);
   const joinDateValue = getOptionalString(formData, "join_date");
-  const joinDate = joinDateValue ? new Date(joinDateValue) : new Date();
+  const joinDate = joinDateValue ? new Date(joinDateValue) : getISTDate();
 
   const address = getOptionalString(formData, "address");
   const purpose = getOptionalString(formData, "purpose");
@@ -569,7 +570,7 @@ export async function onboardStudentAction(formData: FormData) {
       exam_details: examDetails,
       id_proof_url: idProofUrl,
       id_proof_public_id: idProofPublicId,
-      credentials_sent_at: email ? new Date().toISOString() : null,
+      credentials_sent_at: email ? getISTTimestamp() : null,
     })
     .select("id")
     .single();
@@ -870,7 +871,7 @@ export async function updateEnquiryAction(formData: FormData) {
       status,
       notes,
       assigned_to: assignedTo,
-      updated_at: new Date().toISOString(),
+      updated_at: getISTTimestamp(),
     })
     .eq("id", enquiryId);
 
@@ -952,7 +953,7 @@ export async function submitOnboarding(
         preparing_for_exam: preparingForExam,
         exam_details: examDetails,
         onboarding_completed: true,
-        onboarding_completed_at: new Date().toISOString(),
+        onboarding_completed_at: getISTTimestamp(),
         id_proof_url: uploadedId.secureUrl,
         id_proof_public_id: uploadedId.publicId,
         status: (pendingBills ?? 0) > 0 ? "pending_payment" : "active",
@@ -1139,14 +1140,14 @@ export async function approveSeatChangeAction(formData: FormData) {
     .from("seat_change_requests")
     .update({
       status: "approved",
-      resolved_at: new Date().toISOString(),
+      resolved_at: getISTTimestamp(),
       resolved_by_profile_id: profile.id,
     })
     .eq("id", requestId);
 
   await supabase
     .from("notifications")
-    .update({ read_at: new Date().toISOString() })
+    .update({ read_at: getISTTimestamp() })
     .eq("category", "seat_change_request")
     .contains("metadata", { request_id: requestId });
 
@@ -1187,14 +1188,14 @@ export async function denySeatChangeAction(formData: FormData) {
     .from("seat_change_requests")
     .update({
       status: "declined",
-      resolved_at: new Date().toISOString(),
+      resolved_at: getISTTimestamp(),
       resolved_by_profile_id: profile.id,
     })
     .eq("id", requestId);
 
   await supabase
     .from("notifications")
-    .update({ read_at: new Date().toISOString() })
+    .update({ read_at: getISTTimestamp() })
     .eq("category", "seat_change_request")
     .contains("metadata", { request_id: requestId });
 
@@ -1284,7 +1285,7 @@ export async function submitPaymentProof(
       payment_proof_url: uploadedProof.secureUrl,
       payment_proof_public_id: uploadedProof.publicId,
       verification_status: "pending",
-      submitted_at: new Date().toISOString(),
+      submitted_at: getISTTimestamp(),
     });
 
     if (transactionError) {
@@ -1372,7 +1373,7 @@ export async function verifyPaymentProof(formData: FormData) {
       verification_status: "verified",
       verification_notes: notes,
       verified_by_profile_id: profile.id,
-      verified_at: new Date().toISOString(),
+      verified_at: getISTTimestamp(),
     })
     .eq("id", transactionId);
 
@@ -1463,7 +1464,7 @@ export async function rejectPaymentProof(formData: FormData) {
       verification_status: "rejected",
       verification_notes: notes,
       verified_by_profile_id: profile.id,
-      verified_at: new Date().toISOString(),
+      verified_at: getISTTimestamp(),
     })
     .eq("id", transactionId);
 
@@ -1527,7 +1528,7 @@ export async function closeRejectedPaymentProof(formData: FormData) {
       verification_status: "closed",
       payment_proof_url: null,
       payment_proof_public_id: null,
-      updated_at: new Date().toISOString(),
+      updated_at: getISTTimestamp(),
     })
     .eq("id", transactionId);
 
@@ -1665,8 +1666,8 @@ export async function recordOfflinePaymentAction(formData: FormData) {
     payment_mode: normalizedMode,
     verification_status: "verified",
     verification_notes: note || `Offline payment received (${normalizedMode})`,
-    submitted_at: new Date().toISOString(),
-    verified_at: new Date().toISOString(),
+    submitted_at: getISTTimestamp(),
+    verified_at: getISTTimestamp(),
     verified_by_profile_id: profile.id,
   });
   
@@ -1747,8 +1748,8 @@ export async function addBillLedgerEntryAction(formData: FormData) {
     payment_mode: "upi",
     verification_status: "verified",
     verification_notes: note || (entryType === "refund" ? "Manual refund entry" : "Manual adjustment entry"),
-    submitted_at: new Date().toISOString(),
-    verified_at: new Date().toISOString(),
+    submitted_at: getISTTimestamp(),
+    verified_at: getISTTimestamp(),
     verified_by_profile_id: profile.id,
   });
 
@@ -1954,7 +1955,7 @@ export async function createPostAction(formData: FormData) {
       link_url: linkUrl,
       status,
       author_profile_id: profile.id,
-      published_at: status === "published" ? new Date().toISOString() : null,
+      published_at: status === "published" ? getISTTimestamp() : null,
     })
     .select("*")
     .single();
@@ -2131,7 +2132,7 @@ export async function createBlogPostAction(formData: FormData) {
       cover_image_public_id: uploadedCover?.publicId ?? null,
       status,
       author_profile_id: profile.id,
-      published_at: status === "published" ? new Date().toISOString() : null,
+      published_at: status === "published" ? getISTTimestamp() : null,
     })
     .select("*")
     .single();
@@ -2326,7 +2327,7 @@ export async function updatePostAction(formData: FormData) {
           }
         : {}),
       status,
-      published_at: status === "published" ? new Date().toISOString() : null,
+      published_at: status === "published" ? getISTTimestamp() : null,
     })
     .eq("id", postId);
 
@@ -2365,7 +2366,7 @@ export async function quickUpdatePostStatusAction(formData: FormData) {
     .from("posts")
     .update({
       status,
-      published_at: status === "published" ? new Date().toISOString() : null,
+      published_at: status === "published" ? getISTTimestamp() : null,
     })
     .eq("id", postId);
 
@@ -2550,7 +2551,7 @@ export async function updateHubSettingsAction(formData: FormData) {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
-    updated_at: new Date().toISOString(),
+    updated_at: getISTTimestamp(),
   }).eq("id", 1);
 
   revalidatePath("/super-admin/settings");
@@ -3025,7 +3026,7 @@ export async function markNotificationReadAction(formData: FormData) {
       {
         notification_id: notificationId,
         profile_id: profile.id,
-        read_at: new Date().toISOString(),
+        read_at: getISTTimestamp(),
       },
       { onConflict: "notification_id,profile_id" },
     );
@@ -3063,7 +3064,7 @@ export async function markAllNotificationsReadAction() {
         eligibleIds.map((notificationId) => ({
           notification_id: notificationId,
           profile_id: profile.id,
-          read_at: new Date().toISOString(),
+          read_at: getISTTimestamp(),
         })),
         { onConflict: "notification_id,profile_id" },
       );
