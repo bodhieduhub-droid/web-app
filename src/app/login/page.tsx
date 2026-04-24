@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, LockKeyhole, Mail, ArrowLeft } from "lucide-react";
-import { useActionState } from "react";
+import { Loader2, LockKeyhole, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { useActionState, useState } from "react";
 import { loginWithPassword } from "./actions";
 
 interface LoginState {
@@ -11,6 +11,7 @@ interface LoginState {
 }
 
 export default function LoginPage() {
+  const [showPassword, setShowPassword] = useState(false);
   const [state, formAction, isPending] = useActionState<LoginState, FormData>(
     async (_, formData) => {
       const email = formData.get("email") as string;
@@ -79,13 +80,25 @@ export default function LoginPage() {
                   <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-white" />
                   <input
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="••••••••"
                     required
                     disabled={isPending}
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:border-white/30 focus:bg-white/10 focus:ring-4 focus:ring-white/5 disabled:opacity-50"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-white/40 transition-colors hover:text-white outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
