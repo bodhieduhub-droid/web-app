@@ -27,8 +27,8 @@ export async function checkInAction(formData?: FormData) {
   const settings = await getHubSettings();
 
   // IP Restriction Check
-  // Supports both exact IPs (e.g. "1.2.3.4") and subnet prefixes (e.g. "192.168.1.")
-  // This handles dynamic local IPs — any device on the same WiFi subnet will match.
+  // All students on the same WiFi share one public IP. Use the "Detect My IP"
+  // button in Settings to always keep it current.
   const allowedIps = settings.allowed_attendance_ips || [];
   if (allowedIps.length > 0) {
     const headerList = await headers();
@@ -37,13 +37,7 @@ export async function checkInAction(formData?: FormData) {
       headerList.get("x-real-ip") ||
       null;
 
-    const isAllowed =
-      clientIp &&
-      allowedIps.some((entry) => {
-        const rule = entry.trim();
-        // Subnet prefix match (e.g. "192.168.1.") OR exact match
-        return clientIp.startsWith(rule) || clientIp === rule;
-      });
+    const isAllowed = clientIp && allowedIps.some((entry) => clientIp === entry.trim());
 
     if (!isAllowed) {
       return errorState(

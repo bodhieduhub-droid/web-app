@@ -1,12 +1,77 @@
 "use client";
 
 import Image from "next/image";
+import { useState, useTransition } from "react";
 
 import { resetAllDataAction, updateHubSettingsAction } from "@/app/(dashboard)/actions";
+import { detectClientIpAction } from "@/app/(dashboard)/attendance-actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { HubSettings } from "@/lib/settings";
 
 const remoteImageLoader = ({ src }: { src: string }) => src;
+
+function AttendanceIpSection({ settings }: { settings: HubSettings }) {
+  const [ipValue, setIpValue] = useState(settings.allowed_attendance_ips?.join(", ") ?? "");
+  const [detecting, startDetecting] = useTransition();
+  const [detectedIp, setDetectedIp] = useState<string | null>(null);
+
+  function handleDetect() {
+    startDetecting(async () => {
+      const ip = await detectClientIpAction();
+      setDetectedIp(ip);
+      // Append to existing IPs if not already present, else set fresh
+      setIpValue((prev) => {
+        const existing = prev.split(",").map((s) => s.trim()).filter(Boolean);
+        if (!existing.includes(ip)) {
+          return existing.length > 0 ? `${existing.join(", ")}, ${ip}` : ip;
+        }
+        return prev;
+      });
+    });
+  }
+
+  return (
+    <section className="space-y-3">
+      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">Attendance Restriction</p>
+      <div className="space-y-3">
+        {/* Detect IP Banner */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#d8e0d4] bg-[#f0f7ee] px-4 py-3">
+          <div>
+            <p className="text-xs font-bold text-[#1b3022]">
+              {detectedIp
+                ? `✅ Detected: ${detectedIp}`
+                : "📡 Detect your current WiFi public IP"}
+            </p>
+            <p className="mt-0.5 text-[10px] text-[#6d7c6c]">
+              {detectedIp
+                ? "IP added to the field below. Click Save to apply."
+                : "Must be connected to Reading Room WiFi when clicking."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDetect}
+            disabled={detecting}
+            className="shrink-0 rounded-xl bg-[#1b3022] px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white transition hover:opacity-80 disabled:opacity-50"
+          >
+            {detecting ? "Detecting…" : "Detect My IP"}
+          </button>
+        </div>
+
+        <textarea
+          name="allowed_attendance_ips"
+          value={ipValue}
+          onChange={(e) => setIpValue(e.target.value)}
+          placeholder="e.g. 106.222.237.48 — use the Detect button above while on your WiFi"
+          className="min-h-20 w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-4 text-sm font-semibold text-[#1b3022]"
+        />
+        <p className="text-[10px] font-medium italic text-[#6d7c6c]">
+          ⚠️ Your ISP may change your public IP occasionally. When students can&apos;t check in, open Settings while on your WiFi → click <strong>Detect My IP</strong> → Save. Leave empty to allow check-in from any network.
+        </p>
+      </div>
+    </section>
+  );
+}
 
 export function SettingsForms({ settings }: { settings: HubSettings }) {
   return (
@@ -64,20 +129,7 @@ export function SettingsForms({ settings }: { settings: HubSettings }) {
           </div>
         </section>
 
-        <section className="space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">Attendance Restriction</p>
-          <div className="space-y-3">
-            <textarea 
-              name="allowed_attendance_ips" 
-              defaultValue={settings.allowed_attendance_ips?.join(", ") ?? ""} 
-              placeholder="e.g. 192.168.1. (subnet prefix) or 1.2.3.4 (exact IP), comma separated" 
-              className="min-h-20 w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-4 text-sm font-semibold text-[#1b3022]" 
-            />
-            <p className="text-[10px] font-medium text-[#6d7c6c] italic">
-              💡 Use a subnet prefix (e.g. <strong>192.168.1.</strong>) to allow all devices on your WiFi — even when IPs change. Leave empty to allow check-in from any network.
-            </p>
-          </div>
-        </section>
+        <AttendanceIpSection settings={settings} />
 
         <PendingSubmitButton
           idleLabel="Save All Settings"
