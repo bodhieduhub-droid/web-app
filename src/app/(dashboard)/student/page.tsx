@@ -67,6 +67,7 @@ export default async function StudentDashboard() {
     { data: nightLogs },
     { data: supportTickets },
   ] = await Promise.all([
+    student.fixed_seat_id
       ? supabase.from("seats").select("seat_number").eq("id", student.fixed_seat_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("attendance").select("*").eq("reader_id", student.id).eq("date", getISTDateString()).maybeSingle(),
