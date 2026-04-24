@@ -70,11 +70,11 @@ export function SettingsForms({ settings }: { settings: HubSettings }) {
             <textarea 
               name="allowed_attendance_ips" 
               defaultValue={settings.allowed_attendance_ips?.join(", ") ?? ""} 
-              placeholder="Allowed WiFi Public IPs, comma separated (e.g. 1.2.3.4)" 
+              placeholder="e.g. 192.168.1. (subnet prefix) or 1.2.3.4 (exact IP), comma separated" 
               className="min-h-20 w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-4 text-sm font-semibold text-[#1b3022]" 
             />
             <p className="text-[10px] font-medium text-[#6d7c6c] italic">
-              Leave empty to allow attendance from any network. If set, students can only check in from these IPs.
+              💡 Use a subnet prefix (e.g. <strong>192.168.1.</strong>) to allow all devices on your WiFi — even when IPs change. Leave empty to allow check-in from any network.
             </p>
           </div>
         </section>

@@ -27,13 +27,28 @@ export async function checkInAction(formData?: FormData) {
   const settings = await getHubSettings();
 
   // IP Restriction Check
+  // Supports both exact IPs (e.g. "1.2.3.4") and subnet prefixes (e.g. "192.168.1.")
+  // This handles dynamic local IPs — any device on the same WiFi subnet will match.
   const allowedIps = settings.allowed_attendance_ips || [];
   if (allowedIps.length > 0) {
     const headerList = await headers();
-    const clientIp = headerList.get("x-forwarded-for")?.split(",")[0] || headerList.get("x-real-ip");
-    
-    if (!clientIp || !allowedIps.includes(clientIp)) {
-      return errorState(`Access Denied: Please connect to the Reading Room WiFi to check in. (Your IP: ${clientIp || "Unknown"})`);
+    const clientIp =
+      headerList.get("x-forwarded-for")?.split(",")[0].trim() ||
+      headerList.get("x-real-ip") ||
+      null;
+
+    const isAllowed =
+      clientIp &&
+      allowedIps.some((entry) => {
+        const rule = entry.trim();
+        // Subnet prefix match (e.g. "192.168.1.") OR exact match
+        return clientIp.startsWith(rule) || clientIp === rule;
+      });
+
+    if (!isAllowed) {
+      return errorState(
+        `Access Denied: Please connect to the Reading Room WiFi to check in. (Your IP: ${clientIp || "Unknown"})`
+      );
     }
   }
 
