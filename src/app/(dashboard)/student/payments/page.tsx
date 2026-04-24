@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getHubSettings } from "@/lib/settings";
 import { getOptimizedImage } from "@/lib/utils";
 import { CardsSkeleton, ListSkeleton } from "@/components/dashboard/suspense-skeletons";
+import { formatToIST } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -235,7 +236,7 @@ async function TransactionHistory({
                     {t.amount < 0 ? `-₹${Math.abs(t.amount)}` : `₹${t.amount}`}
                   </p>
                   <p className="mt-1 text-sm font-medium text-[#60705f]">
-                    {new Date(t.submitted_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    {formatToIST(t.submitted_at).split(",")[0]}
                   </p>
                   <p className="mt-1 text-sm font-semibold text-[#6d7c6c]">{t.type.replaceAll("_", " ")}</p>
                   {t.verification_notes && <p className="mt-1 text-sm font-semibold text-[#536352]">{t.verification_notes}</p>}
@@ -285,7 +286,7 @@ async function TransactionHistory({
                 <p className={`font-black ${entry.amount < 0 ? "text-red-700" : "text-[#1b3022]"}`}>
                   {entry.amount < 0 ? `Refund -₹${Math.abs(entry.amount)}` : `Adjustment +₹${entry.amount}`}
                 </p>
-                <p className="mt-1 text-sm font-medium text-[#60705f]">{new Date(entry.submitted_at).toLocaleString("en-IN")}</p>
+                <p className="mt-1 text-sm font-medium text-[#60705f]">{formatToIST(entry.submitted_at)}</p>
                 <p className="mt-1 text-sm font-semibold text-[#536352]">{entry.verification_notes || "No note"}</p>
               </div>
             ))}

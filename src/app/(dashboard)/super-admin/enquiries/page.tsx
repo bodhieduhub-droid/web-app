@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { EnquiryRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatToIST } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -145,7 +146,7 @@ export default async function SuperAdminEnquiriesPage({
                 </td>
                 <td className="px-4 py-4 text-sm font-bold text-[#1b3022]">{enquiry.status.replaceAll("_", " ")}</td>
                 <td className="px-4 py-4 text-sm font-bold text-[#1b3022]">{enquiry.profiles?.full_name || "Unassigned"}</td>
-                <td className="px-4 py-4 text-xs font-semibold text-[#6d7c6c]">{new Date(enquiry.created_at).toLocaleString("en-IN")}</td>
+                <td className="px-4 py-4 text-xs font-semibold text-[#6d7c6c]">{formatToIST(enquiry.created_at)}</td>
                 <td className="px-4 py-4">
                   <Link href={`/super-admin/enquiries/${enquiry.id}`} className="rounded-xl border border-[#d8e0d4] bg-white px-3 py-2 text-xs font-black text-[#1b3022]">
                     Open Detail

@@ -1,32 +1,53 @@
 /**
  * Centralized utility for Indian Standard Time (IST) date handling.
- * Since Vercel servers run in UTC, we must explicitly shift to IST (+5:30).
+ * We use Intl.DateTimeFormat to ensure accuracy regardless of server timezone.
  */
-
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 /**
- * Returns a new Date object shifted to IST.
- * NOTE: Use this for wall-clock comparisons (e.g. .getHours())
+ * Returns a new Date object representing the current time in IST wall-clock.
+ * Use this ONLY for display or local comparisons (like getHours).
  */
 export function getISTDate(date = new Date()): Date {
-  return new Date(date.getTime() + IST_OFFSET_MS);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map: Record<string, number> = {};
+  parts.forEach(({ type, value }) => {
+    if (type !== "literal") map[type] = parseInt(value, 10);
+  });
+
+  // Create a date that LOOKS like IST but is technically UTC
+  return new Date(Date.UTC(map.year, map.month - 1, map.day, map.hour, map.minute, map.second));
 }
 
 /**
  * Returns YYYY-MM-DD string for the current IST date.
  */
 export function getISTDateString(date = new Date()): string {
-  const ist = getISTDate(date);
-  return ist.toISOString().split("T")[0];
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(date);
 }
 
 /**
- * Returns the current timestamp in ISO format but shifted to IST wall-clock.
- * Useful for storing in DB columns that don't auto-convert.
+ * Returns the current TRUE UTC timestamp.
+ * We should store TRUE UTC in the DB and only format to IST on display.
  */
 export function getISTTimestamp(date = new Date()): string {
-  return getISTDate(date).toISOString();
+  return date.toISOString();
 }
 
 /**
@@ -45,12 +66,28 @@ export function formatToIST(date: string | Date | null | undefined): string {
 /**
  * Returns the Monday of the current IST week.
  */
-export function getISTMonday(date = getISTDate()): Date {
-  const monday = new Date(date);
-  const day = monday.getUTCDay();
+export function getISTMonday(date = new Date()): Date {
+  const ist = getISTDate(date);
+  const day = ist.getUTCDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
-  monday.setUTCDate(monday.getUTCDate() + mondayOffset);
+  
+  const monday = new Date(ist);
+  monday.setUTCDate(ist.getUTCDate() + mondayOffset);
   monday.setUTCHours(0, 0, 0, 0);
   return monday;
 }
+
+/**
+ * Returns the current hour in IST (0-23).
+ */
+export function getISTHour(date = new Date()): number {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    hour12: false,
+  });
+  return parseInt(formatter.format(date), 10);
+}
+
+
 

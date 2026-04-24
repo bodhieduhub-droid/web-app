@@ -35,7 +35,7 @@ import type {
 } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getISTDate, getISTDateString } from "@/lib/date-utils";
+import { getISTDate, getISTDateString, getISTHour, formatToIST } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -78,8 +78,8 @@ export default async function StudentDashboard() {
     supabase.from("student_support_tickets").select("*").eq("reader_id", student.id).order("created_at", { ascending: false }).limit(5),
   ]);
 
-  const hour = getISTDate().getUTCHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const hour = getISTHour();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : hour < 21 ? "Good evening" : "Good night";
 
   // Streak calculation (Fast, client-side logic)
   const streakHistory = (recentAttendanceData?.data ?? []) as { date: string }[];
@@ -221,7 +221,7 @@ export default async function StudentDashboard() {
             {activeExitRequest ? (
               <div className="mt-4 rounded-2xl bg-[#f5f8f3] px-4 py-3 text-sm font-medium">
                 <p><strong>Status:</strong> <span className="capitalize">{activeExitRequest.status}</span></p>
-                <p><strong>Exit Date:</strong> {new Date(activeExitRequest.exit_date).toLocaleDateString("en-IN")}</p>
+                <p><strong>Exit Date:</strong> {formatToIST(activeExitRequest.exit_date).split(",")[0]}</p>
               </div>
             ) : <ExitRequestForm />}
           </div>
