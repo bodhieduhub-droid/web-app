@@ -1,7 +1,7 @@
-import { blockSeatForEnquiry, convertEnquiryToStudent, deleteEnquiryAction } from "@/app/(dashboard)/actions";
+import { blockSeatForEnquiry, convertEnquiryToStudent } from "@/app/(dashboard)/actions";
 import type { EnquiryRecord, SeatRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Trash2 } from "lucide-react";
+import { DeleteEnquiryButton } from "@/components/admin/delete-enquiry-button";
 
 export const dynamic = "force-dynamic";
 
@@ -40,16 +40,7 @@ export default async function StaffEnquiriesPage() {
                 </p>
               </div>
               
-              <form action={deleteEnquiryAction} onSubmit={(e) => !confirm("Are you sure you want to delete this enquiry?") && e.preventDefault()}>
-                <input type="hidden" name="enquiry_id" value={enquiry.id} />
-                <button 
-                  type="submit"
-                  className="group flex h-10 w-10 items-center justify-center rounded-2xl border border-[#d8e0d4] bg-white text-red-600 transition hover:bg-red-50"
-                  title="Delete Enquiry"
-                >
-                  <Trash2 className="h-5 w-5 transition group-hover:scale-110" />
-                </button>
-              </form>
+              <DeleteEnquiryButton enquiryId={enquiry.id} className="h-10 w-10" />
             </div>
 
             {enquiry.status !== "converted" ? (

@@ -3,7 +3,7 @@ import { deleteEnquiryAction } from "@/app/(dashboard)/actions";
 import type { EnquiryRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatToIST } from "@/lib/date-utils";
-import { Trash2 } from "lucide-react";
+import { DeleteEnquiryButton } from "@/components/admin/delete-enquiry-button";
 
 export const dynamic = "force-dynamic";
 
@@ -153,16 +153,7 @@ export default async function SuperAdminEnquiriesPage({
                     <Link href={`/super-admin/enquiries/${enquiry.id}`} className="rounded-xl border border-[#d8e0d4] bg-white px-3 py-2 text-xs font-black text-[#1b3022]">
                       Open Detail
                     </Link>
-                    <form action={deleteEnquiryAction} onSubmit={(e) => !confirm("Are you sure you want to delete this enquiry?") && e.preventDefault()}>
-                      <input type="hidden" name="enquiry_id" value={enquiry.id} />
-                      <button 
-                        type="submit"
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8e0d4] bg-white text-red-600 transition hover:bg-red-50"
-                        title="Delete Enquiry"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </form>
+                    <DeleteEnquiryButton enquiryId={enquiry.id} className="h-9 w-9" />
                   </div>
                 </td>
               </tr>
