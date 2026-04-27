@@ -5,10 +5,8 @@ import Link from "next/link";
 import { finalizeFinance, getFinancePeriodWindow, summarizeFinance } from "@/lib/finance-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateToIST } from "@/lib/utils";
+import { TrendChart } from "@/app/(dashboard)/super-admin/components/trend-chart";
 import { RecentActivityLog, type ActivityLog } from "@/app/(dashboard)/super-admin/components/recent-activity-log";
-import dynamic from "next/dynamic";
-
-const TrendChart = dynamic(() => import("@/app/(dashboard)/super-admin/components/trend-chart").then(mod => mod.TrendChart), { ssr: false });
 
 // ─── Core Metric Cards ────────────────────────────────────────────────────────
 export async function SuperAdminMetricCards() {
