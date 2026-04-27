@@ -44,7 +44,6 @@ type TxRow = {
   bill_id: string;
   amount: number;
   payment_proof_url: string | null;
-  reference_number: string | null;
   verification_status: "pending" | "verified" | "rejected" | "closed";
   verification_notes: string | null;
   submitted_at: string;
@@ -140,7 +139,7 @@ export default async function SuperAdminStudentDetailPage({
       .limit(20),
     supabase
       .from("transactions")
-      .select("id,bill_id,amount,payment_proof_url,reference_number,verification_status,verification_notes,submitted_at")
+      .select("id,bill_id,amount,payment_proof_url,verification_status,verification_notes,submitted_at")
       .eq("reader_id", id)
       .order("submitted_at", { ascending: false })
       .limit(20),
@@ -237,7 +236,7 @@ export default async function SuperAdminStudentDetailPage({
     ...txs.map((tx) => ({
       at: tx.submitted_at,
       type: "Proof",
-      label: `${money(tx.amount)} · ${tx.verification_status}${tx.reference_number ? ` · Ref ${tx.reference_number}` : ""}`,
+      label: `${money(tx.amount)} · ${tx.verification_status}`,
     })),
     ...seatShifts.map((shift) => ({
       at: shift.shifted_at,

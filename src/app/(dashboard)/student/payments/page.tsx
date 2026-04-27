@@ -40,7 +40,7 @@ async function PaymentsSummary({
   const [settings, { data: bills }, { data: transactionRows }] = await Promise.all([
     getHubSettings(),
     supabase.from("bills").select("*").eq("reader_id", studentId).order("created_at", { ascending: false }).limit(120),
-    supabase.from("transactions").select("*").eq("reader_id", studentId).order("created_at", { ascending: false }).limit(120),
+    supabase.from("transactions").select("id, bill_id, amount, verification_status, submitted_at, payment_proof_url").eq("reader_id", studentId).order("created_at", { ascending: false }).limit(120),
   ]);
 
   const allBills = (bills ?? []) as BillRecord[];
@@ -224,7 +224,7 @@ async function TransactionHistory({
   const supabase = createAdminClient();
   const query = supabase
     .from("transactions")
-    .select("*")
+    .select("id, bill_id, amount, verification_status, submitted_at, payment_proof_url, type, verification_notes")
     .eq("reader_id", studentId)
     .order("submitted_at", { ascending: false })
     .limit(TRANSACTION_PAGE_SIZE + 1);

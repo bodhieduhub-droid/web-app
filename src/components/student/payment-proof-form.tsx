@@ -5,7 +5,7 @@ import { useActionState, useId, useRef, useState } from "react";
 import { submitPaymentProof } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 const initialState = {
   status: "idle" as const,
@@ -38,7 +38,7 @@ export function PaymentProofForm({
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      setClientError("File too large. Upload a screenshot under 5MB.");
+      setClientError("File too large. Upload a screenshot under 10MB.");
       event.target.value = "";
       return;
     }
@@ -101,17 +101,7 @@ export function PaymentProofForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <label className="block text-sm font-semibold text-[#1b3022]">
-          UPI transaction reference (optional)
-        </label>
-        <input
-          name="reference_number"
-          type="text"
-          placeholder="Eg. 320145983247"
-          className="w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none"
-        />
-      </div>
+
 
       <div className="space-y-2">
         <label htmlFor={fileId} className="block text-sm font-semibold text-[#1b3022]">
@@ -129,7 +119,7 @@ export function PaymentProofForm({
           required
         />
         <p id={guidanceId} className="text-sm text-[#536352]">
-          Upload a JPG, PNG, or WebP screenshot up to 5MB. Smaller files work better on slow networks.
+          Upload a JPG, PNG, or WebP screenshot up to 10MB. Smaller files work better on slow networks.
         </p>
         {clientError ? (
           <p id={errorId} className="text-sm font-medium text-red-600">

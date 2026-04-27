@@ -1299,7 +1299,6 @@ export async function submitPaymentProof(
       type: "upi",
       amount,
       payment_mode: "upi",
-      reference_number: referenceNumber,
       payment_proof_url: uploadedProof.secureUrl,
       payment_proof_public_id: uploadedProof.publicId,
       verification_status: "pending",
