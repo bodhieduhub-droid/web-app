@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "10mb",
     },
+    allowedDevOrigins: ["192.168.1.151", "localhost:3000"],
   },
   images: {
     formats: ["image/avif", "image/webp"],

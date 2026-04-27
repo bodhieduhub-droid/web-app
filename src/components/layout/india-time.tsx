@@ -2,6 +2,7 @@
 
 import { Clock3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 
 function getIndiaTime() {
   const timeFormatter = new Intl.DateTimeFormat("en-IN", {
@@ -23,7 +24,8 @@ function getIndiaTime() {
   };
 }
 
-export function IndiaTime({ compact = false }: { compact?: boolean }) {
+export function IndiaTime({ compact = false, className }: { compact?: boolean; className?: string }) {
+  const [mounted, setMounted] = useState(false);
   const [indiaTime, setIndiaTime] = useState(() => getIndiaTime());
 
   const classes = useMemo(
@@ -43,18 +45,20 @@ export function IndiaTime({ compact = false }: { compact?: boolean }) {
   );
 
   useEffect(() => {
+    setMounted(true);
     const updateTime = () => setIndiaTime(getIndiaTime());
-    updateTime();
     const interval = window.setInterval(updateTime, 60_000);
     return () => window.clearInterval(interval);
   }, []);
 
+  if (!mounted) return <div className={cn(classes.wrapper, className)}><Clock3 className={classes.icon} /></div>;
+
   return (
-    <div className={classes.wrapper}>
+    <div className={cn(classes.wrapper, className)}>
       <Clock3 className={classes.icon} />
       <div>
-        <p className={classes.time} suppressHydrationWarning>{indiaTime.time}</p>
-        <p className="text-sm text-[#6b7b69]" suppressHydrationWarning>{indiaTime.date}</p>
+        <p className={classes.time}>{indiaTime.time}</p>
+        <p className="text-sm text-[#6b7b69]">{indiaTime.date}</p>
       </div>
     </div>
   );

@@ -6,6 +6,8 @@ import { notifyProfileIds } from "@/lib/notifications";
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { enquirySchema } from "./schemas";
+
 export async function submitEnquiry(data: {
   name: string;
   phone: string;
@@ -13,6 +15,12 @@ export async function submitEnquiry(data: {
   visit_date?: string;
   visit_time?: string;
 }) {
+  // Server-side validation
+  const validation = enquirySchema.safeParse(data);
+  if (!validation.success) {
+    return { error: validation.error.issues[0].message };
+  }
+
   const supabase = createAdminClient();
   const name = data.name.trim();
   const phone = data.phone.trim();
@@ -20,9 +28,6 @@ export async function submitEnquiry(data: {
   const visit_date = data.visit_date || null;
   const visit_time = data.visit_time || null;
 
-  if (!name || !phone || !email) {
-    return { error: "Name, phone, and email are required." };
-  }
 
   const { data: lead, error } = await supabase.from("enquiries").insert({
     name,

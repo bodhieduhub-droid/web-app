@@ -1,37 +1,47 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Send, User, Phone, Mail, Loader2 } from "lucide-react";
-
+import { Send, User, Phone, Mail, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { submitEnquiry } from "./actions";
+import { enquirySchema, type EnquiryInput } from "./schemas";
+import { cn } from "@/lib/utils";
 
 export function RegisterForm() {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("+91 ");
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EnquiryInput>({
+    resolver: zodResolver(enquirySchema),
+    defaultValues: {
+      name: "",
+      phone: "+91 ",
+      email: "",
+    },
+  });
 
+  const onSubmit = (data: EnquiryInput) => {
+    setMessage(null);
     startTransition(async () => {
-      const result = await submitEnquiry({ name, phone, email });
+      const result = await submitEnquiry(data);
       if (result.error) {
-        setMessage(result.error);
+        setMessage({ text: result.error, type: "error" });
         return;
       }
 
-      setName("");
-      setPhone("");
-      setEmail("");
-      setMessage("Your enquiry has been sent. Staff will contact you shortly.");
+      reset({ name: "", phone: "+91 ", email: "" });
+      setMessage({ text: "Your enquiry has been sent. Staff will contact you shortly.", type: "success" });
     });
-  }
+  };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <div className="space-y-4">
         <div className="inline-flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-white/10 text-white shadow-inner ring-1 ring-white/20">
           <Send className="h-6 w-6" />
@@ -48,46 +58,85 @@ export function RegisterForm() {
 
       <div className="space-y-5">
         <div className="space-y-2">
-          <label className="ml-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/50">Name</label>
+          <div className="flex items-center justify-between px-1">
+            <label className="text-[11px] font-bold uppercase tracking-[0.24em] text-white/50">Name</label>
+            {errors.name && (
+              <span className="text-[10px] font-bold text-red-400 animate-in fade-in slide-in-from-right-1">
+                {errors.name.message}
+              </span>
+            )}
+          </div>
           <div className="relative group">
-            <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-white" />
+            <User className={cn(
+              "pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors",
+              errors.name ? "text-red-400/50 group-focus-within:text-red-400" : "text-white/40 group-focus-within:text-white"
+            )} />
             <input
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:border-white/30 focus:bg-white/10 focus:ring-4 focus:ring-white/5 disabled:opacity-50"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
+              {...register("name")}
+              className={cn(
+                "w-full rounded-2xl border bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:bg-white/10 focus:ring-4 disabled:opacity-50",
+                errors.name 
+                  ? "border-red-500/50 focus:border-red-500 focus:ring-red-500/10" 
+                  : "border-white/10 focus:border-white/30 focus:ring-white/5"
+              )}
               placeholder="Student name"
-              required
               disabled={isPending}
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="ml-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/50">Phone</label>
+          <div className="flex items-center justify-between px-1">
+            <label className="text-[11px] font-bold uppercase tracking-[0.24em] text-white/50">Phone</label>
+            {errors.phone && (
+              <span className="text-[10px] font-bold text-red-400 animate-in fade-in slide-in-from-right-1">
+                {errors.phone.message}
+              </span>
+            )}
+          </div>
           <div className="relative group">
-            <Phone className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-white" />
+            <Phone className={cn(
+              "pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors",
+              errors.phone ? "text-red-400/50 group-focus-within:text-red-400" : "text-white/40 group-focus-within:text-white"
+            )} />
             <input
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:border-white/30 focus:bg-white/10 focus:ring-4 focus:ring-white/5 disabled:opacity-50"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
+              {...register("phone")}
+              className={cn(
+                "w-full rounded-2xl border bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:bg-white/10 focus:ring-4 disabled:opacity-50",
+                errors.phone 
+                  ? "border-red-500/50 focus:border-red-500 focus:ring-red-500/10" 
+                  : "border-white/10 focus:border-white/30 focus:ring-white/5"
+              )}
               placeholder="+91 9876543210"
-              required
               disabled={isPending}
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="ml-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/50">Email</label>
+          <div className="flex items-center justify-between px-1">
+            <label className="text-[11px] font-bold uppercase tracking-[0.24em] text-white/50">Email</label>
+            {errors.email && (
+              <span className="text-[10px] font-bold text-red-400 animate-in fade-in slide-in-from-right-1">
+                {errors.email.message}
+              </span>
+            )}
+          </div>
           <div className="relative group">
-            <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40 transition-colors group-focus-within:text-white" />
+            <Mail className={cn(
+              "pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors",
+              errors.email ? "text-red-400/50 group-focus-within:text-red-400" : "text-white/40 group-focus-within:text-white"
+            )} />
             <input
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:border-white/30 focus:bg-white/10 focus:ring-4 focus:ring-white/5 disabled:opacity-50"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              {...register("email")}
+              className={cn(
+                "w-full rounded-2xl border bg-white/5 px-12 py-4 text-[15px] font-medium text-white outline-none transition-all placeholder:text-white/30 focus:bg-white/10 focus:ring-4 disabled:opacity-50",
+                errors.email 
+                  ? "border-red-500/50 focus:border-red-500 focus:ring-red-500/10" 
+                  : "border-white/10 focus:border-white/30 focus:ring-white/5"
+              )}
               placeholder="student@email.com"
               type="email"
-              required
               disabled={isPending}
             />
           </div>
@@ -95,11 +144,18 @@ export function RegisterForm() {
       </div>
 
       {message ? (
-        <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-sm font-medium backdrop-blur-md animate-in fade-in slide-in-from-top-1 ${message.includes("sent") ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200" : "border-red-500/20 bg-red-500/10 text-red-200"}`}>
-          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${message.includes("sent") ? "bg-emerald-500/20" : "bg-red-500/20"}`}>
-            <span className={`h-2 w-2 rounded-full ${message.includes("sent") ? "bg-emerald-500" : "bg-red-500"}`} />
-          </span>
-          {message}
+        <div className={cn(
+          "flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-sm font-medium backdrop-blur-md animate-in fade-in slide-in-from-top-1",
+          message.type === "success" 
+            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200" 
+            : "border-red-500/20 bg-red-500/10 text-red-200"
+        )}>
+          {message.type === "success" ? (
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+          ) : (
+            <AlertCircle className="h-5 w-5 shrink-0 text-red-400" />
+          )}
+          {message.text}
         </div>
       ) : null}
 
@@ -120,3 +176,4 @@ export function RegisterForm() {
     </form>
   );
 }
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Wifi, CheckCircle2, LogOut, Clock } from "lucide-react";
+import { MapPin, Wifi, CheckCircle2, Clock, Zap } from "lucide-react";
 import { useFormStatus } from "react-dom";
 import { checkInAction, checkOutAction } from "@/app/(dashboard)/attendance-actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
@@ -108,21 +108,3 @@ export function AttendanceCard({ todayAttendance, streakCount }: AttendanceCardP
   );
 }
 
-function Zap({ className }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-    </svg>
-  );
-}

@@ -338,7 +338,7 @@ nav a {
   width: 100%;
   max-width: 1280px;
   margin-inline: auto;
-  padding: 1rem 1rem;
+  padding: 0.75rem 0.75rem;
 }
 
 @media (min-width: 768px) {
@@ -409,7 +409,53 @@ nav a {
 /* Offset content so it doesn't hide behind bottom nav */
 @media (max-width: 767px) and (orientation: portrait) {
   .dashboard-content {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ── ADVANCED RESPONSIVE UTILITIES ───────────────────────── */
+
+/* 
+   Hide on small tablets (portrait) to save space, 
+   but show on larger tablets/laptops.
+*/
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tablet-hide { display: none !important; }
+  .desktop-sidebar { width: 80px !important; }
+  .tablet-main-offset { margin-left: 80px !important; }
+  .tablet-mini-center { justify-content: center !important; padding-left: 0 !important; padding-right: 0 !important; }
+  .tablet-mini-show { display: block !important; }
+}
+
+/* 
+   Optimized Grid for Tablets: 
+   Ensures cards don't get too squeezed.
+*/
+.responsive-card-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .responsive-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1440px) {
+  .responsive-card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 
+   Touch Target optimization: 
+   Ensures all clickable items are at least 44px on mobile 
+*/
+@media (max-width: 767px) {
+  button, a, input, select {
+    min-height: 44px;
   }
 }
 
@@ -425,4 +471,45 @@ nav a {
   .bottom-nav {
     display: none;
   }
+}
+/* Study Timer Animations */
+@keyframes pulse-subtle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+/* ── ZEN MODE OVERRIDES ── */
+body.zen-mode-active aside,
+body.zen-mode-active header,
+body.zen-mode-active nav,
+body.zen-mode-active main:not(.zen-timer-root) {
+  display: none !important;
+}
+
+body.zen-mode-active .dashboard-root {
+  display: none !important;
+}
+
+.zen-mode-active .dashboard-main {
+  margin-left: 0 !important;
+  padding: 0 !important;
+}
+
+.zen-mode-active .dashboard-content {
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }

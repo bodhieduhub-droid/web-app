@@ -95,13 +95,36 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(reg) { console.log('[PWA] SW registered:', reg.scope); })
-                    .catch(function(err) { console.log('[PWA] SW registration failed:', err); });
+              // PWA disabled — actively kill any leftover service worker + caches
+              // from previous deployments so users don't get stuck on stale assets.
+              (function () {
+                var cleanupFlag = "bodhi_sw_cleanup_done_v1";
+                var shouldReload = sessionStorage.getItem(cleanupFlag) !== "1";
+                var tasks = [];
+
+                if ('serviceWorker' in navigator) {
+                  tasks.push(
+                    navigator.serviceWorker.getRegistrations().then(function (regs) {
+                      return Promise.all(regs.map(function (r) { return r.unregister(); }));
+                    })
+                  );
+                }
+
+                if (typeof caches !== 'undefined') {
+                  tasks.push(
+                    caches.keys().then(function (keys) {
+                      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                    })
+                  );
+                }
+
+                Promise.all(tasks).finally(function () {
+                  if (shouldReload) {
+                    sessionStorage.setItem(cleanupFlag, "1");
+                    window.location.reload();
+                  }
                 });
-              }
+              })();
             `,
           }}
         />

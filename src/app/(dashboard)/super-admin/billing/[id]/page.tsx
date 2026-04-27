@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import {
   addBillLedgerEntryAction,
   closeRejectedPaymentProof,
+  removeBillTransactionAction,
   recordOfflinePaymentAction,
   rejectPaymentProof,
   updateBillFromAdminAction,
@@ -221,7 +222,18 @@ export default async function BillingDetailPage({
               <div key={entry.id} className="rounded-xl bg-[#f5f8f3] px-3 py-2">
                 <p className="text-xs font-black text-[#1b3022]">{safeText(entry.type, "manual").replaceAll("_", " ")} · {asMoney(entry.amount)}</p>
                 <p className="text-xs font-semibold text-[#556455]">{safeText(entry.verification_notes, "No note")}</p>
-                <p className="text-[11px] font-semibold text-[#6d7c6c]">{new Date(entry.submitted_at).toLocaleString("en-IN")}</p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold text-[#6d7c6c]">{new Date(entry.submitted_at).toLocaleString("en-IN")}</p>
+                  <form action={removeBillTransactionAction}>
+                    <input type="hidden" name="bill_id" value={detail.id} />
+                    <input type="hidden" name="transaction_id" value={entry.id} />
+                    <PendingSubmitButton
+                      idleLabel="Remove"
+                      pendingLabel="Removing..."
+                      className="rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-red-700"
+                    />
+                  </form>
+                </div>
               </div>
             ))}
             {ledgerTx.length === 0 ? <p className="text-sm font-semibold text-[#6d7c6c]">No ledger entries.</p> : null}

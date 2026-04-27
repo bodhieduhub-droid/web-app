@@ -9,7 +9,7 @@ import { submitOnboarding } from "@/app/(dashboard)/actions";
 import type { StudentRecord } from "@/lib/app-types";
 
 const examCategories = ["SSC", "PSC", "UPSC", "BANKING", "RAILWAY"];
-const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 function FormOverlay() {
@@ -30,12 +30,12 @@ function FormOverlay() {
   );
 }
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className="flex items-center gap-3 rounded-2xl bg-[#1b3022] px-6 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white transition disabled:cursor-not-allowed disabled:opacity-70"
     >
       {pending ? (
@@ -51,23 +51,20 @@ function SubmitButton() {
 }
 
 export function OnboardingForm({ student }: { student: StudentRecord }) {
-  const router = useRouter();
-  const [state, formAction, isPending] = useActionState(submitOnboarding, { error: null });
+  const [state, formAction] = useActionState(submitOnboarding, { error: null });
   const [preparingForExam, setPreparingForExam] = useState(student.preparing_for_exam || false);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-
-  useEffect(() => {
-    if (submitted && state.error === null && !isPending) {
-      router.push("/student");
-    }
-  }, [state, submitted, isPending, router]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) { setFileError(null); return; }
+    if (!file) {
+      setFileError(null);
+      return;
+    }
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      setFileError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max allowed is ${MAX_FILE_SIZE_MB} MB.`);
+      setFileError(
+        `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max allowed is ${MAX_FILE_SIZE_MB} MB.`,
+      );
       e.target.value = "";
     } else {
       setFileError(null);
@@ -92,7 +89,6 @@ export function OnboardingForm({ student }: { student: StudentRecord }) {
 
       <form
         action={formAction}
-        onSubmit={() => setSubmitted(true)}
         className="space-y-6 rounded-[2rem] border border-[#d8e0d4] bg-white p-8 shadow-xl shadow-[#27452e]/8"
       >
         <FormOverlay />
@@ -189,7 +185,7 @@ export function OnboardingForm({ student }: { student: StudentRecord }) {
         </label>
 
         <div className="flex flex-wrap items-center gap-4">
-          <SubmitButton />
+          <SubmitButton disabled={!!fileError} />
           <Link href="/" className="text-[11px] font-black uppercase tracking-[0.26em] text-[#6a7b69]">
             Back Home
           </Link>

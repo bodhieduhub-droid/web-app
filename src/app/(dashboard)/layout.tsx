@@ -1,4 +1,4 @@
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import MainLayout from "@/components/layout/main-layout";
 import { requireDashboardContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -9,5 +9,5 @@ export default async function Layout({
   children: React.ReactNode;
 }) {
   const context = await requireDashboardContext();
-  return <DashboardLayout role={context.normalizedRole}>{children}</DashboardLayout>;
+  return <MainLayout role={context.normalizedRole}>{children}</MainLayout>;
 }

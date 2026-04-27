@@ -1,12 +1,12 @@
 "use client";
 
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Spinner } from "@/components/ui/spinner";
 
 type PendingSubmitButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  idleLabel: string;
+  idleLabel: ReactNode;
   pendingLabel?: string;
 };
 

@@ -96,17 +96,21 @@ export default async function StudyTimerPage() {
   if (!student) return null;
 
   return (
-    <div className="space-y-8">
-      {/* ── Hero (INSTANT) ── */}
-      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
-        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Study Timer</p>
-        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Focus Session</h1>
-        <p className="mt-4 text-base font-medium leading-7 text-white/80">
-          Track your daily focus blocks, streaks, and weekly study progress.
-        </p>
+    <div className="mx-auto max-w-6xl space-y-3 px-2 py-3 sm:space-y-5 sm:px-6 sm:py-5">
+      {/* ── Page Header ── */}
+      <section className="rounded-[2rem] bg-[#1b3022] px-5 py-3.5 text-white sm:rounded-3xl sm:px-8 sm:py-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-[0.45em] text-white/35 sm:text-[9px]">Focus Center</p>
+            <h1 className="mt-1 text-xl font-black tracking-tight text-white sm:text-2xl">Study Timer</h1>
+          </div>
+          <p className="hidden text-[11px] font-medium text-white/35 sm:block">
+            Study hard, rest smart, track progress.
+          </p>
+        </div>
       </section>
 
-      {/* ── Timer + Insights (SUSPENSE — streams independently) ── */}
+      {/* ── Timer + Insights (SUSPENSE) ── */}
       <Suspense fallback={<ChartSkeleton />}>
         <StudyInsights studentId={student.id} />
       </Suspense>

@@ -26,7 +26,7 @@ const statusColor: Record<string, string> = {
 };
 
 const TRANSACTION_PAGE_SIZE = 12;
-const remoteImageLoader = ({ src }: { src: string }) => src;
+const FALLBACK_STUDENT_QR = "/student-payment-qr.png";
 
 // Async: summary stats + UPI info + open invoices
 async function PaymentsSummary({
@@ -76,35 +76,53 @@ async function PaymentsSummary({
       </section>
 
       {/* UPI Info */}
-      {(settings.static_upi_id || settings.static_upi_name || settings.static_upi_qr_url) && (
+      {(settings.static_upi_id || settings.static_upi_name || settings.static_upi_qr_url || FALLBACK_STUDENT_QR) && (
         <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-          <p className="text-sm font-semibold text-[#6d7c6c]">Hub UPI Details</p>
-          <p className="mt-4 text-sm font-medium leading-7 text-[#536352]">
-            Pay using the UPI ID below, then upload your screenshot for verification.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-6">
-            {settings.static_upi_id && (
-              <div>
-                <p className="text-sm font-semibold text-[#6d7c6c]">UPI ID</p>
-                <p className="mt-1 text-lg font-black text-[#1b3022]">{settings.static_upi_id}</p>
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+            <div>
+              <p className="text-sm font-semibold text-[#6d7c6c]">Hub UPI Details</p>
+              <p className="mt-2 text-sm font-medium leading-6 text-[#536352]">
+                Pay via UPI, keep a screenshot ready, then upload it below for verification.
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full border border-[#d8e0d4] bg-[#f7faf5] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[#5c6d5c]">
+                  1. Scan / Pay
+                </span>
+                <span className="rounded-full border border-[#d8e0d4] bg-[#f7faf5] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[#5c6d5c]">
+                  2. Screenshot
+                </span>
+                <span className="rounded-full border border-[#d8e0d4] bg-[#f7faf5] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[#5c6d5c]">
+                  3. Upload proof
+                </span>
               </div>
-            )}
-            {settings.static_upi_name && (
-              <div>
-                <p className="text-sm font-semibold text-[#6d7c6c]">Name</p>
-                <p className="mt-1 text-lg font-black text-[#1b3022]">{settings.static_upi_name}</p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {settings.static_upi_id && (
+                  <div className="rounded-2xl border border-[#d8e0d4] bg-[#f7faf5] px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6d7c6c]">UPI ID</p>
+                    <p className="mt-1 break-all text-base font-black text-[#1b3022]">{settings.static_upi_id}</p>
+                  </div>
+                )}
+                {settings.static_upi_name && (
+                  <div className="rounded-2xl border border-[#d8e0d4] bg-[#f7faf5] px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6d7c6c]">Name</p>
+                    <p className="mt-1 text-base font-black text-[#1b3022]">{settings.static_upi_name}</p>
+                  </div>
+                )}
               </div>
-            )}
-            {settings.static_upi_qr_url && (
-              <div className="rounded-2xl border border-[#d8e0d4] bg-[#f7faf5] p-3">
-                <p className="text-sm font-semibold text-[#6d7c6c]">UPI QR</p>
+            </div>
+
+            {(settings.static_upi_qr_url || FALLBACK_STUDENT_QR) && (
+              <div className="mx-auto w-fit rounded-2xl border border-[#d8e0d4] bg-[#f7faf5] p-3 lg:mx-0">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6d7c6c]">UPI QR</p>
                 <Image
-                  loader={remoteImageLoader}
-                  src={getOptimizedImage(settings.static_upi_qr_url, 300)}
+                  src={getOptimizedImage(settings.static_upi_qr_url || FALLBACK_STUDENT_QR, 300)}
                   alt="Hub UPI QR"
-                  width={144}
-                  height={144}
-                  className="mt-2 h-36 w-36 rounded-xl object-cover"
+                  width={176}
+                  height={176}
+                  className="mt-2 h-40 w-40 rounded-xl object-cover sm:h-44 sm:w-44"
+                  unoptimized
                 />
               </div>
             )}
@@ -242,8 +260,7 @@ async function TransactionHistory({
                   {t.verification_notes && <p className="mt-1 text-sm font-semibold text-[#536352]">{t.verification_notes}</p>}
                   {t.payment_proof_url && (
                     <a href={t.payment_proof_url} target="_blank" rel="noreferrer" className="mt-2 inline-block">
-                      <Image
-                        loader={remoteImageLoader}
+                      <img
                         src={getOptimizedImage(t.payment_proof_url, 200)}
                         alt="Payment proof"
                         width={48}

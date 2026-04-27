@@ -101,3 +101,22 @@ export function NotificationPanelSkeleton() {
     </div>
   );
 }
+
+export function StudyProgressSkeleton() {
+  return (
+    <div className="rounded-[2.4rem] border border-[#d8e0d4] bg-white p-6 shadow-xl lg:p-8">
+      <div className="flex justify-between">
+        <div className="space-y-3">
+          <div className="h-2 w-20 animate-pulse rounded-full bg-[#e5ebe1]" />
+          <div className="h-6 w-32 animate-pulse rounded-full bg-[#e5ebe1]" />
+        </div>
+        <div className="h-10 w-24 animate-pulse rounded-full bg-[#f0f4ec]" />
+      </div>
+      <div className="mt-8 h-3 w-full animate-pulse rounded-full bg-[#f0f4ec]" />
+      <div className="mt-6 grid grid-cols-2 gap-4">
+        <div className="h-16 animate-pulse rounded-2xl bg-[#f5f8f3]" />
+        <div className="h-16 animate-pulse rounded-2xl bg-[#f5f8f3]" />
+      </div>
+    </div>
+  );
+}

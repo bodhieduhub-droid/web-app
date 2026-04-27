@@ -102,6 +102,18 @@ export function PaymentProofForm({
       </div>
 
       <div className="space-y-2">
+        <label className="block text-sm font-semibold text-[#1b3022]">
+          UPI transaction reference (optional)
+        </label>
+        <input
+          name="reference_number"
+          type="text"
+          placeholder="Eg. 320145983247"
+          className="w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] outline-none"
+        />
+      </div>
+
+      <div className="space-y-2">
         <label htmlFor={fileId} className="block text-sm font-semibold text-[#1b3022]">
           Payment screenshot
         </label>

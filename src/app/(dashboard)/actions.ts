@@ -40,9 +40,14 @@ function getNumber(formData: FormData, key: string, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function getFile(formData: FormData, key: string) {
+function getFile(formData: FormData, key: string): File | null {
   const value = formData.get(key);
-  return value instanceof File && value.size > 0 ? value : null;
+  if (!value) return null;
+  // Handle standard File objects and duck-typed file-like objects from FormData
+  if (typeof value === "object" && "size" in value && "name" in value) {
+    return (value as any).size > 0 ? (value as File) : null;
+  }
+  return null;
 }
 
 function getStringArray(formData: FormData, key: string) {
@@ -478,7 +483,7 @@ export async function onboardStudentAction(formData: FormData) {
   let idProofPublicId = null;
 
   if (!isQuickEntry && idProofFile) {
-    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     if (idProofFile.size <= MAX_FILE_SIZE && idProofFile.type.startsWith("image/")) {
       try {
         const uploaded = await uploadToCloudinary(idProofFile, "bodhi-id-proofs");
@@ -925,25 +930,34 @@ export async function submitOnboarding(
     .filter(Boolean) as ExamCategory[];
   const idProof = getFile(formData, "id_proof");
 
+  console.log(`[submitOnboarding] Starting for student ${student.id} (${student.name})`);
+
   if (!address || !purpose || !idProof) {
     return { error: "Please fill all required fields and upload an ID proof." };
   }
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   if (idProof.size > MAX_FILE_SIZE) {
-    return { error: "ID proof file is too large. Please upload an image under 5MB." };
+    console.warn(`[submitOnboarding] File too large: ${idProof.size} bytes`);
+    return { error: "ID proof file is too large. Please upload an image under 10MB." };
   }
-  if (!idProof.type.startsWith("image/")) {
+  if (!idProof.type || !idProof.type.startsWith("image/")) {
+    console.warn(`[submitOnboarding] Invalid file type: ${idProof.type}`);
     return { error: "Invalid file type. Please upload an image for ID proof." };
   }
 
   try {
+    console.log("[submitOnboarding] Uploading to Cloudinary...");
     const uploadedId = await uploadToCloudinary(idProof, "bodhi-id-proofs");
+    console.log(`[submitOnboarding] Upload successful: ${uploadedId.publicId}`);
+
     const { count: pendingBills } = await supabase
       .from("bills")
       .select("*", { count: "exact", head: true })
       .eq("reader_id", student.id)
       .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"]);
+
+    console.log(`[submitOnboarding] Updating student record... Status will be: ${(pendingBills ?? 0) > 0 ? "pending_payment" : "active"}`);
 
     const { error: updateError } = await supabase
       .from("readers")
@@ -965,25 +979,29 @@ export async function submitOnboarding(
       return { error: `Database error: ${updateError.message} (code: ${updateError.code})` };
     }
 
+    console.log("[submitOnboarding] Updating exam interests...");
     await supabase.from("student_exam_interests").delete().eq("reader_id", student.id);
     if (categories.length > 0) {
-      await supabase.from("student_exam_interests").insert(
+      const { error: interestError } = await supabase.from("student_exam_interests").insert(
         categories.map((category) => ({
           reader_id: student.id,
           category,
         })),
       );
+      if (interestError) console.error("[submitOnboarding] Exam interest error:", interestError.message);
     }
 
     revalidatePath("/student");
     revalidatePath("/student/onboarding");
-    // Return null — redirect happens OUTSIDE try/catch (Next.js redirect throws internally)
-    return { error: null };
+    console.log("[submitOnboarding] Success. Redirecting...");
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[submitOnboarding] failed:", message);
-    return { error: `Upload failed: ${message}. Please try a smaller image or check your connection.` };
+    return { error: `Upload failed: ${message}. Please check your connection or try a smaller image.` };
   }
+
+  // Redirect must be outside try/catch to work correctly in Next.js server actions
+  redirect("/student");
 }
 
 
@@ -1262,9 +1280,9 @@ export async function submitPaymentProof(
     };
   }
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   if (proofFile.size > MAX_FILE_SIZE) {
-    return { status: "error", message: "Payment proof file is too large. Please upload an image under 5MB.", billId };
+    return { status: "error", message: "Payment proof file is too large. Please upload an image under 10MB.", billId };
   }
   if (!proofFile.type.startsWith("image/")) {
     return { status: "error", message: "Invalid file type. Please upload an image for payment proof.", billId };
@@ -1789,6 +1807,66 @@ export async function addBillLedgerEntryAction(formData: FormData) {
 
   revalidatePath("/super-admin/billing");
   revalidatePath(`/super-admin/billing/${bill.id}`);
+  revalidatePath("/student/payments");
+}
+
+export async function removeBillTransactionAction(formData: FormData) {
+  const { profile } = await requireRole(["super_admin"]);
+  const supabase = createAdminClient();
+  const billId = getString(formData, "bill_id");
+  const transactionId = getString(formData, "transaction_id");
+  if (!billId || !transactionId) return;
+
+  const { data: transaction } = await supabase
+    .from("transactions")
+    .select("id, bill_id, amount, type, verification_status, verification_notes")
+    .eq("id", transactionId)
+    .eq("bill_id", billId)
+    .maybeSingle();
+  if (!transaction) return;
+
+  // Only allow removal of finalized ledger-like rows from billing detail.
+  if (!["verified", "closed"].includes(transaction.verification_status)) return;
+
+  const { data: bill } = await supabase
+    .from("bills")
+    .select("id, amount_due, amount_paid")
+    .eq("id", billId)
+    .maybeSingle();
+  if (!bill) return;
+
+  const nextPaid = Math.max(0, Number(bill.amount_paid || 0) - Number(transaction.amount || 0));
+  const nextStatus = resolveBillStatusForManualEdit(Number(bill.amount_due || 0), nextPaid);
+
+  await supabase.from("transactions").delete().eq("id", transactionId);
+
+  await supabase
+    .from("bills")
+    .update({
+      amount_paid: nextPaid,
+      status: nextStatus,
+    })
+    .eq("id", billId);
+
+  await supabase.from("bill_audit_logs").insert({
+    bill_id: billId,
+    actor_profile_id: profile.id,
+    action: "ledger_entry_removed",
+    notes: `Removed ${transaction.type} entry of Rs ${Math.abs(Number(transaction.amount || 0))}. ${transaction.verification_notes || ""}`.trim(),
+    before_state: {
+      amount_paid: Number(bill.amount_paid || 0),
+      status: null,
+      transaction_id: transactionId,
+    },
+    after_state: {
+      amount_paid: nextPaid,
+      status: nextStatus,
+    },
+  });
+
+  revalidatePath("/super-admin/billing");
+  revalidatePath(`/super-admin/billing/${billId}`);
+  revalidatePath("/staff/billing");
   revalidatePath("/student/payments");
 }
 

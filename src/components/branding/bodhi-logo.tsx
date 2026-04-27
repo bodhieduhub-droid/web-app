@@ -23,7 +23,18 @@ export function BodhiLogo({
   title = "Bodhi Edu Hub",
   subtitle = "Reading Hub",
   showText = true,
-}: BodhiLogoProps) {
+  miniVariant = false,
+}: BodhiLogoProps & { miniVariant?: boolean }) {
+  if (miniVariant) {
+    return (
+      <Link href={href} className={cn("hidden tablet-mini-show", className)}>
+        <div className="h-10 w-10 rounded-xl bg-[#1b3022] flex items-center justify-center text-white font-black text-xl">
+          B
+        </div>
+      </Link>
+    );
+  }
+
   return (
     <Link href={href} className={cn("flex items-center gap-3", className)}>
       <div
