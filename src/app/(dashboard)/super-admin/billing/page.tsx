@@ -70,7 +70,7 @@ export default async function SuperAdminBillingPage({
       .from("readers")
       .select("id")
       .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
-      .limit(3000);
+      .limit(200);
     const matchedReaderIds = (matchedReaders ?? []).map((row) => row.id);
     if (matchedReaderIds.length > 0) {
       billsQuery = billsQuery.or(
@@ -120,41 +120,43 @@ export default async function SuperAdminBillingPage({
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4 rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-        <div>
+      <section className="premium-card p-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="premium-card-inner"></div>
+        <div className="relative z-10">
           <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Billing</p>
           <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Billing Control Center</h1>
           <p className="mt-2 text-sm font-semibold text-[#536352]">Search invoices, track proof queues, and open full invoice detail pages.</p>
         </div>
-        <form action={generateMonthlyInvoices}>
+        <form action={generateMonthlyInvoices} className="relative z-10">
           <PendingSubmitButton
             idleLabel="Generate Due Invoices"
             pendingLabel="Generating..."
-            className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white"
+            className="rounded-2xl bg-[#1b3022] hover:bg-[#27452e] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white transition-all hover:-translate-y-0.5"
           />
         </form>
       </section>
 
-      <form className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_220px_180px_auto]">
+      <form className="premium-card p-4 grid gap-3 md:grid-cols-[1fr_220px_180px_auto]">
+        <div className="premium-card-inner"></div>
         <input
           name="q"
           defaultValue={resolvedSearchParams.q ?? ""}
           placeholder="Search by student, phone, invoice ID, title"
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
+          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10"
         />
-        <select name="status" defaultValue={statusFilter} className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]">
+        <select name="status" defaultValue={statusFilter} className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10">
           {statusOptions.map((option) => (
             <option key={option} value={option}>
               {option === "all" ? "All statuses" : option.replaceAll("_", " ")}
             </option>
           ))}
         </select>
-        <select name="period" defaultValue={financePeriod} className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]">
+        <select name="period" defaultValue={financePeriod} className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10">
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
           <option value="monthly">Monthly</option>
         </select>
-        <button type="submit" className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white">
+        <button type="submit" className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white hover:bg-[#27452e] relative z-10">
           Apply
         </button>
       </form>
@@ -168,9 +170,11 @@ export default async function SuperAdminBillingPage({
           { label: "Cash / Offline", value: `₹${finance.cashIn.toFixed(0)}` },
           { label: "UPI Verified", value: `₹${finance.upiIn.toFixed(0)}` },
         ].map((item) => (
-          <div key={item.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{item.label}</p>
-            <p className="mt-2 text-2xl font-black text-[#1b3022]">{item.value}</p>
+          <div key={item.label} className="premium-card p-4 relative group overflow-hidden">
+            <div className="premium-card-inner"></div>
+            <div className="absolute -inset-4 bg-gradient-to-br from-[#1b3022]/0 to-[#1b3022]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[2rem]"></div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c] relative z-10">{item.label}</p>
+            <p className="mt-2 text-2xl font-black text-[#1b3022] relative z-10 transition-transform duration-200 group-hover:scale-[1.02] origin-bottom-left">{item.value}</p>
           </div>
         ))}
       </section>
@@ -183,23 +187,26 @@ export default async function SuperAdminBillingPage({
           { label: "Overdue", value: metrics.overdue },
           { label: "Rejected Proof", value: metrics.rejectedProof },
         ].map((item) => (
-          <div key={item.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{item.label}</p>
-            <p className="mt-2 text-2xl font-black text-[#1b3022]">{item.value}</p>
+          <div key={item.label} className="premium-card p-4 relative group overflow-hidden">
+            <div className="premium-card-inner"></div>
+            <div className="absolute -inset-4 bg-gradient-to-br from-[#1b3022]/0 to-[#1b3022]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[2rem]"></div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c] relative z-10">{item.label}</p>
+            <p className="mt-2 text-2xl font-black text-[#1b3022] relative z-10 transition-transform duration-200 group-hover:scale-[1.02] origin-bottom-left">{item.value}</p>
           </div>
         ))}
       </section>
 
-      <div className="overflow-hidden rounded-[1.6rem] border border-[#d8e0d4] bg-white shadow-lg shadow-[#27452e]/6">
-        <table className="min-w-full text-left">
-          <thead className="bg-[#f5f8f3]">
+      <div className="overflow-hidden premium-card">
+        <div className="premium-card-inner"></div>
+        <table className="min-w-full text-left relative z-10">
+          <thead className="bg-[#f5f8f3] border-b border-[#e4eae0]">
             <tr className="text-[11px] font-black uppercase tracking-[0.2em] text-[#6d7c6c]">
-              <th className="px-4 py-3">Invoice</th>
-              <th className="px-4 py-3">Student</th>
-              <th className="px-4 py-3">Amounts</th>
-              <th className="px-4 py-3">Proof Queue</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Action</th>
+              <th className="px-5 py-4">Invoice</th>
+              <th className="px-5 py-4">Student</th>
+              <th className="px-5 py-4">Amounts</th>
+              <th className="px-5 py-4">Proof Queue</th>
+              <th className="px-5 py-4">Status</th>
+              <th className="px-5 py-4">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -208,30 +215,30 @@ export default async function SuperAdminBillingPage({
               const remaining = Math.max(0, Number(bill.amount_due) - Number(bill.amount_paid));
               const currentStatus = safeStatus(bill.status);
               return (
-                <tr key={bill.id} className="border-t border-[#e4eae0]">
-                  <td className="px-4 py-4">
+                <tr key={bill.id} className="interactive-row border-b border-[#e4eae0]/50 hover:bg-[#f9fbf8]">
+                  <td className="px-5 py-4">
                     <p className="font-black text-[#1b3022]">{bill.title || bill.invoice_kind}</p>
                     <p className="text-xs font-semibold text-[#6d7c6c]">{bill.id}</p>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-5 py-4">
                     <p className="text-sm font-black text-[#1b3022]">{bill.readers?.name || "Student"}</p>
                     <p className="text-xs font-semibold text-[#6d7c6c]">{bill.readers?.phone || "No phone"}</p>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-5 py-4">
                     <p className="text-xs font-semibold text-[#536352]">Due ₹{Number(bill.amount_due).toFixed(0)}</p>
                     <p className="text-xs font-semibold text-emerald-700">Paid ₹{Number(bill.amount_paid).toFixed(0)}</p>
                     <p className="text-xs font-black text-[#7d2f2f]">Balance ₹{remaining.toFixed(0)}</p>
                   </td>
-                  <td className="px-4 py-4 text-sm font-black text-[#1b3022]">{pendingProofs}</td>
-                  <td className="px-4 py-4">
-                    <span className="rounded-full border border-[#d8e0d4] bg-[#f2f6ef] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#60705f]">
+                  <td className="px-5 py-4 text-sm font-black text-[#1b3022]">{pendingProofs}</td>
+                  <td className="px-5 py-4">
+                    <span className="rounded-full bg-[#f2f6ec] border border-[#d8e0d4] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#536352]">
                       {currentStatus.replaceAll("_", " ")}
                     </span>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-5 py-4">
                     <Link
                       href={`/super-admin/billing/${bill.id}`}
-                      className="rounded-xl border border-[#d8e0d4] bg-white px-3 py-2 text-xs font-black text-[#1b3022]"
+                      className="rounded-xl border border-[#d8e0d4] bg-white hover:bg-[#f0f5ec] px-3 py-2 text-xs font-black text-[#1b3022] shadow-sm transition-colors"
                     >
                       Open Detail
                     </Link>
@@ -241,15 +248,16 @@ export default async function SuperAdminBillingPage({
             })}
             {pageRows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm font-semibold text-[#6d7c6c]">
-                  No invoices found.
+                <td colSpan={6} className="px-5 py-12 text-center">
+                  <p className="text-sm font-bold text-[#1b3022]">No invoices found</p>
+                  <p className="text-xs font-medium text-[#6d7c6c] mt-1">Adjust your filters to see more results.</p>
                 </td>
               </tr>
             ) : null}
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between rounded-[1.2rem] border border-[#d8e0d4] bg-white px-4 py-3 text-xs font-bold text-[#1b3022] shadow-lg shadow-[#27452e]/6">
+      <div className="flex items-center justify-between premium-card px-4 py-3 text-xs font-bold text-[#1b3022]">
         <p>
           Page {currentPage} of {totalPages} · {totalCount} results
         </p>

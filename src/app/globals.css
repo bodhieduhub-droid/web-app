@@ -110,17 +110,35 @@
   }
 }
 
-/* Micro animations for UI components */
+/* Micro animations for UI components - Fast and Snappy */
 .transition-beautiful {
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .hover-glow {
-  @apply transition-all duration-300;
+  @apply transition-all duration-200;
 }
 
 .hover-glow:hover {
-  box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.5);
+  box-shadow: 0 4px 20px -5px hsl(var(--primary) / 0.3);
+  transform: translateY(-2px);
+}
+
+/* Premium Glassmorphism */
+.glass-panel {
+  @apply bg-white/85 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+}
+
+.glass-panel-dark {
+  @apply bg-[#1b3022]/90 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.1)];
+}
+
+.premium-card {
+  @apply rounded-[1.8rem] border border-[#d8e0d4] bg-white shadow-[0_4px_24px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_32px_rgb(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5;
+}
+
+.premium-card-inner {
+  @apply absolute inset-0 rounded-[1.8rem] border border-white/60 pointer-events-none;
 }
 
 /* ── APP-LIKE FEEL ────────────────────────────────── */
@@ -136,26 +154,21 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Smooth scroll in main content */
-main {
-  scroll-behavior: smooth;
+/* All interactive elements get fast transitions */
+a, button, [role="button"], .interactive-row {
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), background-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* All interactive elements get smooth transitions */
-a, button, [role="button"] {
-  transition: transform 0.1s ease, opacity 0.15s ease;
-}
-
-/* Press-down effect on all tappable items */
+/* Snappy press-down effect */
 a:active, button:active, [role="button"]:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
-/* Page content fade-in on load */
-@keyframes pageFadeUp {
+/* Page content fast fade-up */
+@keyframes snappyFadeUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -164,7 +177,7 @@ a:active, button:active, [role="button"]:active {
 }
 
 main > div > * {
-  animation: pageFadeUp 0.3s ease both;
+  animation: snappyFadeUp 0.25s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 main > div > *:nth-child(1) { animation-delay: 0ms; }
@@ -255,9 +268,11 @@ nav a {
     left: 0;
     width: 240px;
     height: 100dvh;
-    border-right: 1px solid #d8e0d4;
-    background: white;
-    box-shadow: 1px 0 0 0 #e5ebe1;
+    border-right: 1px solid rgba(255,255,255,0.4);
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 1px 0 0 0 rgba(229, 235, 225, 0.5);
     overflow-y: auto;
     z-index: 20;
   }
@@ -280,8 +295,10 @@ nav a {
     left: 0;
     width: 200px;
     height: 100dvh;
-    border-right: 1px solid #d8e0d4;
-    background: white;
+    border-right: 1px solid rgba(255,255,255,0.4);
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     overflow-y: auto;
     z-index: 20;
   }
@@ -295,8 +312,9 @@ nav a {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .portrait-drawer {
@@ -355,9 +373,10 @@ nav a {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-bottom: 1px solid #d8e0d4;
-  background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   padding: 0.75rem 1rem;
 }
 
@@ -388,9 +407,10 @@ nav a {
     position: sticky;
     top: 0;
     z-index: 10;
-    border-bottom: 1px solid #d8e0d4;
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     padding: 0.5rem 0.75rem;
   }
 }
@@ -401,9 +421,10 @@ nav a {
   inset-inline: 0;
   bottom: 0;
   z-index: 30;
-  border-top: 1px solid #d8e0d4;
-  background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 /* Offset content so it doesn't hide behind bottom nav */

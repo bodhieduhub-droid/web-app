@@ -5,8 +5,10 @@ import Link from "next/link";
 import { finalizeFinance, getFinancePeriodWindow, summarizeFinance } from "@/lib/finance-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateToIST } from "@/lib/utils";
-import { TrendChart } from "@/app/(dashboard)/super-admin/components/trend-chart";
 import { RecentActivityLog, type ActivityLog } from "@/app/(dashboard)/super-admin/components/recent-activity-log";
+import dynamic from "next/dynamic";
+
+const TrendChart = dynamic(() => import("@/app/(dashboard)/super-admin/components/trend-chart").then(mod => mod.TrendChart), { ssr: false });
 
 // ─── Core Metric Cards ────────────────────────────────────────────────────────
 export async function SuperAdminMetricCards() {
@@ -46,9 +48,14 @@ export async function SuperAdminMetricCards() {
 
   function MetricCard({ label, value, href }: { label: string; value: string | number; href: string }) {
     return (
-      <Link href={href} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 hover:bg-[#f9fbf8] transition-colors">
-        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">{label}</p>
-        <p className="mt-4 text-4xl font-black text-[#1b3022]">{value}</p>
+      <Link href={href} className="premium-card relative group p-6 overflow-hidden flex flex-col justify-between min-h-[120px]">
+        <div className="premium-card-inner"></div>
+        
+        {/* Subtle mesh/glow effect on hover */}
+        <div className="absolute -inset-4 bg-gradient-to-br from-[#1b3022]/0 to-[#1b3022]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[2rem]"></div>
+        
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c] relative z-10">{label}</p>
+        <p className="mt-4 text-4xl font-black text-[#1b3022] relative z-10 transition-transform duration-200 group-hover:scale-[1.02] origin-bottom-left">{value}</p>
       </Link>
     );
   }
@@ -97,11 +104,16 @@ export async function SuperAdminFinanceCards() {
         { label: "This Week", summary: weeklyFinance, period: "weekly" },
         { label: "This Month", summary: monthlyFinance, period: "monthly" },
       ].map((item) => (
-        <Link key={item.label} href={`/super-admin/billing?period=${item.period}`} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 hover:bg-[#f9fbf8] transition-colors">
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">{item.label} Finance</p>
-          <p className="mt-4 text-3xl font-black text-[#1b3022]">₹{item.summary.net.toFixed(0)}</p>
-          <p className="mt-2 text-sm font-semibold text-emerald-700">Revenue ₹{item.summary.revenue.toFixed(0)}</p>
-          <p className="text-sm font-semibold text-[#7d2f2f]">Expense ₹{item.summary.expense.toFixed(0)}</p>
+        <Link key={item.label} href={`/super-admin/billing?period=${item.period}`} className="premium-card relative group p-6 overflow-hidden flex flex-col justify-between min-h-[140px]">
+          <div className="premium-card-inner"></div>
+          <div className="absolute -inset-4 bg-gradient-to-br from-[#1b3022]/0 to-[#1b3022]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[2rem]"></div>
+          
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c] relative z-10">{item.label} Finance</p>
+          <div className="mt-4 relative z-10">
+            <p className="text-3xl font-black text-[#1b3022] transition-transform duration-200 group-hover:translate-x-1">₹{item.summary.net.toFixed(0)}</p>
+            <p className="mt-2 text-sm font-semibold text-emerald-700">Revenue ₹{item.summary.revenue.toFixed(0)}</p>
+            <p className="text-sm font-semibold text-[#7d2f2f]">Expense ₹{item.summary.expense.toFixed(0)}</p>
+          </div>
         </Link>
       ))}
     </section>
@@ -149,8 +161,14 @@ export async function SuperAdminAnalytics() {
 
   return (
     <section className="grid gap-6 lg:grid-cols-2">
-      <TrendChart data={trendData} />
-      <RecentActivityLog activities={activities} />
+      <div className="premium-card relative overflow-hidden p-1">
+        <div className="premium-card-inner"></div>
+        <TrendChart data={trendData} />
+      </div>
+      <div className="premium-card relative overflow-hidden p-6">
+        <div className="premium-card-inner"></div>
+        <RecentActivityLog activities={activities} />
+      </div>
     </section>
   );
 }
@@ -165,12 +183,13 @@ export async function SuperAdminNotificationsPanel() {
     .limit(5);
 
   return (
-    <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-      <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Recent Notifications</p>
-      <div className="mt-6 space-y-4">
+    <div className="premium-card relative p-6">
+      <div className="premium-card-inner"></div>
+      <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c] relative z-10">Recent Notifications</p>
+      <div className="mt-6 space-y-4 relative z-10">
         {(recentNotifications ?? []).length > 0 ? (
           recentNotifications?.map((n) => (
-            <div key={n.id} className="rounded-[1.5rem] bg-[#f5f8f3] p-4">
+            <div key={n.id} className="rounded-[1.2rem] bg-[#f5f8f3] border border-[#e4eae0] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-black text-[#1b3022]">{n.title}</p>
                 <span className="ml-2 shrink-0 text-[10px] font-bold text-[#6d7c6c]">{formatDateToIST(n.created_at, "datetime")}</span>
@@ -179,7 +198,7 @@ export async function SuperAdminNotificationsPanel() {
             </div>
           ))
         ) : (
-          <div className="rounded-[1.5rem] bg-[#f5f8f3] p-4 text-sm font-medium text-[#536352]">
+          <div className="rounded-[1.2rem] bg-[#f5f8f3] border border-[#e4eae0] p-4 text-sm font-medium text-[#536352]">
             Notifications will appear here as operations happen.
           </div>
         )}
