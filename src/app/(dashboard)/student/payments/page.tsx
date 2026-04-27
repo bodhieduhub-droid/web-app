@@ -13,6 +13,7 @@ import { CardsSkeleton, ListSkeleton } from "@/components/dashboard/suspense-ske
 import { formatToIST } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const statusColor: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",

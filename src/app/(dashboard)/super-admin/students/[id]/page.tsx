@@ -126,7 +126,7 @@ export default async function SuperAdminStudentDetailPage({
     supabase
     .from("readers")
     .select(
-        "id,name,email,phone,user_id,reader_type,status,monthly_fee,onboarding_completed,registration_paid,caution_paid,caution_refunded,join_date,fixed_seat_id,address,purpose,preparing_for_exam,exam_details,id_proof_url,id_proof_verified,seats:fixed_seat_id(seat_number)",
+        "id,name,email,phone,user_id,reader_type,status,monthly_fee,onboarding_completed,registration_paid,caution_paid,caution_refunded,join_date,fixed_seat_id,address,purpose,preparing_for_exam,exam_details,id_proof_url,seats:fixed_seat_id(seat_number)",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -286,7 +286,7 @@ export default async function SuperAdminStudentDetailPage({
                   >
                     View ID Proof
                   </a>
-                  {!student.id_proof_verified && (
+                  {!(student as any).id_proof_verified && (
                     <form action={verifyStudentIdProofAction}>
                       <input type="hidden" name="reader_id" value={student.id} />
                       <button
@@ -297,7 +297,7 @@ export default async function SuperAdminStudentDetailPage({
                       </button>
                     </form>
                   )}
-                  {!student.id_proof_verified && (
+                  {!(student as any).id_proof_verified && (
                     <form action={rejectStudentIdProofAction}>
                       <input type="hidden" name="reader_id" value={student.id} />
                       <button
@@ -360,8 +360,8 @@ export default async function SuperAdminStudentDetailPage({
           <div className="rounded-2xl bg-[#f5f8f3] p-4 md:col-span-2 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">ID Proof Status</p>
-              <p className={`mt-2 text-sm font-black uppercase ${student.id_proof_url ? (student.id_proof_verified ? "text-emerald-700" : "text-[#9b6b1a]") : "text-[#7d2f2f]"}`}>
-                {!student.id_proof_url ? "Not Uploaded" : (student.id_proof_verified ? "Verified" : "Pending Verification")}
+              <p className={`mt-2 text-sm font-black uppercase ${student.id_proof_url ? ((student as any).id_proof_verified ? "text-emerald-700" : "text-[#9b6b1a]") : "text-[#7d2f2f]"}`}>
+                {!student.id_proof_url ? "Not Uploaded" : ((student as any).id_proof_verified ? "Verified" : "Pending Verification")}
               </p>
             </div>
           </div>

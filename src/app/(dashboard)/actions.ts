@@ -960,39 +960,39 @@ export async function submitOnboarding(
   _prev: { error: string | null },
   formData: FormData,
 ): Promise<{ error: string | null }> {
-  const { student } = await requireRole(["student"]);
-  if (!student) {
-    return { error: "Session expired. Please sign in again." };
-  }
-
-  const supabase = createAdminClient();
-  const address = getString(formData, "address");
-  const purpose = getString(formData, "purpose");
-  const preparingForExam = getString(formData, "preparing_for_exam") === "yes";
-  const examDetails = getOptionalString(formData, "exam_details");
-  const categories = formData
-    .getAll("exam_categories")
-    .map((entry) => (typeof entry === "string" ? entry : ""))
-    .filter(Boolean) as ExamCategory[];
-  const idProof = getFile(formData, "id_proof");
-
-  console.log(`[submitOnboarding] Starting for student ${student.id} (${student.name})`);
-
-  if (!address || !purpose || !idProof) {
-    return { error: "Please fill all required fields and upload an ID proof." };
-  }
-
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-  if (idProof.size > MAX_FILE_SIZE) {
-    console.warn(`[submitOnboarding] File too large: ${idProof.size} bytes`);
-    return { error: "ID proof file is too large. Please upload an image under 10MB." };
-  }
-  if (!idProof.type || !idProof.type.startsWith("image/")) {
-    console.warn(`[submitOnboarding] Invalid file type: ${idProof.type}`);
-    return { error: "Invalid file type. Please upload an image for ID proof." };
-  }
-
   try {
+    const { student } = await requireRole(["student"]);
+    if (!student) {
+      return { error: "Session expired. Please sign in again." };
+    }
+
+    const supabase = createAdminClient();
+    const address = getString(formData, "address");
+    const purpose = getString(formData, "purpose");
+    const preparingForExam = getString(formData, "preparing_for_exam") === "yes";
+    const examDetails = getOptionalString(formData, "exam_details");
+    const categories = formData
+      .getAll("exam_categories")
+      .map((entry) => (typeof entry === "string" ? entry : ""))
+      .filter(Boolean) as ExamCategory[];
+    const idProof = getFile(formData, "id_proof");
+
+    console.log(`[submitOnboarding] Starting for student ${student.id} (${student.name})`);
+
+    if (!address || !purpose || !idProof) {
+      return { error: "Please fill all required fields and upload an ID proof." };
+    }
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (idProof.size > MAX_FILE_SIZE) {
+      console.warn(`[submitOnboarding] File too large: ${idProof.size} bytes`);
+      return { error: "ID proof file is too large. Please upload an image under 10MB." };
+    }
+    if (!idProof.type || !idProof.type.startsWith("image/")) {
+      console.warn(`[submitOnboarding] Invalid file type: ${idProof.type}`);
+      return { error: "Invalid file type. Please upload an image for ID proof." };
+    }
+
     console.log("[submitOnboarding] Uploading to Cloudinary...");
     const uploadedId = await uploadToCloudinary(idProof, "bodhi-id-proofs");
     console.log(`[submitOnboarding] Upload successful: ${uploadedId.publicId}`);
@@ -1040,13 +1040,17 @@ export async function submitOnboarding(
     revalidatePath("/student");
     revalidatePath("/student/onboarding");
     console.log("[submitOnboarding] Success. Redirecting...");
-  } catch (err) {
+  } catch (err: any) {
+    // If it's a redirect error, re-throw it so Next.js can handle it
+    if (err && typeof err === 'object' && err.digest && err.digest.startsWith('NEXT_REDIRECT')) {
+      throw err;
+    }
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[submitOnboarding] failed:", message);
-    return { error: `Upload failed: ${message}. Please check your connection or try a smaller image.` };
+    console.error("[submitOnboarding] critical failure:", message);
+    return { error: `Submission failed: ${message}. Please try again.` };
   }
 
-  // Redirect must be outside try/catch to work correctly in Next.js server actions
+  // Redirect must be outside the try block that catches redirect errors
   redirect("/student");
 }
 

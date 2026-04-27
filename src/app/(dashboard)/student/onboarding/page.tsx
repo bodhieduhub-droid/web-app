@@ -2,6 +2,7 @@ import { requireDashboardContext } from "@/lib/auth";
 import { OnboardingForm } from "./onboarding-form";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function StudentOnboardingPage() {
   const { student } = await requireDashboardContext(["student"]);

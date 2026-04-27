@@ -35,7 +35,7 @@ export async function getDashboardContext(): Promise<DashboardContext | null> {
   if (normalizedRole === "student") {
     const { data: studentRecord } = await supabase
       .from("readers")
-      .select("*")
+      .select("id, name, user_id, status, reader_type, monthly_fee, onboarding_completed, onboarding_completed_at, address, purpose, preparing_for_exam, exam_details, id_proof_url, id_proof_public_id, fixed_seat_id")
       .eq("user_id", user.id)
       .maybeSingle();
     student = (studentRecord as StudentRecord | null) ?? null;
