@@ -5,6 +5,7 @@ import {
   blockSeatForEnquiry,
   convertEnquiryToStudent,
   updateEnquiryAction,
+  deleteEnquiryAction,
 } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { requireDashboardContext } from "@/lib/auth";
@@ -71,9 +72,18 @@ export default async function SuperAdminEnquiryDetailPage({
             <p className="rounded-full border border-[#d8e0d4] bg-[#f2f6ef] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#60705f]">
               {enquiry.status.replaceAll("_", " ")}
             </p>
-            <Link href="/super-admin/enquiries" className="mt-3 inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022]">
-              Back to Enquiries
-            </Link>
+            <div className="mt-3 flex gap-2 justify-end">
+              <Link href="/super-admin/enquiries" className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022]">
+                Back to Enquiries
+              </Link>
+              <form action={deleteEnquiryAction} onSubmit={(e) => !confirm("Are you sure you want to delete this enquiry?") && e.preventDefault()}>
+                <input type="hidden" name="enquiry_id" value={enquiry.id} />
+                <input type="hidden" name="redirect" value="yes" />
+                <button type="submit" className="inline-block rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-black text-red-700 transition hover:bg-red-50">
+                  Delete Enquiry
+                </button>
+              </form>
+            </div>
           </div>
         </div>
 

@@ -761,6 +761,52 @@ export async function verifyStudentIdProofAction(formData: FormData) {
   revalidatePath(`/super-admin/students/${readerId}`);
   revalidatePath("/staff/students");
 }
+export async function deleteEnquiryAction(formData: FormData) {
+  const { profile } = await requireRole(["super_admin", "staff"]);
+  const supabase = createAdminClient();
+  const enquiryId = getString(formData, "enquiry_id");
+  const shouldRedirect = getString(formData, "redirect") === "yes";
+
+  if (!enquiryId) {
+    await notifyActor(profile.id, "Delete failed", "Enquiry ID is required.");
+    return;
+  }
+
+  // If the enquiry has a blocked seat, unblock it
+  const { data: seat } = await supabase
+    .from("seats")
+    .select("id")
+    .eq("linked_enquiry_id", enquiryId)
+    .maybeSingle();
+
+  if (seat) {
+    await supabase
+      .from("seats")
+      .update({
+        status: "available",
+        linked_enquiry_id: null,
+        blocked_by_profile_id: null,
+        block_reason: null,
+        blocked_until: null,
+      })
+      .eq("id", seat.id);
+  }
+
+  const { error } = await supabase
+    .from("enquiries")
+    .delete()
+    .eq("id", enquiryId);
+
+  if (error) {
+    await notifyActor(profile.id, "Delete failed", error.message);
+  } else {
+    revalidatePath("/staff/enquiries");
+    revalidatePath("/super-admin/enquiries");
+    if (shouldRedirect) {
+      redirect("/super-admin/enquiries");
+    }
+  }
+}
 
 export async function blockSeatForEnquiry(formData: FormData) {
   const { profile } = await requireRole(["super_admin", "staff"]);

@@ -1,6 +1,7 @@
-import { blockSeatForEnquiry, convertEnquiryToStudent } from "@/app/(dashboard)/actions";
+import { blockSeatForEnquiry, convertEnquiryToStudent, deleteEnquiryAction } from "@/app/(dashboard)/actions";
 import type { EnquiryRecord, SeatRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Trash2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,27 @@ export default async function StaffEnquiriesPage() {
       <div className="space-y-4">
         {((enquiries ?? []) as EnquiryRecord[]).map((enquiry) => (
           <article key={enquiry.id} className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-            <p className="text-2xl font-black text-[#1b3022]">{enquiry.name}</p>
-            <p className="mt-2 text-sm font-medium text-[#556455]">{enquiry.phone}</p>
-            {enquiry.email ? <p className="text-sm font-medium text-[#556455]">{enquiry.email}</p> : null}
-            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.26em] text-[#6d7c6c]">
-              {enquiry.status.replaceAll("_", " ")}
-            </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-2xl font-black text-[#1b3022]">{enquiry.name}</p>
+                <p className="mt-2 text-sm font-medium text-[#556455]">{enquiry.phone}</p>
+                {enquiry.email ? <p className="text-sm font-medium text-[#556455]">{enquiry.email}</p> : null}
+                <p className="mt-2 text-[10px] font-black uppercase tracking-[0.26em] text-[#6d7c6c]">
+                  {enquiry.status.replaceAll("_", " ")}
+                </p>
+              </div>
+              
+              <form action={deleteEnquiryAction} onSubmit={(e) => !confirm("Are you sure you want to delete this enquiry?") && e.preventDefault()}>
+                <input type="hidden" name="enquiry_id" value={enquiry.id} />
+                <button 
+                  type="submit"
+                  className="group flex h-10 w-10 items-center justify-center rounded-2xl border border-[#d8e0d4] bg-white text-red-600 transition hover:bg-red-50"
+                  title="Delete Enquiry"
+                >
+                  <Trash2 className="h-5 w-5 transition group-hover:scale-110" />
+                </button>
+              </form>
+            </div>
 
             {enquiry.status !== "converted" ? (
               <div className="mt-5 grid gap-4 xl:grid-cols-2">

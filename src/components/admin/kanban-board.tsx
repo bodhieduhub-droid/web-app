@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { updateEnquiryStatus } from "@/app/(dashboard)/super-admin/enquiries/kanban-actions";
-import { Mail, Phone, Calendar, Clock, Loader2 } from "lucide-react";
+import { deleteEnquiryAction } from "@/app/(dashboard)/actions";
+import { Mail, Phone, Calendar, Clock, Loader2, Trash2 } from "lucide-react";
 
 type Enquiry = {
   id: string;
@@ -61,6 +62,23 @@ export function KanbanBoard({ initialEnquiries }: { initialEnquiries: Enquiry[] 
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this enquiry?")) return;
+    
+    setLoadingId(id);
+    const formData = new FormData();
+    formData.append("enquiry_id", id);
+    
+    try {
+      await deleteEnquiryAction(formData);
+      setEnquiries((prev) => prev.filter((eq) => eq.id !== id));
+    } catch (error) {
+      alert("Failed to delete enquiry.");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-220px)] min-h-[600px]">
       {COLUMNS.map((col) => (
@@ -84,11 +102,23 @@ export function KanbanBoard({ initialEnquiries }: { initialEnquiries: Enquiry[] 
                   onDragStart={(e) => handleDragStart(e, enquiry.id)}
                   className="bg-white border text-left cursor-grab active:cursor-grabbing border-[#d8e0d4] rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-[#1b3022] transition-all relative"
                 >
-                  {loadingId === enquiry.id && (
-                    <div className="absolute top-2 right-2 p-1 bg-white rounded-full shadow">
-                      <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      {loadingId === enquiry.id && (
+                        <div className="p-1 bg-white rounded-full shadow">
+                          <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                        </div>
+                      )}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(enquiry.id);
+                        }}
+                        className="p-1.5 bg-white text-red-500 rounded-lg shadow-sm border border-red-50 hover:bg-red-50 transition-colors"
+                        title="Delete Enquiry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                  )}
                   <h4 className="font-bold text-[#1b3022] text-sm mb-1">{enquiry.name}</h4>
                   <div className="space-y-1.5 mt-3">
                     <p className="flex items-center gap-2 text-xs font-semibold text-[#536352]">
