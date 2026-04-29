@@ -1,11 +1,11 @@
 import Link from "next/link";
 
-import type { ExitRequestRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
+import type { ExitRequestRecord } from "@/lib/app-types";
 import { URLSelect } from "@/components/ui/url-select";
 import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
-import { LocalStorageCache } from "@/components/ui/local-storage-cache";
+import { ExitRequestsSummaryDisplay } from "@/components/dashboard/exit-requests-summary-display";
 
 type ExitRequestRow = ExitRequestRecord & {
   readers: { name: string; phone: string; email: string | null; caution_paid: boolean; status: string } | null;
@@ -108,26 +108,7 @@ export default async function SuperAdminExitRequestsPage({
         />
       </div>
 
-      <LocalStorageCache cacheKey="exit-requests-summary" data={{ pendingCount, processedCount, rejectedCount, refundEligibleCount }}>
-        {(data) => {
-          const d = data || { pendingCount: 0, processedCount: 0, rejectedCount: 0, refundEligibleCount: 0 };
-          return (
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                { label: "Pending", value: d.pendingCount },
-                { label: "Processed", value: d.processedCount },
-                { label: "Rejected", value: d.rejectedCount },
-                { label: "Refund Eligible", value: d.refundEligibleCount },
-              ].map((item) => (
-                <div key={item.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{item.label}</p>
-                  <p className="mt-2 text-2xl font-black text-[#1b3022]">{item.value}</p>
-                </div>
-              ))}
-            </section>
-          );
-        }}
-      </LocalStorageCache>
+      <ExitRequestsSummaryDisplay data={{ pendingCount, processedCount, rejectedCount, refundEligibleCount }} />
 
       <div className="overflow-hidden rounded-[1.6rem] border border-[#d8e0d4] bg-white shadow-lg shadow-[#27452e]/6">
         <table className="min-w-full text-left">

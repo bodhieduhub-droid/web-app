@@ -4,7 +4,7 @@ import { Calendar, Search } from "lucide-react";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLDateInput } from "@/components/ui/url-date-input";
 import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
-import { LocalStorageCache } from "@/components/ui/local-storage-cache";
+import { AttendanceCountDisplay } from "@/components/dashboard/attendance-count-display";
 
 export const dynamic = "force-dynamic";
 
@@ -61,14 +61,7 @@ export default async function StaffAttendanceLogsPage({
            />
          </div>
          
-         <LocalStorageCache cacheKey={`attendance-count-${targetDate}`} data={logs.length}>
-            {(data) => (
-              <div className="rounded-2xl bg-white px-6 py-2 border border-[#d8e0d4] shadow-sm shrink-0">
-                 <p className="text-[10px] font-bold uppercase tracking-wider text-[#6d7c6c]">Total Present</p>
-                 <p className="text-xl font-black text-[#1b3022]">{data ?? 0}</p>
-              </div>
-            )}
-         </LocalStorageCache>
+         <AttendanceCountDisplay count={logs.length} targetDate={targetDate} />
       </div>
 
       <div className="rounded-[2rem] border border-[#d8e0d4] bg-white overflow-hidden shadow-xl shadow-[#27452e]/5">
