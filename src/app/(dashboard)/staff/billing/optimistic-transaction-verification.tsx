@@ -11,9 +11,9 @@ export function OptimisticTransactionVerification({
   transaction: TransactionRecord 
 }) {
   const [isPending, startTransition] = useTransition();
-  const [optimisticStatus, setOptimisticStatus] = useOptimistic(
+  const [optimisticStatus, setOptimisticStatus] = useOptimistic<"closed" | "pending" | "verified" | "rejected", "closed" | "pending" | "verified" | "rejected">(
     transaction.verification_status,
-    (state, newStatus: string) => newStatus
+    (state, newStatus) => newStatus
   );
 
   if (optimisticStatus === "verified" || optimisticStatus === "closed") {

@@ -14,9 +14,9 @@ interface AttendanceCardProps {
 
 export function AttendanceCard({ todayAttendance, streakCount }: AttendanceCardProps) {
   const [isPending, startTransition] = useTransition();
-  const [optimisticAttendance, setOptimisticAttendance] = useOptimistic(
+  const [optimisticAttendance, setOptimisticAttendance] = useOptimistic<AttendanceRecord | null, string>(
     todayAttendance,
-    (state, newStatus: string) => {
+    (state, newStatus) => {
       if (newStatus === "checking_in") {
         return { 
           id: "temp-id", 
