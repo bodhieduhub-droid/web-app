@@ -4,6 +4,8 @@ import { bulkStudentBatchAction } from "@/app/(dashboard)/actions";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { StudentListClient } from "../components/student-list-client";
+import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { URLSelect } from "@/components/ui/url-select";
 
 export const dynamic = "force-dynamic";
 
@@ -180,52 +182,41 @@ export default async function SuperAdminStudentsPage({
         </Link>
       </section>
 
-      <form className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_160px_160px_160px_auto]">
-        <input
-          name="q"
-          defaultValue={resolvedSearchParams.q ?? ""}
-          placeholder="Search by name, phone, email"
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
+      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_160px_160px_160px]">
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search by name, phone, email" 
+          className="relative z-10"
         />
-        <select
+        <URLSelect
           name="status"
           defaultValue={statusFilter}
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
-        >
-          <option value="all">All statuses</option>
-          {statusOptions.map((status) => (
-            <option key={status} value={status}>
-              {status.replaceAll("_", " ")}
-            </option>
-          ))}
-        </select>
-        <select
+          options={[
+            { value: "all", label: "All statuses" },
+            ...statusOptions.map(s => ({ value: s, label: s.replaceAll("_", " ") }))
+          ]}
+        />
+        <URLSelect
           name="type"
           defaultValue={typeFilter}
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
-        >
-          <option value="all">All plans</option>
-          <option value="monthly">Monthly</option>
-          <option value="weekly">Weekly</option>
-          <option value="daily">Daily</option>
-        </select>
-        <select
+          options={[
+            { value: "all", label: "All plans" },
+            { value: "monthly", label: "Monthly" },
+            { value: "weekly", label: "Weekly" },
+            { value: "daily", label: "Daily" },
+          ]}
+        />
+        <URLSelect
           name="billing"
           defaultValue={billingFilter}
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
-        >
-          <option value="all">All billing states</option>
-          <option value="overdue">Overdue only</option>
-          <option value="due">Any dues</option>
-          <option value="clear">Cleared</option>
-        </select>
-        <button
-          type="submit"
-          className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white"
-        >
-          Apply
-        </button>
-      </form>
+          options={[
+            { value: "all", label: "All billing states" },
+            { value: "overdue", label: "Overdue only" },
+            { value: "due", label: "Any dues" },
+            { value: "clear", label: "Cleared" },
+          ]}
+        />
+      </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[

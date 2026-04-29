@@ -4,6 +4,7 @@ import type { EnquiryRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatToIST } from "@/lib/date-utils";
 import { DeleteEnquiryButton } from "@/components/admin/delete-enquiry-button";
+import { DebouncedSearch } from "@/components/ui/debounced-search";
 
 export const dynamic = "force-dynamic";
 
@@ -88,31 +89,49 @@ export default async function SuperAdminEnquiriesPage({
         </div>
       </div>
 
-      <form className="grid gap-3 premium-card p-4 md:grid-cols-[1fr_180px_180px_auto]">
+      <div className="grid gap-3 premium-card p-4 md:grid-cols-[1fr_180px_180px]">
         <div className="premium-card-inner"></div>
-        <input
-          name="q"
-          defaultValue={resolved.q ?? ""}
-          placeholder="Search name / phone / email"
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10"
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search name / phone / email" 
+          className="relative z-10"
         />
-        <select name="status" defaultValue={statusFilter} className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10">
-          <option value="all">All status</option>
-          <option value="new">New</option>
-          <option value="contacted">Contacted</option>
-          <option value="seat_blocked">Seat blocked</option>
-          <option value="converted">Converted</option>
-          <option value="closed">Closed</option>
-        </select>
-        <select name="assigned" defaultValue={assignedFilter} className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10">
-          <option value="all">All ownership</option>
-          <option value="yes">Assigned</option>
-          <option value="no">Unassigned</option>
-        </select>
-        <button type="submit" className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white hover:bg-[#27452e] relative z-10">
-          Apply
-        </button>
-      </form>
+        <form className="contents">
+          <select 
+            name="status" 
+            defaultValue={statusFilter} 
+            onChange={(e) => {
+              const params = new URLSearchParams(window.location.search);
+              params.set("status", e.target.value);
+              params.set("page", "1");
+              window.location.search = params.toString();
+            }}
+            className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10"
+          >
+            <option value="all">All status</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="seat_blocked">Seat blocked</option>
+            <option value="converted">Converted</option>
+            <option value="closed">Closed</option>
+          </select>
+          <select 
+            name="assigned" 
+            defaultValue={assignedFilter} 
+            onChange={(e) => {
+              const params = new URLSearchParams(window.location.search);
+              params.set("assigned", e.target.value);
+              params.set("page", "1");
+              window.location.search = params.toString();
+            }}
+            className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10"
+          >
+            <option value="all">All ownership</option>
+            <option value="yes">Assigned</option>
+            <option value="no">Unassigned</option>
+          </select>
+        </form>
+      </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[

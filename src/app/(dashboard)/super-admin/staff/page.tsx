@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createStaffAccountAction } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DebouncedSearch } from "@/components/ui/debounced-search";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function SuperAdminStaffPage({
     .from("profiles")
     .select("id, full_name, role, created_at", { count: "exact" })
     .eq("role", "staff");
+    
   if (query) {
     const q = query.replaceAll(",", " ").replaceAll("%", "").replaceAll("*", "").trim();
     const isUuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
@@ -102,10 +104,11 @@ export default async function SuperAdminStaffPage({
   const totalVerifications = [...verificationMap.values()].reduce((sum, value) => sum + value, 0);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(initialPage, totalPages);
-  const params = new URLSearchParams();
-  if (query) params.set("q", query);
-  const pageHref = (page: number) => {
-    params.set("page", String(page));
+
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    params.set("page", String(p));
     return `?${params.toString()}`;
   };
 
@@ -128,20 +131,14 @@ export default async function SuperAdminStaffPage({
         />
       </form>
 
-      <form className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_auto]">
-        <input
-          name="q"
-          defaultValue={resolved.q ?? ""}
-          placeholder="Search by name or profile id"
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
+      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
+        <div className="premium-card-inner"></div>
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search by name or profile id" 
+          className="relative z-10"
         />
-        <button
-          type="submit"
-          className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white"
-        >
-          Apply
-        </button>
-      </form>
+      </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -172,7 +169,7 @@ export default async function SuperAdminStaffPage({
           </thead>
           <tbody>
             {pageRows.map((member) => (
-              <tr key={member.id} className="border-t border-[#e4eae0]">
+              <tr key={member.id} className="border-t border-[#e4eae0] hover:bg-[#fcfdfb] transition-colors">
                 <td className="px-4 py-4">
                   <p className="font-black text-[#1b3022]">{member.full_name || "Staff Member"}</p>
                   <p className="text-xs font-semibold text-[#6d7c6c]">{member.id}</p>
@@ -185,7 +182,7 @@ export default async function SuperAdminStaffPage({
                 <td className="px-4 py-4">
                   <Link
                     href={`/super-admin/staff/${member.id}`}
-                    className="rounded-xl border border-[#d8e0d4] bg-white px-3 py-2 text-xs font-black text-[#1b3022]"
+                    className="rounded-xl border border-[#d8e0d4] bg-white px-3 py-2 text-xs font-black text-[#1b3022] hover:bg-[#f5f8f3]"
                   >
                     Open Detail
                   </Link>
@@ -208,18 +205,14 @@ export default async function SuperAdminStaffPage({
         </p>
         <div className="flex items-center gap-2">
           {currentPage > 1 ? (
-            <Link href={pageHref(currentPage - 1)} className="rounded-xl border border-[#d8e0d4] px-3 py-2">
-              Prev
-            </Link>
+            <Link href={pageHref(currentPage - 1)} className="rounded-xl border border-[#d8e0d4] px-4 py-2 hover:bg-[#f5f8f3]">Prev</Link>
           ) : (
-            <span className="rounded-xl border border-[#e4eae0] px-3 py-2 text-[#9aa79a]">Prev</span>
+            <span className="rounded-xl border border-[#e4eae0] px-4 py-2 text-[#9aa79a]">Prev</span>
           )}
           {currentPage < totalPages ? (
-            <Link href={pageHref(currentPage + 1)} className="rounded-xl border border-[#d8e0d4] px-3 py-2">
-              Next
-            </Link>
+            <Link href={pageHref(currentPage + 1)} className="rounded-xl border border-[#d8e0d4] px-4 py-2 hover:bg-[#f5f8f3]">Next</Link>
           ) : (
-            <span className="rounded-xl border border-[#e4eae0] px-3 py-2 text-[#9aa79a]">Next</span>
+            <span className="rounded-xl border border-[#e4eae0] px-4 py-2 text-[#9aa79a]">Next</span>
           )}
         </div>
       </div>

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Inbox, Pin } from "lucide-react";
+import { Inbox, Pin, Search } from "lucide-react";
 
 import { ExpandableText } from "@/components/student/expandable-text";
 import type { PostRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ListSkeleton } from "@/components/dashboard/suspense-skeletons";
+import { DebouncedSearch } from "@/components/ui/debounced-search";
 
 export const dynamic = "force-dynamic";
 
@@ -18,24 +19,33 @@ const categoryColors: Record<string, { bg: string; text: string; border: string;
   RAILWAY: { bg: "bg-orange-50", text: "text-orange-800", border: "border-orange-200", pill: "bg-orange-100 text-orange-700 border-orange-200" },
 };
 
-// Async component — streams independently from the hero
-async function ExamsFeed({ studentId, filter }: { studentId: string; filter: string }) {
+async function ExamsFeed({ studentId, filter, query }: { studentId: string; filter: string; query: string }) {
   const supabase = createAdminClient();
   const { data: interests } = await supabase.from("student_exam_interests").select("category").eq("reader_id", studentId);
   const categories = (interests ?? []).map((i) => i.category as string);
 
-  let examAlerts: PostRecord[] = [];
+  let examsQuery = supabase
+    .from("posts")
+    .select("*")
+    .eq("status", "published")
+    .eq("type", "exam_alert")
+    .order("published_at", { ascending: false });
+
   if (categories.length > 0) {
-    const { data } = await supabase.from("posts").select("*").eq("status", "published").eq("type", "exam_alert").in("exam_category", categories).order("published_at", { ascending: false }).limit(20);
-    examAlerts = (data ?? []) as PostRecord[];
-  } else {
-    const { data } = await supabase.from("posts").select("*").eq("status", "published").eq("type", "exam_alert").order("published_at", { ascending: false }).limit(20);
-    examAlerts = (data ?? []) as PostRecord[];
+    examsQuery = examsQuery.in("exam_category", categories);
   }
+
+  if (query) {
+    examsQuery = examsQuery.or(`title.ilike.%${query}%,summary.ilike.%${query}%`);
+  }
+
+  const { data: examAlertsRaw } = await examsQuery.limit(50);
+  const examAlerts = (examAlertsRaw ?? []) as PostRecord[];
 
   const availableCategories = Array.from(new Set(examAlerts.map((p) => p.exam_category).filter(Boolean) as string[]));
   const activeFilter = filter && (filter === "all" || availableCategories.includes(filter)) ? filter : "all";
   const filtered = activeFilter === "all" ? examAlerts : examAlerts.filter((p) => p.exam_category === activeFilter);
+  
   const grouped: Record<string, PostRecord[]> = {};
   for (const post of filtered) {
     const cat = post.exam_category ?? "General";
@@ -53,17 +63,30 @@ async function ExamsFeed({ studentId, filter }: { studentId: string; filter: str
       )}
       {availableCategories.length > 0 && (
         <section className="flex flex-wrap gap-2">
-          <Link href="/student/exams" prefetch={false} className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${activeFilter === "all" ? "border-[#1b3022] bg-[#1b3022] text-white" : "border-[#d8e0d4] bg-white text-[#536352]"}`}>All</Link>
+          <Link 
+            href={`/student/exams${query ? `?q=${query}` : ""}`} 
+            prefetch={false} 
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${activeFilter === "all" ? "border-[#1b3022] bg-[#1b3022] text-white shadow-lg shadow-[#1b3022]/20" : "border-[#d8e0d4] bg-white text-[#536352] hover:border-[#1b3022]"}`}
+          >
+            All
+          </Link>
           {availableCategories.map((cat) => (
-            <Link key={cat} href={`/student/exams?filter=${cat}`} prefetch={false} className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${activeFilter === cat ? "border-[#1b3022] bg-[#1b3022] text-white" : "border-[#d8e0d4] bg-white text-[#536352]"}`}>{cat}</Link>
+            <Link 
+              key={cat} 
+              href={`/student/exams?filter=${cat}${query ? `&q=${query}` : ""}`} 
+              prefetch={false} 
+              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${activeFilter === cat ? "border-[#1b3022] bg-[#1b3022] text-white shadow-lg shadow-[#1b3022]/20" : "border-[#d8e0d4] bg-white text-[#536352] hover:border-[#1b3022]"}`}
+            >
+              {cat}
+            </Link>
           ))}
         </section>
       )}
       {filtered.length === 0 ? (
         <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-10 text-center shadow-lg">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#eef3ea]"><Inbox className="h-8 w-8 text-[#6d7c6c]" /></div>
-          <p className="mt-4 text-lg font-black text-[#1b3022]">No alerts yet</p>
-          <p className="mt-2 text-sm font-medium text-[#536352]">Exam alerts will be posted here by your hub staff.</p>
+          <p className="mt-4 text-lg font-black text-[#1b3022]">No alerts found</p>
+          <p className="mt-2 text-sm font-medium text-[#536352]">Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="space-y-10">
@@ -79,11 +102,11 @@ async function ExamsFeed({ studentId, filter }: { studentId: string; filter: str
                   {posts.map((post) => {
                     const c = colors ?? { bg: "bg-[#f7faf5]", text: "text-[#1b3022]", border: "border-[#d8e0d4]" };
                     return (
-                      <div key={post.id} className={`rounded-[2rem] border ${c.border} ${c.bg} p-6 shadow`}>
+                      <div key={post.id} className={`rounded-[2rem] border ${c.border} ${c.bg} p-6 shadow-sm hover:shadow-md transition-shadow bg-white`}>
                         <p className={`text-lg font-black leading-tight ${c.text}`}>{post.title}</p>
                         {post.summary && <p className="mt-3 text-sm leading-6 text-[#536352]">{post.summary}</p>}
-                        <div className="mt-4 border-t border-white/50 pt-4"><ExpandableText text={post.content} /></div>
-                        <p className="mt-4 text-[10px] font-bold text-[#aab5a8]">{post.published_at ? new Date(post.published_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}</p>
+                        <div className="mt-4 border-t border-[#d8e0d4]/50 pt-4"><ExpandableText text={post.content} /></div>
+                        <p className="mt-4 text-[10px] font-bold text-[#aab5a8] uppercase tracking-widest">{post.published_at ? new Date(post.published_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}</p>
                       </div>
                     );
                   })}
@@ -97,26 +120,34 @@ async function ExamsFeed({ studentId, filter }: { studentId: string; filter: str
   );
 }
 
-export default async function ExamsPage({ searchParams }: { searchParams?: Promise<{ filter?: string }> }) {
+export default async function ExamsPage({ searchParams }: { searchParams?: Promise<{ filter?: string; q?: string }> }) {
   const { student } = await requireDashboardContext(["student"]);
   if (!student) return null;
   const resolvedSearchParams = (await searchParams) ?? {};
   const filter = resolvedSearchParams.filter ?? "all";
+  const query = (resolvedSearchParams.q ?? "").trim();
 
   return (
     <div className="space-y-8">
-      {/* ── Hero (INSTANT) ── */}
-      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
-        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Exam Alerts</p>
-        <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Your Exam Feed</h1>
-        <p className="mt-4 text-base font-medium leading-7 text-white/80">Personalized exam alerts based on your study preferences.</p>
+      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Exam Alerts</p>
+          <h1 className="mt-5 text-5xl font-black uppercase tracking-tight">Your Exam Feed</h1>
+          <p className="mt-4 text-base font-medium leading-7 text-white/80 max-w-xl">
+            Personalized exam alerts based on your study preferences.
+          </p>
+        </div>
+        
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search exams..." 
+          className="w-full lg:w-96 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+        />
       </section>
 
-      {/* ── Feed (SUSPENSE — streams independently) ── */}
-      <Suspense fallback={<ListSkeleton rows={4} />}>
-        <ExamsFeed studentId={student.id} filter={filter} />
+      <Suspense key={filter + query} fallback={<ListSkeleton rows={4} />}>
+        <ExamsFeed studentId={student.id} filter={filter} query={query} />
       </Suspense>
     </div>
   );
 }
-

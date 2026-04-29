@@ -2,19 +2,38 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { AttendanceRecord, StudentRecord } from "@/lib/app-types";
 import { Calendar, Search } from "lucide-react";
 
+import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { URLDateInput } from "@/components/ui/url-date-input";
+
 export const dynamic = "force-dynamic";
 
-export default async function AttendanceLogsPage({ searchParams }: { searchParams: { date?: string } }) {
+type SearchParams = {
+  date?: string;
+  q?: string;
+};
+
+export default async function AttendanceLogsPage({ 
+  searchParams 
+}: { 
+  searchParams?: Promise<SearchParams> 
+}) {
+  const resolved = (await searchParams) ?? {};
   const supabase = createAdminClient();
   const today = new Date().toISOString().split("T")[0];
-  const targetDate = (await searchParams).date || today;
+  const targetDate = resolved.date || today;
+  const query = (resolved.q ?? "").trim();
 
-  const { data: attendance } = await supabase
+  let attendanceQuery = supabase
     .from("attendance")
-    .select("*, readers(name, phone, reader_type)")
+    .select("*, readers!inner(name, phone, reader_type)")
     .eq("date", targetDate)
     .order("check_in_at", { ascending: false });
 
+  if (query) {
+    attendanceQuery = attendanceQuery.or(`name.ilike.%${query}%,phone.ilike.%${query}%`, { foreignTable: "readers" });
+  }
+
+  const { data: attendance } = await attendanceQuery;
   const logs = (attendance ?? []) as (AttendanceRecord & { readers: Partial<StudentRecord> })[];
 
   return (
@@ -25,21 +44,25 @@ export default async function AttendanceLogsPage({ searchParams }: { searchParam
         <p className="mt-2 text-sm font-semibold text-white/60">Tracking daily room usage and student consistency.</p>
       </section>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-         <form className="flex items-center gap-2 rounded-2xl border border-[#d8e0d4] bg-white px-4 py-2 shadow-sm">
-            <Calendar className="h-4 w-4 text-[#6d7c6c]" />
-            <input 
-              type="date" 
-              name="date" 
-              defaultValue={targetDate} 
-              className="bg-transparent text-sm font-bold text-[#1b3022] outline-none"
-            />
-            <button type="submit" className="ml-2 rounded-lg bg-[#1b3022] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white hover:bg-black transition">Filter</button>
-         </form>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+           <div className="flex items-center gap-2 rounded-2xl border border-[#d8e0d4] bg-white px-4 py-2 shadow-sm w-full sm:w-auto">
+              <Calendar className="h-4 w-4 text-[#6d7c6c]" />
+              <URLDateInput name="date" defaultValue={targetDate} />
+           </div>
+           
+           <DebouncedSearch 
+             defaultValue={query} 
+             placeholder="Search student..." 
+             className="w-full sm:w-80"
+           />
+         </div>
          
-         <div className="rounded-2xl bg-white px-4 py-2 border border-[#d8e0d4] shadow-sm">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#6d7c6c]">Total Present</p>
-            <p className="text-xl font-black text-[#1b3022]">{logs.length}</p>
+         <div className="rounded-2xl bg-white px-6 py-2 border border-[#d8e0d4] shadow-sm flex items-center gap-3 shrink-0">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#6d7c6c]">Total Present</p>
+              <p className="text-xl font-black text-[#1b3022]">{logs.length}</p>
+            </div>
          </div>
       </div>
 

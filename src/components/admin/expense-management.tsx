@@ -32,6 +32,17 @@ export function ExpenseManagement({ initialExpenses }: { initialExpenses: Expens
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+
+  const filteredExpenses = expenses.filter((e) => {
+    const matchesQuery = (e.description || "").toLowerCase().includes(query.toLowerCase()) ||
+                         (e.category || "").toLowerCase().includes(query.toLowerCase()) ||
+                         e.amount.toString().includes(query);
+    const matchesCategory = categoryFilter === "all" || e.category === categoryFilter;
+    return matchesQuery && matchesCategory;
+  });
+
   async function handleDelete(id: string) {
     if (!confirm("Are you sure you want to delete this expense?")) return;
     const formData = new FormData();
@@ -42,11 +53,26 @@ export function ExpenseManagement({ initialExpenses }: { initialExpenses: Expens
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-black text-[#1b3022]">Expenses</h2>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center justify-between">
+        <div className="flex flex-1 flex-col sm:flex-row items-center gap-3">
+          <input 
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search expenses..."
+            className="w-full sm:w-80 rounded-2xl border border-[#d8e0d4] bg-white px-4 py-2.5 text-sm font-semibold text-[#1b3022] outline-none shadow-sm transition-all focus:border-[#1b3022] focus:ring-4 focus:ring-[#1b3022]/5"
+          />
+          <select 
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="w-full sm:w-48 rounded-2xl border border-[#d8e0d4] bg-white px-4 py-2.5 text-sm font-black text-[#1b3022] outline-none shadow-sm transition-all focus:border-[#1b3022]"
+          >
+            <option value="all">All Categories</option>
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
         <button
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 rounded-2xl bg-[#1b3022] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#27452e]"
+          className="flex items-center justify-center gap-2 rounded-2xl bg-[#1b3022] px-6 py-2.5 text-sm font-black uppercase tracking-widest text-white transition hover:bg-black shadow-lg shadow-[#1b3022]/10"
         >
           <Plus className="h-4 w-4" />
           Add Expense
@@ -138,7 +164,7 @@ export function ExpenseManagement({ initialExpenses }: { initialExpenses: Expens
             </tr>
           </thead>
           <tbody className="divide-y divide-[#eef3ea]">
-            {expenses.map((expense) => {
+            {filteredExpenses.map((expense) => {
               const isEditing = editingId === expense.id;
               return (
                 <tr key={expense.id} className="text-sm font-semibold text-[#1b3022]">
@@ -166,7 +192,7 @@ export function ExpenseManagement({ initialExpenses }: { initialExpenses: Expens
                 </tr>
               );
             })}
-            {expenses.length === 0 && (
+            {filteredExpenses.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-[#6b7b69] italic">
                   No expenses recorded yet.

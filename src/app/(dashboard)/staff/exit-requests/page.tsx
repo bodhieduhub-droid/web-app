@@ -2,6 +2,7 @@ import { processExitAction } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { ExitRequestRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DebouncedSearch } from "@/components/ui/debounced-search";
 
 type ExitRequestRow = ExitRequestRecord & {
   readers: { name: string; phone: string; email: string | null; caution_paid: boolean; status: string } | null;
@@ -9,24 +10,46 @@ type ExitRequestRow = ExitRequestRecord & {
 
 export const dynamic = "force-dynamic";
 
-export default async function StaffExitRequestsPage() {
+type SearchParams = {
+  q?: string;
+};
+
+export default async function StaffExitRequestsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const resolved = (await searchParams) ?? {};
+  const query = (resolved.q ?? "").trim();
+
   const supabase = createAdminClient();
-  const { data: exitRequests } = await supabase
+  
+  let exitRequestsQuery = supabase
     .from("exit_requests")
-    .select("*, readers(name, phone, email, caution_paid, status)")
+    .select("*, readers!inner(name, phone, email, caution_paid, status)")
     .order("created_at", { ascending: false });
+
+  if (query) {
+    exitRequestsQuery = exitRequestsQuery.or(`name.ilike.%${query}%,phone.ilike.%${query}%`, { foreignTable: "readers" });
+  }
+
+  const { data: exitRequests } = await exitRequestsQuery;
 
   const pendingRequests = ((exitRequests ?? []) as ExitRequestRow[]).filter((req) => req.status === "pending");
   const processedRequests = ((exitRequests ?? []) as ExitRequestRow[]).filter((req) => req.status !== "pending").slice(0, 50);
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Student Off-boarding</p>
-        <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Exit Requests</h1>
-        <p className="mt-3 text-sm leading-6 text-[#536352]">
-          Manage student exit workflows. Processing an exit releases their seat, archives their profile, and automatically initiates a caution refund (if eligible).
-        </p>
+      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Student Off-boarding</p>
+          <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Exit Requests</h1>
+        </div>
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search student or phone..." 
+          className="w-full md:w-80"
+        />
       </section>
 
       <div className="space-y-4">
@@ -67,7 +90,7 @@ export default async function StaffExitRequestsPage() {
           ))
         ) : (
           <div className="rounded-[2rem] border border-[#d8e0d4] bg-[#f5f8f3] p-6 text-sm font-medium text-[#556455] shadow-lg shadow-[#27452e]/6">
-            No pending exit requests.
+            No pending exit requests matching your search.
           </div>
         )}
       </div>
@@ -76,7 +99,7 @@ export default async function StaffExitRequestsPage() {
         <h2 className="mt-8 text-xl font-black text-[#1b3022]">Recently Processed</h2>
         {processedRequests.length > 0 ? (
           processedRequests.map((req) => (
-            <article key={req.id} className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
+            <article key={req.id} className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 hover:shadow-xl transition-shadow">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-xl font-black text-[#1b3022]">{req.readers?.name || "Student"}</p>

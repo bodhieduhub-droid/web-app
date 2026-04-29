@@ -18,11 +18,14 @@ type BillAuditRow = {
   created_at: string;
 };
 
+import { DebouncedSearch } from "@/components/ui/debounced-search";
+
 export const dynamic = "force-dynamic";
 
 type SearchParams = {
   period?: string;
   page?: string;
+  q?: string;
 };
 
 export default async function StaffBillingPage({
@@ -31,6 +34,7 @@ export default async function StaffBillingPage({
   searchParams?: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
+  const query = (resolvedSearchParams.q ?? "").trim();
   const financePeriod = resolveFinancePeriod(resolvedSearchParams.period);
   const financeWindow = getFinancePeriodWindow(financePeriod);
   const requestedPage = Number.parseInt(resolvedSearchParams.page ?? "1", 10);
@@ -40,11 +44,17 @@ export default async function StaffBillingPage({
   const to = from + pageSize - 1;
 
   const supabase = createAdminClient();
-  const { data: bills, count } = await supabase
+
+  let billsQuery = supabase
     .from("bills")
-    .select("*, readers(name, phone), transactions(*)", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .select("*, readers!inner(name, phone), transactions(*)", { count: "exact" })
+    .order("created_at", { ascending: false });
+
+  if (query) {
+    billsQuery = billsQuery.or(`name.ilike.%${query}%,phone.ilike.%${query}%`, { foreignTable: "readers" });
+  }
+
+  const { data: bills, count } = await billsQuery.range(from, to);
   const billIds = (bills ?? []).map((bill) => bill.id);
   const { data: financeRows } = await supabase
     .from("transactions")
@@ -79,10 +89,20 @@ export default async function StaffBillingPage({
 
   return (
     <div className="space-y-6">
+      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Staff Billing</p>
+          <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Verification Desk</h1>
+        </div>
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search student or phone..." 
+          className="w-full md:w-80"
+        />
+      </section>
+
       <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Billing</p>
-        <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Verify UPI Proofs</h1>
-        <form className="mt-4 flex flex-wrap items-center gap-2">
+        <form className="flex flex-wrap items-center gap-2">
           <select name="period" defaultValue={financePeriod} className="rounded-xl border border-[#d7ddd3] bg-[#f7faf5] px-3 py-2 text-sm font-semibold text-[#1b3022]">
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>

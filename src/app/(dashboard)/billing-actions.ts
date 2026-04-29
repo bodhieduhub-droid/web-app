@@ -536,7 +536,7 @@ export async function generateMonthlyInvoices() {
   const todayDate = getIsoDateOnly(today);
   const weekStartDate = getIsoDateOnly(getMondayOfCurrentWeek(today));
 
-  const { data: students } = await supabase.from("readers").select("id, name, email, monthly_fee, reader_type").eq("status", "active");
+  const { data: students } = await supabase.from("readers").select("id, name, email, monthly_fee, reader_type").in("status", ["active", "pending_onboarding"]);
 
   const ops = (students ?? []).map(async (student) => {
     const planType = normalizePlanType(student.reader_type ?? "monthly");

@@ -4,14 +4,34 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { DeleteEnquiryButton } from "@/components/admin/delete-enquiry-button";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 
+import { DebouncedSearch } from "@/components/ui/debounced-search";
+
 export const dynamic = "force-dynamic";
 
-export default async function StaffEnquiriesPage() {
+type SearchParams = {
+  q?: string;
+};
+
+export default async function StaffEnquiriesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const resolved = (await searchParams) ?? {};
+  const query = (resolved.q ?? "").trim();
+
   const supabase = createAdminClient();
-  const { data: enquiries } = await supabase
+  
+  let enquiriesQuery = supabase
     .from("enquiries")
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (query) {
+    enquiriesQuery = enquiriesQuery.or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%`);
+  }
+
+  const { data: enquiries } = await enquiriesQuery;
 
   const { data: seats } = await supabase
     .from("seats")
@@ -23,9 +43,16 @@ export default async function StaffEnquiriesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Staff Enquiries</p>
-        <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Seat Follow-Up Queue</h1>
+      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Staff Enquiries</p>
+          <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Seat Follow-Up Queue</h1>
+        </div>
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Quick search enquiries..." 
+          className="w-full md:w-80"
+        />
       </section>
 
       <div className="space-y-4">

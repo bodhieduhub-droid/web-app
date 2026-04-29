@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { URLSelect } from "@/components/ui/url-select";
 
 export const dynamic = "force-dynamic";
 
@@ -46,24 +48,13 @@ export default async function SuperAdminNightLogsPage({
 
   let logsQuery = supabase
     .from("night_logs")
-    .select("id,entry_time,planned_exit_time,actual_exit_time,status,readers(id,name,phone),seats(seat_number)", { count: "exact" })
+    .select("id,entry_time,planned_exit_time,actual_exit_time,status,readers!inner(id,name,phone),seats(seat_number)", { count: "exact" })
     .order("entry_time", { ascending: false });
 
   if (statusFilter !== "all") logsQuery = logsQuery.eq("status", statusFilter);
 
   if (query) {
-    const q = query.replaceAll(",", " ").replaceAll("%", "").replaceAll("*", "").trim();
-    const { data: matchedReaders } = await supabase
-      .from("readers")
-      .select("id")
-      .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
-      .limit(2500);
-    const ids = (matchedReaders ?? []).map((row) => row.id);
-    if (ids.length > 0) {
-      logsQuery = logsQuery.in("reader_id", ids);
-    } else {
-      logsQuery = logsQuery.in("reader_id", ["00000000-0000-0000-0000-000000000000"]);
-    }
+    logsQuery = logsQuery.or(`name.ilike.%${query}%,phone.ilike.%${query}%`, { foreignTable: "readers" });
   }
 
   const { data, count } = await logsQuery.range(from, to);
@@ -90,23 +81,23 @@ export default async function SuperAdminNightLogsPage({
         <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Late Sitting Monitor</h1>
       </section>
 
-      <form className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_220px_auto]">
-        <input
-          name="q"
-          defaultValue={resolved.q ?? ""}
-          placeholder="Search by student name or phone"
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
+      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_220px]">
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search by student name or phone" 
+          className="relative z-10"
         />
-        <select name="status" defaultValue={statusFilter} className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]">
-          <option value="all">All status</option>
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
-          <option value="late">Late</option>
-        </select>
-        <button type="submit" className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white">
-          Apply
-        </button>
-      </form>
+        <URLSelect
+          name="status"
+          defaultValue={statusFilter}
+          options={[
+            { value: "all", label: "All status" },
+            { value: "active", label: "Active" },
+            { value: "completed", label: "Completed" },
+            { value: "late", label: "Late" },
+          ]}
+        />
+      </div>
 
       <section className="grid gap-3 sm:grid-cols-3">
         {[

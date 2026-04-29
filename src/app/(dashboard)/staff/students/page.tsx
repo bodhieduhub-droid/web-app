@@ -3,17 +3,42 @@ import { createRejoinInvoiceAction, rejoinStudentAction, verifyStudentIdProofAct
 import type { StudentRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
+import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { URLSelect } from "@/components/ui/url-select";
 
 export const dynamic = "force-dynamic";
 
-export default async function StaffStudentsPage() {
+type SearchParams = {
+  q?: string;
+  status?: string;
+  type?: string;
+};
+
+export default async function StaffStudentsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const resolved = (await searchParams) ?? {};
+  const query = (resolved.q ?? "").trim();
+  const statusFilter = (resolved.status ?? "all").trim();
+  const typeFilter = (resolved.type ?? "all").trim();
+
   const supabase = createAdminClient();
+  
+  let studentsQuery = supabase
+    .from("readers")
+    .select("id, name, phone, status, reader_type, monthly_fee, onboarding_completed, caution_refunded, id_proof_url, id_proof_verified, seats:seats!fixed_seat_id(seat_number)")
+    .order("created_at", { ascending: false });
+
+  if (statusFilter !== "all") studentsQuery = studentsQuery.eq("status", statusFilter);
+  if (typeFilter !== "all") studentsQuery = studentsQuery.eq("reader_type", typeFilter);
+  if (query) {
+    studentsQuery = studentsQuery.or(`name.ilike.%${query}%,phone.ilike.%${query}%`);
+  }
+
   const [{ data: students }, { data: openBills }] = await Promise.all([
-    supabase
-      .from("readers")
-      .select("id, name, phone, status, reader_type, monthly_fee, onboarding_completed, caution_refunded, id_proof_url, id_proof_verified, seats:seats!fixed_seat_id(seat_number)")
-      .order("created_at", { ascending: false })
-      .limit(200),
+    studentsQuery.limit(100),
     supabase
       .from("bills")
       .select("reader_id, status")
@@ -36,6 +61,37 @@ export default async function StaffStudentsPage() {
           Add Student
         </Link>
       </section>
+
+      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_180px_180px]">
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search by name or phone" 
+          className="relative z-10"
+        />
+        <URLSelect
+          name="status"
+          defaultValue={statusFilter}
+          options={[
+            { value: "all", label: "All statuses" },
+            { value: "pending_payment", label: "Pending Payment" },
+            { value: "pending_onboarding", label: "Pending Onboarding" },
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+            { value: "waitlist", label: "Waitlist" },
+            { value: "archived", label: "Archived" },
+          ]}
+        />
+        <URLSelect
+          name="type"
+          defaultValue={typeFilter}
+          options={[
+            { value: "all", label: "All plans" },
+            { value: "monthly", label: "Monthly" },
+            { value: "weekly", label: "Weekly" },
+            { value: "daily", label: "Daily" },
+          ]}
+        />
+      </div>
 
       <div className="space-y-4">
         {((students ?? []) as unknown as (StudentRecord & { seats?: { seat_number?: number } | null })[]).map((student) => (
