@@ -289,23 +289,21 @@ export default async function SuperAdminStudentDetailPage({
                   {!(student as any).id_proof_verified && (
                     <form action={verifyStudentIdProofAction}>
                       <input type="hidden" name="reader_id" value={student.id} />
-                      <button
-                        type="submit"
+                      <PendingSubmitButton
+                        idleLabel="Verify ID Proof"
+                        pendingLabel="Verifying..."
                         className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-50"
-                      >
-                        Verify ID Proof
-                      </button>
+                      />
                     </form>
                   )}
                   {!(student as any).id_proof_verified && (
                     <form action={rejectStudentIdProofAction}>
                       <input type="hidden" name="reader_id" value={student.id} />
-                      <button
-                        type="submit"
+                      <PendingSubmitButton
+                        idleLabel="Reject ID Proof"
+                        pendingLabel="Rejecting..."
                         className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#7d2f2f] hover:bg-[#f8eef0]"
-                      >
-                        Reject ID Proof
-                      </button>
+                      />
                     </form>
                   )}
                 </>

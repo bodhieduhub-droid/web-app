@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createNotification } from "@/lib/notifications";
-import { sendEmail } from "@/lib/email";
+import { sendEmailBatch } from "@/lib/email";
 import { emailTemplates } from "@/lib/email-templates";
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -50,6 +50,7 @@ export async function GET(request: Request) {
     .eq("status", "rejected_proof");
 
   let noticesSent = 0;
+  const emailPayloads: any[] = [];
   type BillReader = { id: string; name: string; email?: string | null };
 
   const sendBillReminder = async (options: {
@@ -91,7 +92,8 @@ export async function GET(request: Request) {
         qrUrl: settings.static_upi_qr_url,
         upiId: settings.static_upi_id,
       });
-      await sendEmail({
+      
+      emailPayloads.push({
         to: [options.readerEmail],
         subject: emailTemplate.subject,
         html: emailTemplate.html,
@@ -156,6 +158,11 @@ export async function GET(request: Request) {
       title: "Payment proof rejected",
       body: `Your payment proof was rejected for invoice ${bill.id}. Re-upload proof for Rs ${remainingAmount}.`,
     });
+  }
+
+  // Send all emails in one single batch request
+  if (emailPayloads.length > 0) {
+    await sendEmailBatch(emailPayloads);
   }
 
   return NextResponse.json({ success: true, noticesSent });

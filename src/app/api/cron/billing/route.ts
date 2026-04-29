@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { calculateInvoiceAmount, getCurrentBillingPeriod, type PlanType } from "@/lib/billing-utils";
 import { createNotification } from "@/lib/notifications";
-import { sendEmail } from "@/lib/email";
+import { sendEmailBatch } from "@/lib/email";
 import { emailTemplates } from "@/lib/email-templates";
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -18,8 +18,6 @@ function planDefaultPrice(planType: PlanType, settings: { daily_price: number; w
   if (planType === "weekly") return Number(settings.weekly_price) || 650;
   return Number(settings.default_monthly_price) || 1650;
 }
-
-// Helpers moved to date-utils.ts
 
 function formatPlanLabel(planType: PlanType) {
   if (planType === "daily") return "Daily";
@@ -48,6 +46,7 @@ export async function GET(request: Request) {
     .eq("status", "active");
 
   let createdCount = 0;
+  const emailPayloads: any[] = [];
 
   for (const student of students ?? []) {
     const planType = normalizePlanType(student.reader_type ?? "monthly");
@@ -132,7 +131,8 @@ export async function GET(request: Request) {
         qrUrl: settings.static_upi_qr_url,
         upiId: settings.static_upi_id,
       });
-      await sendEmail({
+      
+      emailPayloads.push({
         to: [student.email],
         subject: emailTemplate.subject,
         html: emailTemplate.html,
@@ -141,6 +141,11 @@ export async function GET(request: Request) {
     }
 
     createdCount += 1;
+  }
+
+  // Send all emails in one single batch request
+  if (emailPayloads.length > 0) {
+    await sendEmailBatch(emailPayloads);
   }
 
   return NextResponse.json({ success: true, createdCount });

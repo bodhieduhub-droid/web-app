@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createRejoinInvoiceAction, rejoinStudentAction, verifyStudentIdProofAction, rejectStudentIdProofAction } from "@/app/(dashboard)/actions";
 import type { StudentRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -92,12 +93,11 @@ export default async function StaffStudentsPage() {
                   {!(student as any).id_proof_verified ? (
                     <form action={verifyStudentIdProofAction}>
                       <input type="hidden" name="reader_id" value={student.id} />
-                      <button
-                        type="submit"
-                        className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700 transition hover:bg-emerald-100"
-                      >
-                        Verify ID Proof
-                      </button>
+                      <PendingSubmitButton
+                        idleLabel="Verify ID Proof"
+                        pendingLabel="Verifying..."
+                        className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700"
+                      />
                     </form>
                   ) : (
                     <span className="rounded-2xl bg-emerald-100 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-800">
@@ -107,12 +107,11 @@ export default async function StaffStudentsPage() {
                   {!(student as any).id_proof_verified && (
                     <form action={rejectStudentIdProofAction}>
                       <input type="hidden" name="reader_id" value={student.id} />
-                      <button
-                        type="submit"
-                        className="rounded-2xl border border-[#d8e0d4] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7d2f2f] transition hover:bg-[#f8eef0]"
-                      >
-                        Reject ID Proof
-                      </button>
+                      <PendingSubmitButton
+                        idleLabel="Reject ID Proof"
+                        pendingLabel="Rejecting..."
+                        className="rounded-2xl border border-[#d8e0d4] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7d2f2f]"
+                      />
                     </form>
                   )}
                 </>

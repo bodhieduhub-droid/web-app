@@ -2,6 +2,7 @@ import { blockSeatForEnquiry, convertEnquiryToStudent } from "@/app/(dashboard)/
 import type { EnquiryRecord, SeatRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DeleteEnquiryButton } from "@/components/admin/delete-enquiry-button";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +58,11 @@ export default async function StaffEnquiriesPage() {
                       ))}
                     </select>
                     <input name="reason" placeholder="Reason for block" className="rounded-2xl border border-[#d7ddd3] bg-white px-4 py-3 text-sm font-semibold text-[#1b3022]" />
-                    <button className="rounded-2xl border border-[#d7ddd3] bg-white px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-[#1b3022]">
-                      Block Seat
-                    </button>
+                    <PendingSubmitButton 
+                      idleLabel="Block Seat"
+                      pendingLabel="Blocking..."
+                      className="rounded-2xl border border-[#d7ddd3] bg-white px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-[#1b3022]" 
+                    />
                   </div>
                 </form>
 
@@ -86,9 +89,11 @@ export default async function StaffEnquiriesPage() {
                     </select>
                     <input name="plan_fee" type="number" defaultValue={1650} className="rounded-2xl border border-[#d7ddd3] bg-white px-4 py-3 text-sm font-semibold text-[#1b3022]" />
                     <input name="join_date" type="date" className="rounded-2xl border border-[#d7ddd3] bg-white px-4 py-3 text-sm font-semibold text-[#1b3022]" />
-                    <button className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white">
-                      Convert Student
-                    </button>
+                    <PendingSubmitButton 
+                      idleLabel="Convert Student"
+                      pendingLabel="Converting..."
+                      className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white" 
+                    />
                   </div>
                 </form>
               </div>

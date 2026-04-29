@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createNotification } from "@/lib/notifications";
-import { sendEmail } from "@/lib/email";
+import { sendEmailBatch } from "@/lib/email";
 import { emailTemplates } from "@/lib/email-templates";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     .eq("status", "pending_onboarding");
 
   let remindersSent = 0;
+  const emailPayloads: any[] = [];
 
   for (const student of students ?? []) {
     await createNotification({
@@ -36,7 +37,8 @@ export async function GET(request: Request) {
       const emailTemplate = emailTemplates.onboardingReminder({
         name: student.name,
       });
-      await sendEmail({
+      
+      emailPayloads.push({
         to: [student.email],
         subject: emailTemplate.subject,
         html: emailTemplate.html,
@@ -44,6 +46,11 @@ export async function GET(request: Request) {
       });
       remindersSent += 1;
     }
+  }
+
+  // Send all emails in one single batch request
+  if (emailPayloads.length > 0) {
+    await sendEmailBatch(emailPayloads);
   }
 
   return NextResponse.json({ success: true, remindersSent });

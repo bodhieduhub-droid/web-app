@@ -82,3 +82,35 @@ export async function sendEmailBatched(payload: EmailPayload, options?: BatchOpt
     results,
   };
 }
+
+export async function sendEmailBatch(payloads: EmailPayload[]) {
+  const { apiKey, from } = getEmailConfig();
+  if (!apiKey || !from || payloads.length === 0) {
+    return { skipped: true as const };
+  }
+
+  // Resend allows up to 100 emails per batch request
+  const response = await fetch("https://api.resend.com/emails/batch", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(
+      payloads.map((p) => ({
+        from,
+        to: p.to,
+        subject: p.subject,
+        html: p.html,
+        text: p.text,
+      }))
+    ),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Email batch send failed: ${body}`);
+  }
+
+  return response.json();
+}
