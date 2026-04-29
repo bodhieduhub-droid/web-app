@@ -72,13 +72,13 @@ async function PaymentsSummary({
         </div>
         <div className="rounded-[2.4rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
           <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">Hub UPI ID</p>
-          <p className="mt-4 text-xl font-black text-[#1b3022]">{settings.upi_id || "Not configured"}</p>
+          <p className="mt-4 text-xl font-black text-[#1b3022]">{settings.static_upi_id || "Not configured"}</p>
           <p className="mt-2 text-sm font-semibold text-[#536352]">Save this for easy payments</p>
         </div>
-        {settings.payment_qr_url && (
+        {settings.static_upi_qr_url && (
           <div className="flex items-center gap-4 rounded-[2.4rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
             <div className="shrink-0 overflow-hidden rounded-2xl border-2 border-[#f0f4ee]">
-               <img src={getOptimizedImage(settings.payment_qr_url, 400)} alt="QR" width={80} height={80} className="h-20 w-20 object-contain" />
+               <img src={getOptimizedImage(settings.static_upi_qr_url, 400)} alt="QR" width={80} height={80} className="h-20 w-20 object-contain" />
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1b3022]">Pay with QR</p>

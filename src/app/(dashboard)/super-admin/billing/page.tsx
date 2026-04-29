@@ -63,7 +63,8 @@ export default async function SuperAdminBillingPage({
     .gte("verified_at", financeWindow.startIso)
     .lt("verified_at", financeWindow.endIso);
 
-  const stats = summarizeFinance(financeRows ?? []);
+  const rawStats = summarizeFinance(financeRows ?? []);
+  const stats = finalizeFinance(rawStats);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(initialPage, totalPages);
 
@@ -117,17 +118,17 @@ export default async function SuperAdminBillingPage({
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {[
-          { label: "Cash", value: stats.cash },
-          { label: "UPI", value: stats.upi },
-          { label: "Bank", value: stats.bank },
-          { label: "Income", value: stats.income, highlight: true },
+          { label: "Cash", value: stats.cashIn },
+          { label: "UPI", value: stats.upiIn },
+          { label: "Count", value: stats.collectionsCount },
+          { label: "Revenue", value: stats.revenue, highlight: true },
           { label: "Expense", value: stats.expense, warning: true },
           { label: "Profit", value: stats.net, success: true },
         ].map((item) => (
           <div key={item.label} className={`rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 ${item.highlight ? 'bg-[#f5f8f3]' : ''}`}>
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{item.label}</p>
             <p className={`mt-2 text-2xl font-black ${item.warning ? 'text-[#7d2f2f]' : item.success ? 'text-emerald-700' : 'text-[#1b3022]'}`}>
-              ₹{item.value.toLocaleString()}
+              {item.label === "Count" ? "" : "₹"}{item.value.toLocaleString()}
             </p>
           </div>
         ))}
