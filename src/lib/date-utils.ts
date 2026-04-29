@@ -87,6 +87,15 @@ export function getISTHour(date = new Date()): number {
     hour12: false,
   });
   return parseInt(formatter.format(date), 10);
+
+/**
+ * Returns the UTC ISO string for the start of the current day in IST (00:00:00 IST).
+ */
+export function getISTStartOfDay(date = new Date()): string {
+  const istDateString = getISTDateString(date); // YYYY-MM-DD
+  const d = new Date(`${istDateString}T00:00:00Z`);
+  d.setMinutes(d.getMinutes() - 330);
+  return d.toISOString();
 }
 
 

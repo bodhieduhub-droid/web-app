@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { deleteEnquiryAction } from "@/app/(dashboard)/actions";
 import type { EnquiryRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -6,6 +7,7 @@ import { formatToIST } from "@/lib/date-utils";
 import { DeleteEnquiryButton } from "@/components/admin/delete-enquiry-button";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLSelect } from "@/components/ui/url-select";
+import { Loader2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -20,30 +22,46 @@ type EnquiryRow = EnquiryRecord & {
   profiles?: { full_name?: string | null } | null;
 };
 
-export default async function SuperAdminEnquiriesPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParams>;
+async function EnquiryMetrics() {
+  const supabase = createAdminClient();
+  const [{ count: total }, { count: fresh }, { count: blocked }, { count: converted }] = await Promise.all([
+    supabase.from("enquiries").select("*", { count: "exact", head: true }),
+    supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "new"),
+    supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "seat_blocked"),
+    supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "converted"),
+  ]);
+
+  const items = [
+    { label: "Total", value: total ?? 0 },
+    { label: "New", value: fresh ?? 0 },
+    { label: "Seat Blocked", value: blocked ?? 0 },
+    { label: "Converted", value: converted ?? 0 },
+  ];
+
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.label} className="premium-card p-4 relative group overflow-hidden">
+          <div className="premium-card-inner"></div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c] relative z-10">{item.label}</p>
+          <p className="mt-2 text-2xl font-black text-[#1b3022] relative z-10">{item.value}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+async function EnquiryList({ query, statusFilter, assignedFilter, initialPage }: { 
+  query: string; 
+  statusFilter: string; 
+  assignedFilter: string; 
+  initialPage: number 
 }) {
-  const resolved = (await searchParams) ?? {};
-  const query = (resolved.q ?? "").trim();
-  const statusFilter = (resolved.status ?? "all").trim();
-  const assignedFilter = (resolved.assigned ?? "all").trim();
-  const requestedPage = Number.parseInt(resolved.page ?? "1", 10);
   const pageSize = 12;
-  const initialPage = Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1);
   const from = (initialPage - 1) * pageSize;
   const to = from + pageSize - 1;
-
   const supabase = createAdminClient();
-  
-  // 1. Fetch TOTAL stats for metrics (regardless of pagination)
-  const { count: totalEnquiriesCount } = await supabase.from("enquiries").select("*", { count: "exact", head: true });
-  const { count: newCount } = await supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "new");
-  const { count: blockedCount } = await supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "seat_blocked");
-  const { count: convertedCount } = await supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "converted");
 
-  // 2. Build filtered query
   let enquiriesQuery = supabase
     .from("enquiries")
     .select("*, profiles:assigned_to(full_name)", { count: "exact" })
@@ -61,7 +79,6 @@ export default async function SuperAdminEnquiriesPage({
   const { data, count } = await enquiriesQuery.range(from, to);
   const pageRows = (data ?? []) as EnquiryRow[];
   const filteredCount = count ?? 0;
-
   const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
   const currentPage = Math.min(initialPage, totalPages);
 
@@ -75,71 +92,8 @@ export default async function SuperAdminEnquiriesPage({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Enquiries</p>
-          <h1 className="mt-2 text-3xl font-black text-[#1b3022]">Public Enquiry Control Center</h1>
-          <p className="mt-2 text-sm font-semibold text-[#536352]">Track lead status, seat blocks, ownership, and conversion flow from one queue.</p>
-        </div>
-        
-        <div className="flex bg-[#f2f6ec] p-1 rounded-full border border-[#d8e0d4] shrink-0">
-          <div className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#1b3022] rounded-full shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg> List
-          </div>
-          <Link href="/super-admin/enquiries/kanban" className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#6d7c6c] rounded-full hover:bg-white transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><rect width="3" height="9" x="7" y="7"/><rect width="3" height="5" x="14" y="7"/></svg> Kanban
-          </Link>
-        </div>
-      </div>
-
-      <div className="grid gap-3 premium-card p-4 md:grid-cols-[1fr_180px_180px]">
-        <div className="premium-card-inner"></div>
-        <DebouncedSearch 
-          defaultValue={query} 
-          placeholder="Search name / phone / email" 
-          className="relative z-10"
-        />
-        <URLSelect
-          name="status"
-          defaultValue={statusFilter}
-          options={[
-            { value: "all", label: "All status" },
-            { value: "new", label: "New" },
-            { value: "contacted", label: "Contacted" },
-            { value: "seat_blocked", label: "Seat blocked" },
-            { value: "converted", label: "Converted" },
-            { value: "closed", label: "Closed" },
-          ]}
-        />
-        <URLSelect
-          name="assigned"
-          defaultValue={assignedFilter}
-          options={[
-            { value: "all", label: "All ownership" },
-            { value: "yes", label: "Assigned" },
-            { value: "no", label: "Unassigned" },
-          ]}
-        />
-      </div>
-
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: "Total", value: totalEnquiriesCount ?? 0 },
-          { label: "New", value: newCount ?? 0 },
-          { label: "Seat Blocked", value: blockedCount ?? 0 },
-          { label: "Converted", value: convertedCount ?? 0 },
-        ].map((item) => (
-          <div key={item.label} className="premium-card p-4 relative group overflow-hidden">
-            <div className="premium-card-inner"></div>
-            <div className="absolute -inset-4 bg-gradient-to-br from-[#1b3022]/0 to-[#1b3022]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[2rem]"></div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c] relative z-10">{item.label}</p>
-            <p className="mt-2 text-2xl font-black text-[#1b3022] relative z-10 transition-transform duration-200 group-hover:scale-[1.02] origin-bottom-left">{item.value}</p>
-          </div>
-        ))}
-      </section>
-
-      <div className="overflow-hidden premium-card">
+    <>
+      <div className="overflow-hidden premium-card min-h-[400px]">
         <div className="premium-card-inner"></div>
         <table className="min-w-full text-left relative z-10">
           <thead className="bg-[#f5f8f3] border-b border-[#e4eae0]">
@@ -187,26 +141,80 @@ export default async function SuperAdminEnquiriesPage({
         </table>
       </div>
       <div className="flex items-center justify-between rounded-[1.2rem] border border-[#d8e0d4] bg-white px-4 py-3 text-xs font-bold text-[#1b3022] shadow-lg shadow-[#27452e]/6">
-        <p>
-          Page {currentPage} of {totalPages} · {filteredCount} results
-        </p>
+        <p>Page {currentPage} of {totalPages} · {filteredCount} results</p>
         <div className="flex items-center gap-2">
-          {currentPage > 1 ? (
-            <Link href={pageHref(currentPage - 1)} className="rounded-xl border border-[#d8e0d4] px-3 py-2 hover:bg-[#f5f8f3] transition-colors">
-              Prev
-            </Link>
-          ) : (
-            <span className="rounded-xl border border-[#e4eae0] px-3 py-2 text-[#9aa79a]">Prev</span>
-          )}
-          {currentPage < totalPages ? (
-            <Link href={pageHref(currentPage + 1)} className="rounded-xl border border-[#d8e0d4] px-3 py-2 hover:bg-[#f5f8f3] transition-colors">
-              Next
-            </Link>
-          ) : (
-            <span className="rounded-xl border border-[#e4eae0] px-3 py-2 text-[#9aa79a]">Next</span>
-          )}
+          <Link href={pageHref(currentPage - 1)} className={`rounded-xl border border-[#d8e0d4] px-3 py-2 hover:bg-[#f5f8f3] transition-colors ${currentPage <= 1 ? "pointer-events-none opacity-40" : ""}`}>Prev</Link>
+          <Link href={pageHref(currentPage + 1)} className={`rounded-xl border border-[#d8e0d4] px-3 py-2 hover:bg-[#f5f8f3] transition-colors ${currentPage >= totalPages ? "pointer-events-none opacity-40" : ""}`}>Next</Link>
         </div>
       </div>
+    </>
+  );
+}
+
+export default async function SuperAdminEnquiriesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const resolved = (await searchParams) ?? {};
+  const query = (resolved.q ?? "").trim();
+  const statusFilter = (resolved.status ?? "all").trim();
+  const assignedFilter = (resolved.assigned ?? "all").trim();
+  const requestedPage = Number.parseInt(resolved.page ?? "1", 10);
+  const initialPage = Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Enquiries</p>
+          <h1 className="mt-2 text-3xl font-black text-[#1b3022]">Public Enquiry Control Center</h1>
+          <p className="mt-2 text-sm font-semibold text-[#536352]">Track lead status, seat blocks, ownership, and conversion flow from one queue.</p>
+        </div>
+        
+        <div className="flex bg-[#f2f6ec] p-1 rounded-full border border-[#d8e0d4] shrink-0">
+          <div className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#1b3022] rounded-full shadow-md">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg> List
+          </div>
+          <Link href="/super-admin/enquiries/kanban" className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#6d7c6c] rounded-full hover:bg-white transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><rect width="3" height="9" x="7" y="7"/><rect width="3" height="5" x="14" y="7"/></svg> Kanban
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid gap-3 premium-card p-4 md:grid-cols-[1fr_180px_180px]">
+        <div className="premium-card-inner"></div>
+        <DebouncedSearch defaultValue={query} placeholder="Search name / phone / email" className="relative z-10" />
+        <URLSelect
+          name="status"
+          defaultValue={statusFilter}
+          options={[
+            { value: "all", label: "All status" },
+            { value: "new", label: "New" },
+            { value: "contacted", label: "Contacted" },
+            { value: "seat_blocked", label: "Seat blocked" },
+            { value: "converted", label: "Converted" },
+            { value: "closed", label: "Closed" },
+          ]}
+        />
+        <URLSelect
+          name="assigned"
+          defaultValue={assignedFilter}
+          options={[
+            { value: "all", label: "All ownership" },
+            { value: "yes", label: "Assigned" },
+            { value: "no", label: "Unassigned" },
+          ]}
+        />
+      </div>
+
+      <Suspense fallback={<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[1,2,3,4].map(i => <div key={i} className="h-24 premium-card animate-pulse" />)}</div>}>
+        <EnquiryMetrics />
+      </Suspense>
+
+      <Suspense fallback={<div className="h-96 premium-card animate-pulse flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin opacity-20" /></div>}>
+        <EnquiryList query={query} statusFilter={statusFilter} assignedFilter={assignedFilter} initialPage={initialPage} />
+      </Suspense>
     </div>
   );
 }

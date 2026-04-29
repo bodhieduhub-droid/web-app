@@ -1,11 +1,12 @@
 import Link from "next/link";
-
+import { Suspense } from "react";
 import { bulkStudentBatchAction } from "@/app/(dashboard)/actions";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { StudentListClient } from "../components/student-list-client";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLSelect } from "@/components/ui/url-select";
+import { Loader2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -76,20 +77,14 @@ function passesBillingFilter(billing: BillingAggregate, filter: string) {
   return true;
 }
 
-export default async function SuperAdminStudentsPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParams>;
+async function StudentListContainer({ query, statusFilter, typeFilter, billingFilter, page }: {
+  query: string;
+  statusFilter: string;
+  typeFilter: string;
+  billingFilter: string;
+  page: number;
 }) {
-  await requireDashboardContext(["super_admin", "staff"]);
-
-  const resolvedSearchParams = (await searchParams) ?? {};
   const supabase = createAdminClient();
-  const query = (resolvedSearchParams.q ?? "").trim();
-  const statusFilter = (resolvedSearchParams.status ?? "all").trim();
-  const typeFilter = (resolvedSearchParams.type ?? "all").trim();
-  const billingFilter = (resolvedSearchParams.billing ?? "all").trim();
-  const page = Math.max(1, Number(resolvedSearchParams.page ?? 1) || 1);
   const pageSize = 25;
 
   let idsQuery = supabase
@@ -97,12 +92,8 @@ export default async function SuperAdminStudentsPage({
     .select("id", { count: "exact" })
     .order("created_at", { ascending: false });
 
-  if (statusFilter !== "all") {
-    idsQuery = idsQuery.eq("status", statusFilter);
-  }
-  if (typeFilter !== "all") {
-    idsQuery = idsQuery.eq("reader_type", typeFilter);
-  }
+  if (statusFilter !== "all") idsQuery = idsQuery.eq("status", statusFilter);
+  if (typeFilter !== "all") idsQuery = idsQuery.eq("reader_type", typeFilter);
   if (query) {
     const q = safeLike(query);
     idsQuery = idsQuery.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
@@ -114,22 +105,19 @@ export default async function SuperAdminStudentsPage({
   let filteredIds = allMatchedIds;
   let billMap = new Map<string, BillingAggregate>();
 
-  if (billingFilter !== "all" || allMatchedIds.length > 0) {
-    // Optimization: Instead of using `.in("reader_id", allMatchedIds)` which can crash on long arrays,
-    // we fetch ALL open bills (usually a small subset of total bills) and filter in memory.
-    const { data: allOpenBills } = await supabase
-      .from("bills")
-      .select("reader_id,status,amount_due,amount_paid")
-      .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"]);
+  // Fetch only open bills once
+  const { data: allOpenBills } = await supabase
+    .from("bills")
+    .select("reader_id,status,amount_due,amount_paid")
+    .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"]);
 
-    billMap = computeBillingMap(allOpenBills ?? []);
-    
-    if (billingFilter !== "all") {
-      filteredIds = allMatchedIds.filter((id) => {
-        const billing = billMap.get(id) ?? { openCount: 0, overdueCount: 0, totalDue: 0 };
-        return passesBillingFilter(billing, billingFilter);
-      });
-    }
+  billMap = computeBillingMap(allOpenBills ?? []);
+  
+  if (billingFilter !== "all") {
+    filteredIds = allMatchedIds.filter((id) => {
+      const billing = billMap.get(id) ?? { openCount: 0, overdueCount: 0, totalDue: 0 };
+      return passesBillingFilter(billing, billingFilter);
+    });
   }
 
   const totalCount = billingFilter === "all" ? allMatchedCount ?? 0 : filteredIds.length;
@@ -153,8 +141,6 @@ export default async function SuperAdminStudentsPage({
     .map((id) => studentsById.get(id))
     .filter((row): row is StudentRow => Boolean(row));
 
-  // Removed redundant query: billMap is already populated for all open bills above
-
   const totals = students.reduce(
     (acc, student) => {
       const billing = billMap.get(student.id) ?? { openCount: 0, overdueCount: 0, totalDue: 0 };
@@ -168,56 +154,7 @@ export default async function SuperAdminStudentsPage({
   );
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Students Control</p>
-          <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Student Listing</h1>
-        </div>
-        <Link
-          href="/super-admin/students/onboard"
-          className="rounded-2xl bg-[#1b3022] px-6 py-3 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-[#1b3022]/20 transition hover:bg-[#27452e]"
-        >
-          Add Student
-        </Link>
-      </section>
-
-      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_160px_160px_160px]">
-        <DebouncedSearch 
-          defaultValue={query} 
-          placeholder="Search by name, phone, email" 
-          className="relative z-10"
-        />
-        <URLSelect
-          name="status"
-          defaultValue={statusFilter}
-          options={[
-            { value: "all", label: "All statuses" },
-            ...statusOptions.map(s => ({ value: s, label: s.replaceAll("_", " ") }))
-          ]}
-        />
-        <URLSelect
-          name="type"
-          defaultValue={typeFilter}
-          options={[
-            { value: "all", label: "All plans" },
-            { value: "monthly", label: "Monthly" },
-            { value: "weekly", label: "Weekly" },
-            { value: "daily", label: "Daily" },
-          ]}
-        />
-        <URLSelect
-          name="billing"
-          defaultValue={billingFilter}
-          options={[
-            { value: "all", label: "All billing states" },
-            { value: "overdue", label: "Overdue only" },
-            { value: "due", label: "Any dues" },
-            { value: "clear", label: "Cleared" },
-          ]}
-        />
-      </div>
-
+    <>
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
           { label: "Matched", value: totalCount },
@@ -254,6 +191,83 @@ export default async function SuperAdminStudentsPage({
           </Link>
         </div>
       </div>
+    </>
+  );
+}
+
+export default async function SuperAdminStudentsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  await requireDashboardContext(["super_admin", "staff"]);
+
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const query = (resolvedSearchParams.q ?? "").trim();
+  const statusFilter = (resolvedSearchParams.status ?? "all").trim();
+  const typeFilter = (resolvedSearchParams.type ?? "all").trim();
+  const billingFilter = (resolvedSearchParams.billing ?? "all").trim();
+  const page = Math.max(1, Number(resolvedSearchParams.page ?? 1) || 1);
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 flex items-center justify-between">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Students Control</p>
+          <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Student Listing</h1>
+        </div>
+        <Link
+          href="/super-admin/students/onboard"
+          className="rounded-2xl bg-[#1b3022] px-6 py-3 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-[#1b3022]/20 transition hover:bg-[#27452e]"
+        >
+          Add Student
+        </Link>
+      </section>
+
+      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_160px_160px_160px]">
+        <DebouncedSearch defaultValue={query} placeholder="Search by name, phone, email" className="relative z-10" />
+        <URLSelect
+          name="status"
+          defaultValue={statusFilter}
+          options={[
+            { value: "all", label: "All statuses" },
+            ...statusOptions.map(s => ({ value: s, label: s.replaceAll("_", " ") }))
+          ]}
+        />
+        <URLSelect
+          name="type"
+          defaultValue={typeFilter}
+          options={[
+            { value: "all", label: "All plans" },
+            { value: "monthly", label: "Monthly" },
+            { value: "weekly", label: "Weekly" },
+            { value: "daily", label: "Daily" },
+          ]}
+        />
+        <URLSelect
+          name="billing"
+          defaultValue={billingFilter}
+          options={[
+            { value: "all", label: "All billing states" },
+            { value: "overdue", label: "Overdue only" },
+            { value: "due", label: "Any dues" },
+            { value: "clear", label: "Cleared" },
+          ]}
+        />
+      </div>
+
+      <Suspense fallback={
+        <div className="space-y-6">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {[1,2,3,4,5].map(i => <div key={i} className="h-20 bg-white border border-[#d8e0d4] rounded-[1.4rem] animate-pulse" />)}
+          </section>
+          <div className="h-[600px] bg-white border border-[#d8e0d4] rounded-[1.6rem] animate-pulse flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin opacity-20" />
+          </div>
+        </div>
+      }>
+        <StudentListContainer query={query} statusFilter={statusFilter} typeFilter={typeFilter} billingFilter={billingFilter} page={page} />
+      </Suspense>
     </div>
   );
 }

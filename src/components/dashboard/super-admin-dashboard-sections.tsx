@@ -8,12 +8,12 @@ import { formatDateToIST } from "@/lib/utils";
 import { TrendChart } from "@/app/(dashboard)/super-admin/components/trend-chart";
 import { RecentActivityLog, type ActivityLog } from "@/app/(dashboard)/super-admin/components/recent-activity-log";
 
+import { getISTStartOfDay } from "@/lib/date-utils";
+
 // ─── Core Metric Cards ────────────────────────────────────────────────────────
 export async function SuperAdminMetricCards() {
   const supabase = createAdminClient();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayIso = todayStart.toISOString();
+  const todayIso = getISTStartOfDay();
 
   const [
     { count: enquiryCount },
@@ -29,7 +29,7 @@ export async function SuperAdminMetricCards() {
     { data: todayCollections },
   ] = await Promise.all([
     supabase.from("enquiries").select("*", { count: "exact", head: true }).in("status", ["new", "contacted", "seat_blocked"]),
-    supabase.from("readers").select("*", { count: "exact", head: true }),
+    supabase.from("readers").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("seats").select("*", { count: "exact", head: true }).eq("status", "available"),
     supabase.from("bills").select("*", { count: "exact", head: true }).in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"]),
     supabase.from("bills").select("*", { count: "exact", head: true }).eq("status", "overdue"),

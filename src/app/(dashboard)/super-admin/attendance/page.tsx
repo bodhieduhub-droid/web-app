@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AttendanceRecord, StudentRecord } from "@/lib/app-types";
-import { Calendar, Search } from "lucide-react";
+import { Calendar, Search, Loader2 } from "lucide-react";
+import { Suspense } from "react";
 
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLDateInput } from "@/components/ui/url-date-input";
@@ -12,17 +13,8 @@ type SearchParams = {
   q?: string;
 };
 
-export default async function AttendanceLogsPage({ 
-  searchParams 
-}: { 
-  searchParams?: Promise<SearchParams> 
-}) {
-  const resolved = (await searchParams) ?? {};
+async function AttendanceList({ targetDate, query }: { targetDate: string; query: string }) {
   const supabase = createAdminClient();
-  const today = new Date().toISOString().split("T")[0];
-  const targetDate = resolved.date || today;
-  const query = (resolved.q ?? "").trim();
-
   let attendanceQuery = supabase
     .from("attendance")
     .select("*, readers!inner(name, phone, reader_type)")
@@ -37,33 +29,12 @@ export default async function AttendanceLogsPage({
   const logs = (attendance ?? []) as (AttendanceRecord & { readers: Partial<StudentRecord> })[];
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
-        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Staff Tools</p>
-        <h1 className="mt-3 text-4xl font-black uppercase tracking-tight">Attendance Logs</h1>
-        <p className="mt-2 text-sm font-semibold text-white/60">Tracking daily room usage and student consistency.</p>
-      </section>
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-           <div className="flex items-center gap-2 rounded-2xl border border-[#d8e0d4] bg-white px-4 py-2 shadow-sm w-full sm:w-auto">
-              <Calendar className="h-4 w-4 text-[#6d7c6c]" />
-              <URLDateInput name="date" defaultValue={targetDate} />
-           </div>
-           
-           <DebouncedSearch 
-             defaultValue={query} 
-             placeholder="Search student..." 
-             className="w-full sm:w-80"
-           />
-         </div>
-         
-         <div className="rounded-2xl bg-white px-6 py-2 border border-[#d8e0d4] shadow-sm flex items-center gap-3 shrink-0">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#6d7c6c]">Total Present</p>
-              <p className="text-xl font-black text-[#1b3022]">{logs.length}</p>
-            </div>
-         </div>
+    <>
+      <div className="rounded-2xl bg-white px-6 py-2 border border-[#d8e0d4] shadow-sm flex items-center gap-3 shrink-0 mb-4 w-fit">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#6d7c6c]">Total Present</p>
+          <p className="text-xl font-black text-[#1b3022]">{logs.length}</p>
+        </div>
       </div>
 
       <div className="rounded-[2rem] border border-[#d8e0d4] bg-white overflow-hidden shadow-xl shadow-[#27452e]/5">
@@ -125,6 +96,42 @@ export default async function AttendanceLogsPage({
           </table>
         </div>
       </div>
+    </>
+  );
+}
+
+export default async function AttendanceLogsPage({ 
+  searchParams 
+}: { 
+  searchParams?: Promise<SearchParams> 
+}) {
+  const resolved = (await searchParams) ?? {};
+  const today = new Date().toISOString().split("T")[0];
+  const targetDate = resolved.date || today;
+  const query = (resolved.q ?? "").trim();
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
+        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Staff Tools</p>
+        <h1 className="mt-3 text-4xl font-black uppercase tracking-tight">Attendance Logs</h1>
+        <p className="mt-2 text-sm font-semibold text-white/60">Tracking daily room usage and student consistency.</p>
+      </section>
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+           <div className="flex items-center gap-2 rounded-2xl border border-[#d8e0d4] bg-white px-4 py-2 shadow-sm w-full sm:w-auto">
+              <Calendar className="h-4 w-4 text-[#6d7c6c]" />
+              <URLDateInput name="date" defaultValue={targetDate} />
+           </div>
+           
+           <DebouncedSearch defaultValue={query} placeholder="Search student..." className="w-full sm:w-80" />
+         </div>
+      </div>
+
+      <Suspense fallback={<div className="h-96 bg-white border border-[#d8e0d4] rounded-[2rem] animate-pulse flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin opacity-20" /></div>}>
+        <AttendanceList targetDate={targetDate} query={query} />
+      </Suspense>
     </div>
   );
 }
