@@ -7,9 +7,10 @@ import {
   BookOpen, BriefcaseBusiness, CircleDollarSign,
   ClipboardList, DoorOpen, Home, Inbox, LogOut,
   NotebookPen, Settings, Timer, User, Users, Wallet, Bell, Megaphone,
-  Bot, CheckCircle2, ChevronRight, Menu, X,
+  Bot, CheckCircle2, ChevronRight, Menu, X, Loader2,
 } from "lucide-react";
 import { type ReactNode, useState, useEffect } from "react";
+import { useFormStatus } from "react-dom";
 
 import type { AppRole } from "@/lib/billing-utils";
 import { BodhiLogo } from "@/components/branding/bodhi-logo";
@@ -141,18 +142,31 @@ function NavLinks({
   );
 }
 
-/* ── Sign out button ─────────────────────────────────────────── */
+function SignOutButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#7d2f2f] transition-all hover:bg-[#f8eef0] active:scale-95 tablet-mini-center disabled:opacity-50"
+    >
+      {pending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <LogOut className="h-4 w-4" />
+      )}
+      <span className="tablet-hide">{pending ? "Signing Out..." : "Sign Out"}</span>
+    </button>
+  );
+}
+
+/* ── Sign out button wrapper ───────────────────────────────────── */
 function SignOut() {
   return (
     <div className="border-t border-[#e5ebe1] p-2">
       <form action="/auth/signout" method="POST">
-        <button
-          type="submit"
-          className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#7d2f2f] transition-all hover:bg-[#f8eef0] active:scale-95 tablet-mini-center"
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="tablet-hide">Sign Out</span>
-        </button>
+        <SignOutButton />
       </form>
     </div>
   );

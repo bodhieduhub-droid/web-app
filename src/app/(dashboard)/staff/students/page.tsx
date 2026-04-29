@@ -11,7 +11,7 @@ export default async function StaffStudentsPage() {
   const [{ data: students }, { data: openBills }] = await Promise.all([
     supabase
       .from("readers")
-      .select("id, name, phone, status, reader_type, monthly_fee, onboarding_completed, caution_refunded, id_proof_url, seats:seats!fixed_seat_id(seat_number)")
+      .select("id, name, phone, status, reader_type, monthly_fee, onboarding_completed, caution_refunded, id_proof_url, id_proof_verified, seats:seats!fixed_seat_id(seat_number)")
       .order("created_at", { ascending: false })
       .limit(200),
     supabase

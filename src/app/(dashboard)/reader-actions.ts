@@ -542,6 +542,7 @@ export async function rejectStudentIdProofAction(formData: FormData) {
   await Promise.allSettled(sideEffects);
 
   revalidatePath("/super-admin/students");
+  revalidatePath(`/super-admin/students/${readerId}`);
   revalidatePath("/staff/students");
 }
 
@@ -552,10 +553,17 @@ export async function verifyStudentIdProofAction(formData: FormData) {
 
   if (!readerId) return;
 
-  await supabase.from("readers").update({ id_proof_verified: true }).eq("id", readerId);
+  const { error } = await supabase.from("readers").update({ id_proof_verified: true }).eq("id", readerId);
+  
+  if (error) {
+    await notifyActor(profile.id, "Verification Failed", error.message);
+    return;
+  }
+
   await notifyActor(profile.id, "ID Proof Verified", `ID proof has been verified.`);
 
   revalidatePath("/super-admin/students");
+  revalidatePath(`/super-admin/students/${readerId}`);
   revalidatePath("/staff/students");
 }
 

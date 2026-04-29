@@ -126,7 +126,7 @@ export default async function SuperAdminStudentDetailPage({
     supabase
     .from("readers")
     .select(
-        "id,name,email,phone,user_id,reader_type,status,monthly_fee,onboarding_completed,registration_paid,caution_paid,caution_refunded,join_date,fixed_seat_id,address,purpose,preparing_for_exam,exam_details,id_proof_url,seats:fixed_seat_id(seat_number)",
+        "id,name,email,phone,user_id,reader_type,status,monthly_fee,onboarding_completed,registration_paid,caution_paid,caution_refunded,join_date,fixed_seat_id,address,purpose,preparing_for_exam,exam_details,id_proof_url,id_proof_verified,seats:fixed_seat_id(seat_number)",
       )
       .eq("id", id)
       .maybeSingle(),
