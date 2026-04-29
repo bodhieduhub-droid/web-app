@@ -4,6 +4,7 @@ import { Calendar, Search } from "lucide-react";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLDateInput } from "@/components/ui/url-date-input";
 import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
+import { LocalStorageCache } from "@/components/ui/local-storage-cache";
 
 export const dynamic = "force-dynamic";
 
