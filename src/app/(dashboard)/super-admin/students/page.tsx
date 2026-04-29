@@ -7,6 +7,7 @@ import { StudentListClient } from "../components/student-list-client";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLSelect } from "@/components/ui/url-select";
 import { Loader2 } from "lucide-react";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
 
 export const dynamic = "force-dynamic";
 
@@ -211,6 +212,8 @@ export default async function SuperAdminStudentsPage({
 
   return (
     <div className="space-y-6">
+      <RealtimeTableListener table="readers" />
+      <RealtimeTableListener table="bills" />
       <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 flex items-center justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Students Control</p>

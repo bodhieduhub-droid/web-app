@@ -5,6 +5,7 @@ import type { BillRecord, TransactionRecord } from "@/lib/app-types";
 import { finalizeFinance, getFinancePeriodWindow, resolveFinancePeriod, summarizeFinance } from "@/lib/finance-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
+import { OptimisticTransactionVerification } from "./optimistic-transaction-verification";
 
 type PaymentRow = BillRecord & {
   readers?: { name?: string; phone?: string } | null;
@@ -150,39 +151,7 @@ export default async function StaffBillingPage({
               </div>
 
               {openTransactions.length > 0 ? openTransactions.map((transaction) => (
-                <div key={transaction.id} className="mt-5 rounded-[1.5rem] bg-[#f5f8f3] p-4">
-                  <p className="font-black text-[#1b3022]">Proof amount: ₹{transaction.amount}</p>
-                  {transaction.payment_proof_url ? (
-                    <a className="mt-2 inline-block text-sm font-bold text-[#1b3022] underline" href={transaction.payment_proof_url} target="_blank" rel="noreferrer">
-                      Open uploaded screenshot
-                    </a>
-                  ) : null}
-                  <div className="mt-4 grid gap-3 xl:grid-cols-3">
-                    <form action={verifyPaymentProof} className="space-y-3">
-                      <input type="hidden" name="transaction_id" value={transaction.id} />
-                      <input name="notes" placeholder="Verification note" className="w-full rounded-2xl border border-[#d7ddd3] bg-white px-4 py-3 text-sm font-semibold text-[#1b3022]" />
-                      <PendingSubmitButton 
-                        idleLabel="Mark Paid"
-                        className="w-full rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white" 
-                      />
-                    </form>
-                    <form action={rejectPaymentProof} className="space-y-3">
-                      <input type="hidden" name="transaction_id" value={transaction.id} />
-                      <input name="notes" placeholder="Reason for rejection" className="w-full rounded-2xl border border-[#d7ddd3] bg-white px-4 py-3 text-sm font-semibold text-[#1b3022]" />
-                      <PendingSubmitButton 
-                        idleLabel="Reject Proof"
-                        className="w-full rounded-2xl border border-[#d7ddd3] bg-white px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-[#1b3022]" 
-                      />
-                    </form>
-                    <form action={closeRejectedPaymentProof} className="space-y-3">
-                      <input type="hidden" name="transaction_id" value={transaction.id} />
-                      <PendingSubmitButton 
-                        idleLabel="Close Rejected Proof"
-                        className="w-full rounded-2xl border border-[#d7ddd3] bg-white px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-[#1b3022]" 
-                      />
-                    </form>
-                  </div>
-                </div>
+                <OptimisticTransactionVerification key={transaction.id} transaction={transaction} />
               )) : (
                 <div className="mt-5 rounded-[1.5rem] bg-[#f5f8f3] p-4 text-sm font-medium text-[#556455]">
                   No open proof for this invoice.

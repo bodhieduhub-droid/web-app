@@ -8,6 +8,7 @@ import { DeleteEnquiryButton } from "@/components/admin/delete-enquiry-button";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLSelect } from "@/components/ui/url-select";
 import { Loader2 } from "lucide-react";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
 
 export const dynamic = "force-dynamic";
 
@@ -211,6 +212,8 @@ export default async function SuperAdminEnquiriesPage({
       <Suspense fallback={<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[1,2,3,4].map(i => <div key={i} className="h-24 premium-card animate-pulse" />)}</div>}>
         <EnquiryMetrics />
       </Suspense>
+
+      <RealtimeTableListener table="enquiries" />
 
       <Suspense fallback={<div className="h-96 premium-card animate-pulse flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin opacity-20" /></div>}>
         <EnquiryList query={query} statusFilter={statusFilter} assignedFilter={assignedFilter} initialPage={initialPage} />

@@ -3,6 +3,7 @@ import { AttendanceRecord, StudentRecord } from "@/lib/app-types";
 import { Calendar, Search } from "lucide-react";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLDateInput } from "@/components/ui/url-date-input";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,8 @@ export default async function StaffAttendanceLogsPage({
 
   return (
     <div className="space-y-6">
+      <RealtimeTableListener table="attendance" />
+      <RealtimeTableListener table="readers" />
       <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
         <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/50">Staff Dashboard</p>
         <h1 className="mt-3 text-4xl font-black uppercase tracking-tight">Attendance Logs</h1>
@@ -57,10 +60,14 @@ export default async function StaffAttendanceLogsPage({
            />
          </div>
          
-         <div className="rounded-2xl bg-white px-6 py-2 border border-[#d8e0d4] shadow-sm shrink-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#6d7c6c]">Total Present</p>
-            <p className="text-xl font-black text-[#1b3022]">{logs.length}</p>
-         </div>
+         <LocalStorageCache cacheKey={`attendance-count-${targetDate}`} data={logs.length}>
+            {(data) => (
+              <div className="rounded-2xl bg-white px-6 py-2 border border-[#d8e0d4] shadow-sm shrink-0">
+                 <p className="text-[10px] font-bold uppercase tracking-wider text-[#6d7c6c]">Total Present</p>
+                 <p className="text-xl font-black text-[#1b3022]">{data ?? 0}</p>
+              </div>
+            )}
+         </LocalStorageCache>
       </div>
 
       <div className="rounded-[2rem] border border-[#d8e0d4] bg-white overflow-hidden shadow-xl shadow-[#27452e]/5">

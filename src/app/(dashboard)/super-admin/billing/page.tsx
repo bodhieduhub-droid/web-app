@@ -7,6 +7,7 @@ import { finalizeFinance, getFinancePeriodWindow, resolveFinancePeriod, summariz
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLSelect } from "@/components/ui/url-select";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,8 @@ export default async function SuperAdminBillingPage({
 
   return (
     <div className="space-y-6">
+      <RealtimeTableListener table="bills" />
+      <RealtimeTableListener table="transactions" />
       <section className="rounded-[2.4rem] border border-[#d8e0d4] bg-white p-6 shadow-xl shadow-[#27452e]/6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Billing Desk</p>

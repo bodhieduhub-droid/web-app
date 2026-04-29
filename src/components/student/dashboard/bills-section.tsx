@@ -3,6 +3,7 @@ import { getOptimizedImage } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle2, CircleDollarSign } from "lucide-react";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
 
 export async function StudentBillsSection({ studentId }: { studentId: string }) {
   const supabase = createAdminClient();
@@ -16,10 +17,13 @@ export async function StudentBillsSection({ studentId }: { studentId: string }) 
   const openBills = bills ?? [];
   const totalDue = openBills.reduce((s, b) => s + (b.amount_due - b.amount_paid), 0);
 
-  if (openBills.length === 0) return null;
+  if (openBills.length === 0) return (
+    <RealtimeTableListener table="bills" filter={`reader_id=eq.${studentId}`} />
+  );
 
   return (
     <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-5 shadow shadow-amber-100">
+      <RealtimeTableListener table="bills" filter={`reader_id=eq.${studentId}`} />
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-amber-700">Payment Due</p>

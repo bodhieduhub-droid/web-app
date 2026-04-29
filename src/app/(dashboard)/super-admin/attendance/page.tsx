@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLDateInput } from "@/components/ui/url-date-input";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +129,8 @@ export default async function AttendanceLogsPage({
            <DebouncedSearch defaultValue={query} placeholder="Search student..." className="w-full sm:w-80" />
          </div>
       </div>
+
+      <RealtimeTableListener table="attendance" />
 
       <Suspense fallback={<div className="h-96 bg-white border border-[#d8e0d4] rounded-[2rem] animate-pulse flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin opacity-20" /></div>}>
         <AttendanceList targetDate={targetDate} query={query} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { updateEnquiryStatus } from "@/app/(dashboard)/super-admin/enquiries/kanban-actions";
 import { deleteEnquiryAction } from "@/app/(dashboard)/actions";
 import { Mail, Phone, Calendar, Clock, Loader2, Trash2 } from "lucide-react";
@@ -28,6 +28,11 @@ const COLUMNS = [
 export function KanbanBoard({ initialEnquiries }: { initialEnquiries: Enquiry[] }) {
   const [enquiries, setEnquiries] = useState<Enquiry[]>(initialEnquiries);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  // Sync with server data (Realtime updates)
+  useEffect(() => {
+    setEnquiries(initialEnquiries);
+  }, [initialEnquiries]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData("text/plain", id);

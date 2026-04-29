@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import type { NotificationRecord } from "@/lib/app-types";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
 
 export async function StudentNotificationsSection({ studentId, profileId }: { studentId: string; profileId: string }) {
   const supabase = createAdminClient();
@@ -18,6 +19,7 @@ export async function StudentNotificationsSection({ studentId, profileId }: { st
 
   return (
     <div className="rounded-[2rem] border border-[#d8e0d4] bg-white p-5 shadow-lg shadow-[#27452e]/6">
+      <RealtimeTableListener table="notifications" />
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">Notifications</p>
         <Link href="/student/notifications" className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1b3022]">View all →</Link>

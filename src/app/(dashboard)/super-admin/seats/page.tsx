@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 import { URLSelect } from "@/components/ui/url-select";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
+import { LocalStorageCache } from "@/components/ui/local-storage-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -133,17 +135,22 @@ export default async function SuperAdminSeatsPage({
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">
-        {[
-          { label: "Total", value: total },
-          { label: "Available", value: available },
-          { label: "Blocked", value: blocked },
-          { label: "Occupied", value: occupied },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-sm">
-            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">{stat.label}</p>
-            <p className="mt-2 text-3xl font-black text-[#1b3022]">{stat.value}</p>
-          </div>
-        ))}
+        <LocalStorageCache cacheKey="seats-summary" data={{ total, available, blocked, occupied }}>
+          {(data) => {
+            const d = data || { total: 0, available: 0, blocked: 0, occupied: 0 };
+            return [
+              { label: "Total", value: d.total },
+              { label: "Available", value: d.available },
+              { label: "Blocked", value: d.blocked },
+              { label: "Occupied", value: d.occupied },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#6d7c6c]">{stat.label}</p>
+                <p className="mt-2 text-3xl font-black text-[#1b3022]">{stat.value}</p>
+              </div>
+            ));
+          }}
+        </LocalStorageCache>
       </section>
 
       <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_220px]">
@@ -164,6 +171,9 @@ export default async function SuperAdminSeatsPage({
           ]}
         />
       </div>
+
+      <RealtimeTableListener table="seats" />
+      <RealtimeTableListener table="seat_change_requests" />
 
       <SeatMapBoard
         seats={seatMapPayload}

@@ -2,6 +2,8 @@ import { ContentHub } from "@/components/dashboard/content-managers";
 import type { PostRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
+
 export const dynamic = "force-dynamic";
 
 export default async function StaffContentPage() {
@@ -10,6 +12,7 @@ export default async function StaffContentPage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeTableListener table="posts" />
       <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
         <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Content</p>
         <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Content Managers</h1>

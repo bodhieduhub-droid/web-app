@@ -4,6 +4,8 @@ import { createStaffAccountAction } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
+import { LocalStorageCache } from "@/components/ui/local-storage-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +116,10 @@ export default async function SuperAdminStaffPage({
 
   return (
     <div className="space-y-6">
+      <RealtimeTableListener table="profiles" />
+      <RealtimeTableListener table="enquiries" />
+      <RealtimeTableListener table="seats" />
+      <RealtimeTableListener table="transactions" />
       <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
         <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Staff</p>
         <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Staff Control Center</h1>
@@ -140,19 +146,26 @@ export default async function SuperAdminStaffPage({
         />
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: "Active Staff", value: totalCount },
-          { label: "Open Enquiries Assigned", value: totalOpenAssignments },
-          { label: "Blocked Seats", value: totalBlockedSeats },
-          { label: "Payment Verifications", value: totalVerifications },
-        ].map((item) => (
-          <div key={item.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{item.label}</p>
-            <p className="mt-2 text-2xl font-black text-[#1b3022]">{item.value}</p>
-          </div>
-        ))}
-      </section>
+      <LocalStorageCache cacheKey="staff-summary" data={{ totalCount, totalOpenAssignments, totalBlockedSeats, totalVerifications }}>
+        {(data) => {
+          const d = data || { totalCount: 0, totalOpenAssignments: 0, totalBlockedSeats: 0, totalVerifications: 0 };
+          return (
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { label: "Active Staff", value: d.totalCount },
+                { label: "Open Enquiries Assigned", value: d.totalOpenAssignments },
+                { label: "Blocked Seats", value: d.totalBlockedSeats },
+                { label: "Payment Verifications", value: d.totalVerifications },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{item.label}</p>
+                  <p className="mt-2 text-2xl font-black text-[#1b3022]">{item.value}</p>
+                </div>
+              ))}
+            </section>
+          );
+        }}
+      </LocalStorageCache>
 
       <div className="overflow-hidden rounded-[1.6rem] border border-[#d8e0d4] bg-white shadow-lg shadow-[#27452e]/6">
         <table className="min-w-full text-left">

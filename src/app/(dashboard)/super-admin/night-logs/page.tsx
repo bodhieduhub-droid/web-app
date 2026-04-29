@@ -3,6 +3,8 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLSelect } from "@/components/ui/url-select";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
+import { LocalStorageCache } from "@/components/ui/local-storage-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +78,8 @@ export default async function SuperAdminNightLogsPage({
 
   return (
     <div className="space-y-6">
+      <RealtimeTableListener table="night_logs" />
+      <RealtimeTableListener table="readers" />
       <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
         <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#6d7c6c]">Night Logs</p>
         <h1 className="mt-3 text-4xl font-black text-[#1b3022]">Late Sitting Monitor</h1>
@@ -99,18 +103,25 @@ export default async function SuperAdminNightLogsPage({
         />
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: "Logs", value: totalCount },
-          { label: "Active (Page)", value: activeCount },
-          { label: "Late (Page)", value: lateCount },
-        ].map((item) => (
-          <div key={item.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{item.label}</p>
-            <p className="mt-2 text-2xl font-black text-[#1b3022]">{item.value}</p>
-          </div>
-        ))}
-      </section>
+      <LocalStorageCache cacheKey="night-logs-summary" data={{ totalCount, activeCount, lateCount }}>
+        {(data) => {
+          const d = data || { totalCount: 0, activeCount: 0, lateCount: 0 };
+          return (
+            <section className="grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "Logs", value: d.totalCount },
+                { label: "Active (Page)", value: d.activeCount },
+                { label: "Late (Page)", value: d.lateCount },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[1.4rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d7c6c]">{item.label}</p>
+                  <p className="mt-2 text-2xl font-black text-[#1b3022]">{item.value}</p>
+                </div>
+              ))}
+            </section>
+          );
+        }}
+      </LocalStorageCache>
 
       <div className="overflow-hidden rounded-[1.6rem] border border-[#d8e0d4] bg-white shadow-lg shadow-[#27452e]/6">
         <table className="min-w-full text-left">

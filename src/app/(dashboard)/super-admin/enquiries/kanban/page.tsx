@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { KanbanBoard } from "@/components/admin/kanban-board";
 import { LayoutList, Trello } from "lucide-react";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,8 @@ export default async function KanbanPage({
           </div>
         </div>
       </div>
+
+      <RealtimeTableListener table="enquiries" />
 
       <KanbanBoard initialEnquiries={enquiries || []} />
     </div>

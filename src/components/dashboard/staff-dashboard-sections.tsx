@@ -5,12 +5,13 @@ import Link from "next/link";
 import { finalizeFinance, getFinancePeriodWindow, summarizeFinance } from "@/lib/finance-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { getISTStartOfDay } from "@/lib/date-utils";
+import { StaffMetricCardsDisplay } from "./staff-metric-cards-display";
+
 // ─── Quick Stats Cards ────────────────────────────────────────────────────────
 export async function StaffMetricCards() {
   const supabase = createAdminClient();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayIso = todayStart.toISOString();
+  const todayIso = getISTStartOfDay();
 
   const [
     { count: enquiryCount },
@@ -37,27 +38,18 @@ export async function StaffMetricCards() {
   const occupancyPct = totalSeats ? Math.round(((occupiedSeats ?? 0) / totalSeats) * 100) : 0;
   const collectionToday = (todayCollections ?? []).reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
 
-  const cards = [
-    { label: "Open Enquiries", value: enquiryCount ?? 0, href: "/staff/enquiries" },
-    { label: "Available Seats", value: availableSeats ?? 0, href: "/staff/seats" },
-    { label: "Pending Proofs", value: pendingProofs ?? 0, href: "/staff/billing" },
-    { label: "Collections Today", value: `₹${collectionToday.toFixed(0)}`, href: "/staff/billing" },
-    { label: "Overdue Count", value: overdueBills ?? 0, href: "/staff/billing" },
-    { label: "Seat Occupancy", value: `${occupancyPct}%`, href: "/staff/seats" },
-    { label: "Exits Pending", value: pendingExits ?? 0, href: "/staff/exit-requests" },
-    { label: "Open Support", value: openSupportTickets ?? 0, href: "/staff/support" },
-  ];
+  const metrics = {
+    enquiryCount: enquiryCount ?? 0,
+    availableSeats: availableSeats ?? 0,
+    pendingProofs: pendingProofs ?? 0,
+    collectionToday,
+    overdueBills: overdueBills ?? 0,
+    occupancyPct,
+    pendingExits: pendingExits ?? 0,
+    openSupportTickets: openSupportTickets ?? 0,
+  };
 
-  return (
-    <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
-      {cards.map((card) => (
-        <Link key={card.label} href={card.href} className="rounded-[1.8rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6 hover:bg-[#f9fbf8] transition-colors">
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c]">{card.label}</p>
-          <p className="mt-4 text-4xl font-black text-[#1b3022]">{card.value}</p>
-        </Link>
-      ))}
-    </section>
-  );
+  return <StaffMetricCardsDisplay data={metrics} />;
 }
 
 // ─── Finance Summary Cards ────────────────────────────────────────────────────
