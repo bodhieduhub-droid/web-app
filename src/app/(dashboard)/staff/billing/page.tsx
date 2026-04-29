@@ -19,6 +19,7 @@ type BillAuditRow = {
 };
 
 import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { URLSelect } from "@/components/ui/url-select";
 
 export const dynamic = "force-dynamic";
 
@@ -101,17 +102,17 @@ export default async function StaffBillingPage({
         />
       </section>
 
-      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
-        <form className="flex flex-wrap items-center gap-2">
-          <select name="period" defaultValue={financePeriod} className="rounded-xl border border-[#d7ddd3] bg-[#f7faf5] px-3 py-2 text-sm font-semibold text-[#1b3022]">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-          <button type="submit" className="rounded-xl bg-[#1b3022] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-white">
-            Apply
-          </button>
-        </form>
+      <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6">
+        <URLSelect
+          name="period"
+          defaultValue={financePeriod}
+          options={[
+            { value: "daily", label: "Daily" },
+            { value: "weekly", label: "Weekly" },
+            { value: "monthly", label: "Monthly" },
+          ]}
+          className="w-full md:w-48"
+        />
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { formatToIST } from "@/lib/date-utils";
 import { DeleteEnquiryButton } from "@/components/admin/delete-enquiry-button";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { URLSelect } from "@/components/ui/url-select";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,14 @@ export default async function SuperAdminEnquiriesPage({
   const to = from + pageSize - 1;
 
   const supabase = createAdminClient();
+  
+  // 1. Fetch TOTAL stats for metrics (regardless of pagination)
+  const { count: totalEnquiriesCount } = await supabase.from("enquiries").select("*", { count: "exact", head: true });
+  const { count: newCount } = await supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "new");
+  const { count: blockedCount } = await supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "seat_blocked");
+  const { count: convertedCount } = await supabase.from("enquiries").select("*", { count: "exact", head: true }).eq("status", "converted");
+
+  // 2. Build filtered query
   let enquiriesQuery = supabase
     .from("enquiries")
     .select("*, profiles:assigned_to(full_name)", { count: "exact" })
@@ -43,6 +52,7 @@ export default async function SuperAdminEnquiriesPage({
   if (statusFilter !== "all") enquiriesQuery = enquiriesQuery.eq("status", statusFilter);
   if (assignedFilter === "yes") enquiriesQuery = enquiriesQuery.not("assigned_to", "is", null);
   if (assignedFilter === "no") enquiriesQuery = enquiriesQuery.is("assigned_to", null);
+  
   if (query) {
     const q = query.replaceAll(",", " ").replaceAll("%", "").replaceAll("*", "").trim();
     enquiriesQuery = enquiriesQuery.or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
@@ -50,23 +60,17 @@ export default async function SuperAdminEnquiriesPage({
 
   const { data, count } = await enquiriesQuery.range(from, to);
   const pageRows = (data ?? []) as EnquiryRow[];
-  const totalCount = count ?? 0;
+  const filteredCount = count ?? 0;
 
-  const metrics = {
-    total: totalCount,
-    fresh: pageRows.filter((row) => row.status === "new").length,
-    blocked: pageRows.filter((row) => row.status === "seat_blocked").length,
-    converted: pageRows.filter((row) => row.status === "converted").length,
-  };
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
   const currentPage = Math.min(initialPage, totalPages);
 
-  const params = new URLSearchParams();
-  if (query) params.set("q", query);
-  if (statusFilter !== "all") params.set("status", statusFilter);
-  if (assignedFilter !== "all") params.set("assigned", assignedFilter);
-  const pageHref = (page: number) => {
-    params.set("page", String(page));
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (assignedFilter !== "all") params.set("assigned", assignedFilter);
+    params.set("page", String(p));
     return `?${params.toString()}`;
   };
 
@@ -96,49 +100,35 @@ export default async function SuperAdminEnquiriesPage({
           placeholder="Search name / phone / email" 
           className="relative z-10"
         />
-        <form className="contents">
-          <select 
-            name="status" 
-            defaultValue={statusFilter} 
-            onChange={(e) => {
-              const params = new URLSearchParams(window.location.search);
-              params.set("status", e.target.value);
-              params.set("page", "1");
-              window.location.search = params.toString();
-            }}
-            className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10"
-          >
-            <option value="all">All status</option>
-            <option value="new">New</option>
-            <option value="contacted">Contacted</option>
-            <option value="seat_blocked">Seat blocked</option>
-            <option value="converted">Converted</option>
-            <option value="closed">Closed</option>
-          </select>
-          <select 
-            name="assigned" 
-            defaultValue={assignedFilter} 
-            onChange={(e) => {
-              const params = new URLSearchParams(window.location.search);
-              params.set("assigned", e.target.value);
-              params.set("page", "1");
-              window.location.search = params.toString();
-            }}
-            className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] transition-all focus:bg-white focus:shadow-[0_0_0_4px_rgba(27,48,34,0.1)] relative z-10"
-          >
-            <option value="all">All ownership</option>
-            <option value="yes">Assigned</option>
-            <option value="no">Unassigned</option>
-          </select>
-        </form>
+        <URLSelect
+          name="status"
+          defaultValue={statusFilter}
+          options={[
+            { value: "all", label: "All status" },
+            { value: "new", label: "New" },
+            { value: "contacted", label: "Contacted" },
+            { value: "seat_blocked", label: "Seat blocked" },
+            { value: "converted", label: "Converted" },
+            { value: "closed", label: "Closed" },
+          ]}
+        />
+        <URLSelect
+          name="assigned"
+          defaultValue={assignedFilter}
+          options={[
+            { value: "all", label: "All ownership" },
+            { value: "yes", label: "Assigned" },
+            { value: "no", label: "Unassigned" },
+          ]}
+        />
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Total", value: metrics.total },
-          { label: "New", value: metrics.fresh },
-          { label: "Seat Blocked", value: metrics.blocked },
-          { label: "Converted", value: metrics.converted },
+          { label: "Total", value: totalEnquiriesCount ?? 0 },
+          { label: "New", value: newCount ?? 0 },
+          { label: "Seat Blocked", value: blockedCount ?? 0 },
+          { label: "Converted", value: convertedCount ?? 0 },
         ].map((item) => (
           <div key={item.label} className="premium-card p-4 relative group overflow-hidden">
             <div className="premium-card-inner"></div>
@@ -198,18 +188,18 @@ export default async function SuperAdminEnquiriesPage({
       </div>
       <div className="flex items-center justify-between rounded-[1.2rem] border border-[#d8e0d4] bg-white px-4 py-3 text-xs font-bold text-[#1b3022] shadow-lg shadow-[#27452e]/6">
         <p>
-          Page {currentPage} of {totalPages} · {totalCount} results
+          Page {currentPage} of {totalPages} · {filteredCount} results
         </p>
         <div className="flex items-center gap-2">
           {currentPage > 1 ? (
-            <Link href={pageHref(currentPage - 1)} className="rounded-xl border border-[#d8e0d4] px-3 py-2">
+            <Link href={pageHref(currentPage - 1)} className="rounded-xl border border-[#d8e0d4] px-3 py-2 hover:bg-[#f5f8f3] transition-colors">
               Prev
             </Link>
           ) : (
             <span className="rounded-xl border border-[#e4eae0] px-3 py-2 text-[#9aa79a]">Prev</span>
           )}
           {currentPage < totalPages ? (
-            <Link href={pageHref(currentPage + 1)} className="rounded-xl border border-[#d8e0d4] px-3 py-2">
+            <Link href={pageHref(currentPage + 1)} className="rounded-xl border border-[#d8e0d4] px-3 py-2 hover:bg-[#f5f8f3] transition-colors">
               Next
             </Link>
           ) : (

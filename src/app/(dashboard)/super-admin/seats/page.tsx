@@ -5,6 +5,9 @@ import { SeatMapBoard } from "@/components/dashboard/seat-map-board";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { URLSelect } from "@/components/ui/url-select";
+import { DebouncedSearch } from "@/components/ui/debounced-search";
+
 export const dynamic = "force-dynamic";
 
 type SearchParams = {
@@ -143,30 +146,24 @@ export default async function SuperAdminSeatsPage({
         ))}
       </section>
 
-      <form className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_220px_auto]">
-        <input
-          name="q"
-          defaultValue={resolvedSearchParams.q ?? ""}
-          placeholder="Search by seat number or student name"
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
+      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_220px]">
+        <div className="premium-card-inner"></div>
+        <DebouncedSearch 
+          defaultValue={query} 
+          placeholder="Search by seat number or student name" 
+          className="relative z-10"
         />
-        <select
+        <URLSelect
           name="status"
           defaultValue={statusFilter}
-          className="rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022]"
-        >
-          <option value="all">All statuses</option>
-          <option value="available">Available</option>
-          <option value="blocked">Blocked</option>
-          <option value="occupied">Occupied</option>
-        </select>
-        <button
-          type="submit"
-          className="rounded-2xl bg-[#1b3022] px-5 py-3 text-[11px] font-black uppercase tracking-[0.3em] text-white"
-        >
-          Apply
-        </button>
-      </form>
+          options={[
+            { value: "all", label: "All statuses" },
+            { value: "available", label: "Available" },
+            { value: "blocked", label: "Blocked" },
+            { value: "occupied", label: "Occupied" },
+          ]}
+        />
+      </div>
 
       <SeatMapBoard
         seats={seatMapPayload}
