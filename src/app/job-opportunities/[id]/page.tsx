@@ -26,7 +26,17 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const htmlContent = parseMarkdown(post.content);
   
   // If there's a link_url that's not just a placeholder, we show it prominently
-  const hasLink = post.link_url && (post.link_url.startsWith("http") || post.link_url.startsWith("/"));
+  let displayLink = (post.link_url || "").trim();
+  const hasLink = displayLink.startsWith("http") || displayLink.startsWith("/");
+
+  // NEW: Smart Link Extraction
+  // If the link is malformed (e.g. "file.pdf http://link"), try to extract the http part
+  let extractedLink = displayLink;
+  if (!hasLink && displayLink.includes("http")) {
+    const match = displayLink.match(/https?:\/\/[^\s]+/);
+    if (match) extractedLink = match[0];
+  }
+  const isExtracted = !hasLink && extractedLink !== displayLink && extractedLink.startsWith("http");
 
   return (
     <main className="min-h-screen bg-[#f9f8f6] text-[#1b3022]">
@@ -59,14 +69,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </div>
 
-        {hasLink && (
+        {(hasLink || isExtracted) && (
           <div className="mb-10 p-6 rounded-[2rem] border border-emerald-100 bg-emerald-50/50 flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <h3 className="text-lg font-black text-[#1b3022]">Application / Notification Link</h3>
-              <p className="text-sm text-[#536352] mt-1">Access the official portal or detailed notification document.</p>
+              <p className="text-sm text-[#536352] mt-1">
+                {isExtracted ? "We detected an external link in the description." : "Access the official portal or detailed notification document."}
+              </p>
             </div>
             <a 
-              href={post.link_url} 
+              href={isExtracted ? extractedLink : displayLink} 
               target="_blank" 
               rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-full bg-[#1b3022] px-6 py-3 text-xs font-black uppercase tracking-[0.22em] text-white transition-all hover:-translate-y-0.5 hover:bg-[#27452e]"
@@ -82,8 +94,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           dangerouslySetInnerHTML={{ __html: htmlContent }} 
         />
 
-        {/* If the link_url was malformed (no http and no /), we show it here as text just in case */}
-        {!hasLink && post.link_url && (
+        {/* Only show reference info if we couldn't find ANY usable link */}
+        {!hasLink && !isExtracted && displayLink && (
             <div className="mt-12 p-6 rounded-[1.5rem] bg-amber-50 border border-amber-100">
                 <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">Reference Info</p>
                 <p className="text-sm text-amber-900 font-mono break-all">{post.link_url}</p>
