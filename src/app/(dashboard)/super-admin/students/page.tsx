@@ -152,7 +152,7 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
     return <div className="p-8 text-center bg-red-50 text-red-600 rounded-[2rem] border border-red-100 font-bold">Error loading student data. Please refresh.</div>;
   }
 
-  const studentsById = new Map((studentsRaw ?? []).map((row) => [row.id as string, row as StudentRow]));
+  const studentsById = new Map((studentsRaw ?? []).map((row: any) => [row.id as string, row as StudentRow]));
   const students = pageIds
     .map((id) => studentsById.get(id))
     .filter((row): row is StudentRow => Boolean(row));
