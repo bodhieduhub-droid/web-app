@@ -90,9 +90,7 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
 
   let idsQuery = supabase
     .from("readers")
-    .select("id", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(0, 1000); // Bypass default API limits to get all IDs for JS-side filtering
+    .select("id", { count: "exact" });
 
   if (statusFilter !== "all") idsQuery = idsQuery.eq("status", statusFilter);
   if (typeFilter !== "all") idsQuery = idsQuery.eq("reader_type", typeFilter);
@@ -101,17 +99,28 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
     idsQuery = idsQuery.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
   }
 
-  const { data: allMatchedIdsRows, count: allMatchedCount } = await idsQuery;
+  // Fetch a larger set of IDs to handle client-side billing filters
+  const { data: allMatchedIdsRows, count: allMatchedCount, error: idsError } = await idsQuery
+    .order("created_at", { ascending: false })
+    .range(0, 2000);
+
+  if (idsError) {
+    console.error("[StudentList] IDs Fetch Error:", idsError);
+    return <div className="p-8 text-center bg-red-50 text-red-600 rounded-[2rem] border border-red-100 font-bold">Error loading student IDs. Please refresh.</div>;
+  }
+
   const allMatchedIds = (allMatchedIdsRows ?? []).map((row) => row.id as string);
 
   let filteredIds = allMatchedIds;
   let billMap = new Map<string, BillingAggregate>();
 
   // Fetch only open bills once
-  const { data: allOpenBills } = await supabase
+  const { data: allOpenBills, error: billsError } = await supabase
     .from("bills")
     .select("reader_id,status,amount_due,amount_paid")
     .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"]);
+
+  if (billsError) console.error("[StudentList] Bills Fetch Error:", billsError);
 
   billMap = computeBillingMap(allOpenBills ?? []);
   
@@ -129,7 +138,7 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
   const to = from + pageSize;
   const pageIds = filteredIds.slice(from, to);
 
-  const { data: studentsRaw } = pageIds.length
+  const { data: studentsRaw, error: studentsError } = pageIds.length
     ? await supabase
         .from("readers")
         .select(
@@ -137,6 +146,11 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
         )
         .in("id", pageIds)
     : { data: [] };
+
+  if (studentsError) {
+    console.error("[StudentList] Students Fetch Error:", studentsError);
+    return <div className="p-8 text-center bg-red-50 text-red-600 rounded-[2rem] border border-red-100 font-bold">Error loading student data. Please refresh.</div>;
+  }
 
   const studentsById = new Map((studentsRaw ?? []).map((row) => [row.id as string, row as StudentRow]));
   const students = pageIds
