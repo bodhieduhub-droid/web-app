@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { checkInAction, checkOutAction } from "@/app/(dashboard)/attendance-actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { AttendanceRecord } from "@/lib/app-types";
+import { formatTimeIST } from "@/lib/date-utils";
 
 interface AttendanceCardProps {
   todayAttendance: AttendanceRecord | null;
@@ -83,14 +84,14 @@ export function AttendanceCard({ todayAttendance, streakCount }: AttendanceCardP
               <div className="flex items-center justify-between text-sm">
                 <span className="font-bold text-[#6d7c6c]">Entry:</span>
                 <span className="font-black text-[#1b3022]">
-                  {new Date(optimisticAttendance.check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {formatTimeIST(optimisticAttendance.check_in_at)}
                 </span>
               </div>
               {optimisticAttendance.check_out_at && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-bold text-[#6d7c6c]">Exit:</span>
                   <span className="font-black text-[#1b3022]">
-                    {new Date(optimisticAttendance.check_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatTimeIST(optimisticAttendance.check_out_at)}
                   </span>
                 </div>
               )}

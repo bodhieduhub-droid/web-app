@@ -4,6 +4,7 @@ import { Calendar, Search } from "lucide-react";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLDateInput } from "@/components/ui/url-date-input";
 import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
+import { formatTimeIST } from "@/lib/date-utils";
 import { AttendanceCountDisplay } from "@/components/dashboard/attendance-count-display";
 
 export const dynamic = "force-dynamic";
@@ -87,14 +88,14 @@ export default async function StaffAttendanceLogsPage({
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
                         <span className="text-sm font-bold text-[#1b3022]">
-                          {new Date(log.check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatTimeIST(log.check_in_at)}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
                       {log.check_out_at ? (
-                         <span className="text-sm font-bold text-[#536352]">
-                          {new Date(log.check_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <span className="text-sm font-bold text-[#536352]">
+                          {formatTimeIST(log.check_out_at)}
                         </span>
                       ) : (
                          <span className="text-xs font-bold text-[#aab5a8] italic text-emerald-700">Currently In</span>

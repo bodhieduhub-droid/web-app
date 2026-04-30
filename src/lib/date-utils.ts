@@ -64,6 +64,20 @@ export function formatToIST(date: string | Date | null | undefined): string {
 }
 
 /**
+ * Returns a short time string (HH:MM AM/PM) in IST.
+ */
+export function formatTimeIST(date: string | Date | null | undefined): string {
+  if (!date) return "";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/**
  * Returns the Monday of the current IST week.
  */
 export function getISTMonday(date = new Date()): Date {

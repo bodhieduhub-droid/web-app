@@ -36,8 +36,13 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (reader && (reader.status === "active" || reader.status === "pending_payment")) {
-        const punchTime = new Date(timestampStr);
-        const dateStr = punchTime.toISOString().split("T")[0];
+        // The machine sends time in local IST. We must parse it explicitly as IST (+05:30)
+        // so that .toISOString() converts it to the correct UTC timestamp for storage.
+        const punchTime = new Date(`${timestampStr.replace(" ", "T")}+05:30`);
+        
+        // Use our utility to get the YYYY-MM-DD date string in IST
+        const { getISTDateString } = await import("@/lib/date-utils");
+        const dateStr = getISTDateString(punchTime);
 
         // Check if student already has a check-in for this date
         const { data: existing } = await supabase
