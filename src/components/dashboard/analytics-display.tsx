@@ -1,16 +1,8 @@
 "use client";
 
 import { LocalStorageCache } from "@/components/ui/local-storage-cache";
-import { TrendChart } from "./trend-chart";
-import { RecentActivityLog } from "./recent-activity-log";
-
-interface ActivityLog {
-  id: string;
-  type: "enquiry" | "student" | "invoice" | "payment";
-  title: string;
-  description: string;
-  timestamp: string;
-}
+import { TrendChart } from "@/app/(dashboard)/super-admin/components/trend-chart";
+import { RecentActivityLog, type ActivityLog } from "@/app/(dashboard)/super-admin/components/recent-activity-log";
 
 interface AnalyticsData {
   trendData: { date: string; revenue: number }[];
