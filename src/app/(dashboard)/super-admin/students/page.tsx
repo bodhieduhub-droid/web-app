@@ -91,7 +91,8 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
   let idsQuery = supabase
     .from("readers")
     .select("id", { count: "exact" })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(0, 1000); // Bypass default API limits to get all IDs for JS-side filtering
 
   if (statusFilter !== "all") idsQuery = idsQuery.eq("status", statusFilter);
   if (typeFilter !== "all") idsQuery = idsQuery.eq("reader_type", typeFilter);
