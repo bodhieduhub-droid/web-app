@@ -102,6 +102,8 @@ export async function SuperAdminFinanceCards() {
   );
 }
 
+import { AnalyticsDisplay } from "./analytics-display";
+
 // ─── Analytics & Activity (SLOWEST) ──────────────────────────────────────────
 export async function SuperAdminAnalytics() {
   const supabase = createAdminClient();
@@ -141,18 +143,7 @@ export async function SuperAdminAnalytics() {
     ...(recentTx || []).map((t) => ({ id: `tx-${t.id}`, type: "payment" as const, title: "Payment Submitted", description: `A payment of ₹${t.amount} was submitted`, timestamp: t.submitted_at })),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 15);
 
-  return (
-    <section className="grid gap-6 lg:grid-cols-2">
-      <div className="premium-card relative overflow-hidden p-1">
-        <div className="premium-card-inner"></div>
-        <TrendChart data={trendData} />
-      </div>
-      <div className="premium-card relative overflow-hidden p-6">
-        <div className="premium-card-inner"></div>
-        <RecentActivityLog activities={activities} />
-      </div>
-    </section>
-  );
+  return <AnalyticsDisplay data={{ trendData, activities }} />;
 }
 
 // ─── Recent Notifications Panel ───────────────────────────────────────────────

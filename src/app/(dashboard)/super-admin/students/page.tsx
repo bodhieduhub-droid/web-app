@@ -132,7 +132,7 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
     ? await supabase
         .from("readers")
         .select(
-          "id,name,email,phone,reader_type,status,monthly_fee,onboarding_completed,caution_refunded,fixed_seat_id,seats:fixed_seat_id(seat_number)",
+          "id,name,email,phone,reader_type,status,monthly_fee,onboarding_completed,caution_refunded,biometric_id,fixed_seat_id,seats:fixed_seat_id(seat_number)",
         )
         .in("id", pageIds)
     : { data: [] };

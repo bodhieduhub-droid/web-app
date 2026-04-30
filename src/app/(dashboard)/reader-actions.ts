@@ -295,6 +295,7 @@ export async function onboardStudentAction(formData: FormData) {
   const monthlyFee = getNumber(formData, "monthly_fee", 0);
   const joinDateValue = getOptionalString(formData, "join_date");
   const joinDate = joinDateValue ? new Date(joinDateValue) : getISTDate();
+  const biometricId = getOptionalString(formData, "biometric_id");
 
   const address = getOptionalString(formData, "address");
   const purpose = getOptionalString(formData, "purpose");
@@ -398,6 +399,7 @@ export async function onboardStudentAction(formData: FormData) {
       exam_details: examDetails,
       id_proof_url: idProofUrl,
       id_proof_public_id: idProofPublicId,
+      biometric_id: biometricId,
       credentials_sent_at: email ? getISTTimestamp() : null,
     })
     .select("id")

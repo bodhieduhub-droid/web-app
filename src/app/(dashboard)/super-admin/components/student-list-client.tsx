@@ -15,6 +15,7 @@ type StudentRow = {
   monthly_fee: number;
   onboarding_completed: boolean;
   caution_refunded: boolean;
+  biometric_id?: string | null;
   seats?: { seat_number?: number } | null;
 };
 
@@ -145,6 +146,11 @@ export function StudentListClient({ students, billMap, statusOptions }: StudentL
                     </p>
                     <p className="text-xs font-medium text-[#536352]">{student.email || "No email"}</p>
                     <p className="text-xs font-medium text-[#536352]">{student.phone}</p>
+                    {student.biometric_id && (
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md inline-block">
+                        Bio ID: {student.biometric_id}
+                      </p>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-sm font-bold text-[#1b3022]">
                     {student.seats?.seat_number ? `Seat ${student.seats.seat_number}` : "Not assigned"}

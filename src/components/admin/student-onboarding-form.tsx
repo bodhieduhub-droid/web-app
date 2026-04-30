@@ -106,6 +106,16 @@ export function StudentOnboardingForm({
               className="w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] focus:outline-none focus:ring-2 focus:ring-[#1b3022]/10"
             />
           </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#6d7c6c] ml-1">Biometric ID (eSSL)</label>
+            <input
+              name="biometric_id"
+              placeholder="Machine User ID (e.g. 101)"
+              className="w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] focus:outline-none focus:ring-2 focus:ring-[#1b3022]/10"
+            />
+            <p className="text-[10px] text-[#6d7c6c] ml-1 italic">Used for automated fingerprint attendance.</p>
+          </div>
           
           {!isQuickEntry && (
             <>

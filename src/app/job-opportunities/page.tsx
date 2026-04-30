@@ -159,7 +159,9 @@ export default async function JobOpportunitiesPage() {
                       })}
                     </span>
                   </div>
-                  <h2 className="mt-4 font-serif text-[2rem] leading-tight text-[#1b3022]">{job.title}</h2>
+                  <Link href={href}>
+                    <h2 className="mt-4 font-serif text-[2rem] leading-tight text-[#1b3022] hover:text-[#4f5f4e] transition-colors cursor-pointer">{job.title}</h2>
+                  </Link>
                   <p className="mt-4 text-sm leading-7 text-[#556455]">
                     {job.summary ||
                       (job.content && typeof job.content === "string" ? job.content.slice(0, 180) : "")}
