@@ -43,7 +43,7 @@ export async function GET(request: Request) {
   const { data: students } = await supabase
     .from("readers")
     .select("id, name, email, monthly_fee, reader_type")
-    .eq("status", "active");
+    .in("status", ["active", "pending_onboarding", "pending_payment"]);
 
   let createdCount = 0;
   const emailPayloads: any[] = [];
@@ -56,13 +56,13 @@ export async function GET(request: Request) {
         ? todayDate
         : planType === "weekly"
           ? weekStartDate
-          : new Date(year, month - 1, 1).toISOString().slice(0, 10);
+          : new Date(Date.UTC(year, month - 1, 1)).toISOString().slice(0, 10);
     const recurringTitle =
       planType === "daily"
         ? `Daily fee for ${dueDate}`
         : planType === "weekly"
           ? `Weekly fee for week of ${dueDate}`
-          : `Monthly fee for ${new Date(year, month - 1, 1).toLocaleString("en-IN", { month: "long" })}`;
+          : `Monthly fee for ${new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-IN", { month: "long", timeZone: "UTC" })}`;
     const invoiceKind = planType === "monthly" ? "monthly_renewal" : "manual";
 
     let existingBillQuery = supabase
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
         .eq("reader_id", student.id)
         .eq("month", month)
         .eq("year", year)
-        .eq("invoice_kind", "monthly_renewal");
+        .in("invoice_kind", ["monthly_renewal", "admission"]);
     }
     const { data: existingBill } = await existingBillQuery.maybeSingle();
 
@@ -123,7 +123,7 @@ export async function GET(request: Request) {
           ? `Daily cycle ${dueDate}`
           : planType === "weekly"
             ? `Week of ${dueDate}`
-            : new Date(year, month - 1, 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
+            : new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
       const emailTemplate = emailTemplates.monthlyDue({
         name: student.name,
         amount: invoice.totalAmount,

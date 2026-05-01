@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDateToIST } from "@/lib/utils";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
@@ -129,10 +130,10 @@ export default async function SuperAdminExitRequestsPage({
                   <p className="font-black text-[#1b3022]">{req.readers?.name || "Student"}</p>
                   <p className="text-xs font-semibold text-[#6d7c6c]">{req.readers?.phone || "No phone"}</p>
                 </td>
-                <td className="px-4 py-4 text-sm font-bold text-[#1b3022]">{new Date(req.exit_date).toLocaleDateString("en-IN")}</td>
+                <td className="px-4 py-4 text-sm font-bold text-[#1b3022]">{formatDateToIST(req.exit_date, "date")}</td>
                 <td className="px-4 py-4 text-sm font-bold text-[#1b3022]">{req.refund_eligible ? "Eligible" : "No"}</td>
                 <td className="px-4 py-4 text-sm font-bold text-[#1b3022]">{req.status.replaceAll("_", " ")}</td>
-                <td className="px-4 py-4 text-xs font-semibold text-[#6d7c6c]">{new Date(req.created_at).toLocaleDateString("en-IN")}</td>
+                <td className="px-4 py-4 text-xs font-semibold text-[#6d7c6c]">{formatDateToIST(req.created_at, "date")}</td>
                 <td className="px-4 py-4">
                   <Link href={`/super-admin/exit-requests/${req.id}`} className="rounded-xl border border-[#d8e0d4] bg-white px-3 py-2 text-xs font-black text-[#1b3022] hover:bg-[#f5f8f3]">
                     Open Detail

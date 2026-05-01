@@ -20,7 +20,9 @@ import {
   formatMonthParam,
   isSameMonth,
   startOfMonth,
+  getTodayIST,
 } from "@/lib/calendar-utils";
+import { getISTDate } from "@/lib/date-utils";
 
 type PostRow = PostRecord & {
   created_at?: string;
@@ -40,15 +42,14 @@ function typeLabel(value: string) {
 
 function formatDateTimeInput(value: string | null | undefined) {
   if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+  const date = getISTDate(new Date(value));
+  return date.toISOString().slice(0, 16);
 }
 
 function formatDraftDateTimeInput(value: Date | null) {
   if (!value) return "";
-  const draft = new Date(value.getFullYear(), value.getMonth(), value.getDate(), 9, 0, 0, 0);
+  const draft = getISTDate(value);
+  draft.setHours(9, 0, 0, 0);
   return formatDateTimeInput(draft.toISOString());
 }
 

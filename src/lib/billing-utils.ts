@@ -103,9 +103,15 @@ export function isRegistrationFeeApplicable(joinDate: string | Date | null | und
   const parsedJoin = joinDate instanceof Date ? joinDate : new Date(joinDate);
   if (Number.isNaN(parsedJoin.getTime())) return true;
 
+  // Ensure we compare at midnight IST to avoid 5.5h shifts
+  const reference = new Date(referenceDate);
+  reference.setHours(0, 0, 0, 0);
+  
   const expiry = new Date(parsedJoin);
+  expiry.setHours(0, 0, 0, 0);
   expiry.setMonth(expiry.getMonth() + 6);
-  return referenceDate > expiry;
+  
+  return reference > expiry;
 }
 
 export function startOfToday() {

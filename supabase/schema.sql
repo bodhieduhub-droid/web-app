@@ -656,7 +656,7 @@ create table if not exists public.expenses (
   amount numeric not null,
   category text not null,
   description text,
-  date date not null default current_date,
+  date date not null default (now() at time zone 'Asia/Kolkata')::date,
   recorded_by_profile_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())

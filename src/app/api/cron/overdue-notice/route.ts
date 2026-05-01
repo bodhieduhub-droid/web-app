@@ -5,6 +5,7 @@ import { sendEmailBatch } from "@/lib/email";
 import { emailTemplates } from "@/lib/email-templates";
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getISTDateString } from "@/lib/date-utils";
 
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const settings = await getHubSettings();
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getISTDateString();
 
   const processedKeys = new Set<string>();
   const { data: existingReminders } = await supabase

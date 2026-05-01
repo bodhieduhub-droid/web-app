@@ -4,6 +4,7 @@ import { useState } from "react";
 import { onboardStudentAction } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { HubSettings } from "@/lib/settings";
+import { getISTDateString } from "@/lib/date-utils";
 
 interface SeatOption {
   id: string;
@@ -137,7 +138,7 @@ export function StudentOnboardingForm({
             <input
               name="join_date"
               type="date"
-              defaultValue={new Date().toISOString().split("T")[0]}
+              defaultValue={getISTDateString()}
               className="w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] focus:outline-none focus:ring-2 focus:ring-[#1b3022]/10"
             />
           </div>

@@ -4,7 +4,7 @@ import { Calendar, Search } from "lucide-react";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLDateInput } from "@/components/ui/url-date-input";
 import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
-import { formatTimeIST } from "@/lib/date-utils";
+import { formatTimeIST, getISTDateString } from "@/lib/date-utils";
 import { AttendanceCountDisplay } from "@/components/dashboard/attendance-count-display";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export default async function StaffAttendanceLogsPage({
 }) {
   const resolved = (await searchParams) ?? {};
   const supabase = createAdminClient();
-  const today = new Date().toISOString().split("T")[0];
+  const today = getISTDateString();
   const targetDate = resolved.date || today;
   const query = (resolved.q ?? "").trim();
 

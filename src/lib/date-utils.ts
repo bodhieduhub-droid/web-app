@@ -5,7 +5,9 @@
 
 /**
  * Returns a new Date object representing the current time in IST wall-clock.
- * Use this ONLY for display or local comparisons (like getHours).
+ * WARNING: This date object's UTC components match the IST local time.
+ * Use this ONLY for display or local wall-clock comparisons (like getHours).
+ * For true time comparisons, use the standard Date object or getISTTimestamp().
  */
 export function getISTDate(date = new Date()): Date {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -113,5 +115,50 @@ export function getISTStartOfDay(date = new Date()): string {
   return d.toISOString();
 }
 
+/**
+ * Returns the current year in IST.
+ */
+export function getISTYear(date = new Date()): number {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+  });
+  return parseInt(formatter.format(date), 10);
+}
+
+/**
+ * Returns the current month (1-12) in IST.
+ */
+export function getISTMonth(date = new Date()): number {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    month: "numeric",
+  });
+  return parseInt(formatter.format(date), 10);
+}
 
 
+
+
+/**
+ * Parses an IST wall-clock string (like YYYY-MM-DDTHH:mm from a datetime-local input)
+ * and returns the true UTC ISO string.
+ */
+export function parseISTToUTC(istString: string): string {
+  if (!istString) return new Date().toISOString();
+  // If it already has a timezone, just return it as ISO
+  if (istString.includes("+") || istString.endsWith("Z")) {
+    return new Date(istString).toISOString();
+  }
+  // Assume it's an India wall-clock string
+  // If it's just a time like "08:00", we need to prepend today's date
+  let fullString = istString;
+  if (!istString.includes("T")) {
+    fullString = `${getISTDateString()}T${istString}`;
+  }
+  // Ensure we have seconds
+  if (fullString.split(":").length === 2) {
+    fullString = `${fullString}:00`;
+  }
+  return new Date(`${fullString}+05:30`).toISOString();
+}

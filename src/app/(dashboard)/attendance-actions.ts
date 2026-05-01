@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { requireDashboardContext } from "@/lib/auth";
 import { getHubSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getISTDate, getISTDateString, getISTTimestamp } from "@/lib/date-utils";
+import { getISTDate, getISTDateString, getISTHour, getISTTimestamp } from "@/lib/date-utils";
 
 type SimpleActionState = {
   status: "idle" | "success" | "error";
@@ -122,8 +122,8 @@ async function awardBadgeInternal(readerId: string) {
     }, { onConflict: "reader_id, badge_type" });
   }
 
-  // 2. Early Bird (Check-in before 8 AM)
-  if (now.getHours() < 8) {
+  // 2. Early Bird (Check-in before 8 AM IST)
+  if (getISTHour() < 8) {
     await supabase.from("student_badges").upsert({
       reader_id: readerId,
       badge_type: "early_bird",

@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLDateInput } from "@/components/ui/url-date-input";
 import { RealtimeTableListener } from "@/components/realtime/realtime-table-listener";
-import { formatTimeIST } from "@/lib/date-utils";
+import { formatTimeIST, getISTDateString } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -108,7 +108,7 @@ export default async function AttendanceLogsPage({
   searchParams?: Promise<SearchParams> 
 }) {
   const resolved = (await searchParams) ?? {};
-  const today = new Date().toISOString().split("T")[0];
+  const today = getISTDateString();
   const targetDate = resolved.date || today;
   const query = (resolved.q ?? "").trim();
 

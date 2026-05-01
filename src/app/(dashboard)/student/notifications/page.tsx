@@ -8,6 +8,7 @@ import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ListSkeleton } from "@/components/dashboard/suspense-skeletons";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { formatDateToIST } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,7 @@ async function NotificationsList({
                   <p className="font-black text-[#1b3022]">{n.title}</p>
                   <div className="flex items-center gap-2">
                     {!n.effective_read_at && <span className="rounded-full bg-[#1b3022] px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">New</span>}
-                    <p className="text-[10px] font-bold text-[#8a9d88]">{new Date(n.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-[10px] font-bold text-[#8a9d88]">{formatDateToIST(n.created_at, "datetime")}</p>
                   </div>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-[#536352]">{n.body}</p>

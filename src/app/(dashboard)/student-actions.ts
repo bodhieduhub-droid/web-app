@@ -120,13 +120,13 @@ export async function updatePostRevisionAction(formData: FormData) {
   const { data: post } = await supabase.from("posts").select("id, status").eq("id", postId).maybeSingle();
   if (!post || post.status !== "published") return;
 
-  const now = new Date();
+  const now = getISTDate();
   await supabase.from("student_post_activity").upsert({
     reader_id: student.id,
     post_id: postId,
     is_saved: true,
     is_revised: mode === "revised",
-    revised_at: mode === "revised" ? now.toISOString() : null,
+    revised_at: mode === "revised" ? getISTTimestamp() : null,
     revision_due_on: mode === "revised" ? getIsoDateOnly(addDays(now, 7)) : getIsoDateOnly(now),
   }, { onConflict: "reader_id,post_id" });
 
@@ -236,7 +236,7 @@ export async function startNightLogAction(formData: FormData) {
   const plannedExit = getString(formData, "planned_exit_time");
   if (!plannedExit) return;
 
-  const nowIso = new Date().toISOString();
+  const nowIso = getISTTimestamp();
   const plannedExitIso = new Date(plannedExit).toISOString();
 
   const { data: existingActive } = await supabase.from("night_logs").select("id").eq("reader_id", student.id).eq("status", "active").maybeSingle();
@@ -264,12 +264,12 @@ export async function endNightLogAction(formData: FormData) {
   const { data: nightLog } = await supabase.from("night_logs").select("id, reader_id, planned_exit_time").eq("id", nightLogId).eq("reader_id", student.id).maybeSingle();
   if (!nightLog) return;
 
-  const now = new Date();
+  const now = getISTDate();
   const plannedExit = new Date(nightLog.planned_exit_time);
   const status = now > plannedExit ? "late" : "completed";
 
   await supabase.from("night_logs").update({
-    actual_exit_time: now.toISOString(),
+    actual_exit_time: getISTTimestamp(),
     status,
   }).eq("id", nightLog.id);
 
@@ -297,7 +297,7 @@ export async function submitStudentFeedbackAction(
     message,
     category,
     status: "open",
-    last_reply_at: new Date().toISOString(),
+    last_reply_at: getISTTimestamp(),
   });
 
   const sideEffects = [];

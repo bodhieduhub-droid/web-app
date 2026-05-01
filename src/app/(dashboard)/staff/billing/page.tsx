@@ -21,6 +21,8 @@ type BillAuditRow = {
 
 import { DebouncedSearch } from "@/components/ui/debounced-search";
 import { URLSelect } from "@/components/ui/url-select";
+import { getCurrentBillingPeriod } from "@/lib/billing-utils";
+import { getISTDateString, getISTMonday } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +55,33 @@ export default async function StaffBillingPage({
     .order("created_at", { ascending: false });
 
   if (query) {
-    billsQuery = billsQuery.or(`name.ilike.%${query}%,phone.ilike.%${query}%`, { foreignTable: "readers" });
+    // Robust two-step search: First find matching readers, then filter bills
+    const { data: matchedReaders } = await supabase
+      .from("readers")
+      .select("id")
+      .or(`name.ilike.%${query}%,phone.ilike.%${query}%`);
+
+    const readerIds = (matchedReaders ?? []).map((r) => r.id);
+
+    let orFilter = `title.ilike.%${query}%`;
+    if (readerIds.length > 0) {
+      orFilter += `,reader_id.in.(${readerIds.join(",")})`;
+    }
+    
+    billsQuery = billsQuery.or(orFilter);
+  }
+
+  // Filter bills by selected period to match stats
+  if (financePeriod === "monthly") {
+    const { month, year } = getCurrentBillingPeriod();
+    billsQuery = billsQuery.eq("month", month).eq("year", year);
+  } else if (financePeriod === "daily") {
+    billsQuery = billsQuery.eq("due_date", getISTDateString());
+  } else if (financePeriod === "weekly") {
+    const monday = getISTMonday();
+    const sunday = new Date(monday);
+    sunday.setUTCDate(sunday.getUTCDate() + 6);
+    billsQuery = billsQuery.gte("due_date", getISTDateString(monday)).lte("due_date", getISTDateString(sunday));
   }
 
   const { data: bills, count } = await billsQuery.range(from, to);

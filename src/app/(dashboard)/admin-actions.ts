@@ -8,7 +8,7 @@ import { sendEmail } from "@/lib/email";
 import { emailTemplates } from "@/lib/email-templates";
 import { notifyProfileIds, notifyReader, createNotification } from "@/lib/notifications";
 import { getHubSettings } from "@/lib/settings";
-import { getISTTimestamp } from "@/lib/date-utils";
+import { getISTDate, getISTDateString, getISTTimestamp } from "@/lib/date-utils";
 import { randomBytes } from "crypto";
 import { 
   normalizeRole,
@@ -246,7 +246,7 @@ export async function updateSupportTicketStatusAction(formData: FormData) {
   const { data: ticket } = await supabase.from("student_support_tickets").select("id, reader_id, subject, status").eq("id", ticketId).maybeSingle();
   if (!ticket) return;
 
-  const now = new Date().toISOString();
+  const now = getISTTimestamp();
   await supabase.from("student_support_tickets").update({
     status,
     last_reply_at: now,
@@ -316,7 +316,7 @@ export async function processExitAction(formData: FormData) {
   }
 
   if (exitRequest.refund_eligible && student.email) {
-    const refundEmail = emailTemplates.cautionRefund({ name: student.name, amount: 300, method: "UPI / NEFT", processedAt: new Date().toISOString().slice(0, 10) });
+    const refundEmail = emailTemplates.cautionRefund({ name: student.name, amount: 300, method: "UPI / NEFT", processedAt: getISTDateString() });
     sideEffects.push(sendEmail({ to: [student.email], subject: refundEmail.subject, html: refundEmail.html, text: refundEmail.text }));
   }
 
@@ -389,22 +389,22 @@ export async function rejoinStudentAction(formData: FormData) {
   sideEffects.push(supabase.from("seats").update({ status: "occupied", assigned_reader_id: reader.id, blocked_by_profile_id: null, block_reason: null, linked_enquiry_id: null }).eq("id", seatIdToAssign));
 
   sideEffects.push(supabase.from("readers").update({
-    status: "pending_payment", fixed_seat_id: seatIdToAssign, caution_refunded: false, caution_paid: false, registration_paid: false, join_date: new Date().toISOString(),
+    status: "pending_payment", fixed_seat_id: seatIdToAssign, caution_refunded: false, caution_paid: false, registration_paid: false, join_date: getISTTimestamp(),
   }).eq("id", reader.id));
 
   if (!openBill) {
     const settings = await getHubSettings();
     const planType = normalizePlanType(reader.reader_type ?? "monthly");
     const planFee = Number(reader.monthly_fee) || planDefaultPrice(planType, settings);
-    const invoice = planType === "monthly" ? calculateMonthlyAdmissionAmount(new Date(), planFee) : calculateInvoiceAmount({ planType, monthlyFee: planFee, includeAdmissionFees: false, joinDate: new Date() });
+    const invoice = planType === "monthly" ? calculateMonthlyAdmissionAmount(getISTDate(), planFee) : calculateInvoiceAmount({ planType, monthlyFee: planFee, includeAdmissionFees: false, joinDate: getISTDate() });
     
-    const registrationApplicable = planType === "monthly" ? isRegistrationFeeApplicable(reader.join_date, new Date()) : false;
+    const registrationApplicable = planType === "monthly" ? isRegistrationFeeApplicable(reader.join_date, getISTDate()) : false;
     const registrationAmount = registrationApplicable ? invoice.registrationAmount : 0;
     const cautionAmount = planType === "monthly" ? invoice.cautionAmount : 0;
     const totalAmount = invoice.baseAmount + registrationAmount + cautionAmount;
 
     sideEffects.push(supabase.from("bills").insert({
-      reader_id: reader.id, month: null, year: null, due_date: new Date().toISOString().slice(0, 10), invoice_kind: "manual",
+      reader_id: reader.id, month: null, year: null, due_date: getISTDateString(), invoice_kind: "manual",
       title: "Rejoin admission invoice", base_amount: invoice.baseAmount, registration_amount: registrationAmount, caution_amount: cautionAmount,
       prorated_days: (invoice as any).remainingDays ?? null, amount_due: totalAmount, amount_paid: 0, status: "pending",
     }));
@@ -439,15 +439,16 @@ export async function createRejoinInvoiceAction(formData: FormData) {
   const settings = await getHubSettings();
   const planType = normalizePlanType(reader.reader_type ?? "monthly");
   const planFee = Number(reader.monthly_fee) || planDefaultPrice(planType, settings);
-  const invoice = planType === "monthly" ? calculateMonthlyAdmissionAmount(new Date(), planFee) : calculateInvoiceAmount({ planType, monthlyFee: planFee, includeAdmissionFees: false, joinDate: new Date() });
+  const now = getISTDate();
+  const invoice = planType === "monthly" ? calculateMonthlyAdmissionAmount(now, planFee) : calculateInvoiceAmount({ planType, monthlyFee: planFee, includeAdmissionFees: false, joinDate: now });
   
-  const registrationApplicable = planType === "monthly" ? isRegistrationFeeApplicable(reader.join_date, new Date()) : false;
+  const registrationApplicable = planType === "monthly" ? isRegistrationFeeApplicable(reader.join_date, getISTDate()) : false;
   const registrationAmount = registrationApplicable ? invoice.registrationAmount : 0;
   const cautionAmount = planType === "monthly" ? invoice.cautionAmount : 0;
   const totalAmount = invoice.baseAmount + registrationAmount + cautionAmount;
 
   await supabase.from("bills").insert({
-    reader_id: reader.id, month: null, year: null, due_date: new Date().toISOString().slice(0, 10), invoice_kind: "manual",
+    reader_id: reader.id, month: null, year: null, due_date: getISTDateString(), invoice_kind: "manual",
     title: "Rejoin admission invoice", base_amount: invoice.baseAmount, registration_amount: registrationAmount, caution_amount: cautionAmount,
     prorated_days: (invoice as any).remainingDays ?? null, amount_due: totalAmount, amount_paid: 0, status: "pending",
   });
@@ -490,15 +491,15 @@ export async function bulkCreateRejoinInvoicesAction(formData: FormData) {
 
     const planType = normalizePlanType(reader.reader_type ?? "monthly");
     const planFee = Number(reader.monthly_fee) || planDefaultPrice(planType, settings);
-    const invoice = planType === "monthly" ? calculateMonthlyAdmissionAmount(new Date(), planFee) : calculateInvoiceAmount({ planType, monthlyFee: planFee, includeAdmissionFees: false, joinDate: new Date() });
+    const invoice = planType === "monthly" ? calculateMonthlyAdmissionAmount(getISTDate(), planFee) : calculateInvoiceAmount({ planType, monthlyFee: planFee, includeAdmissionFees: false, joinDate: getISTDate() });
     
-    const registrationApplicable = planType === "monthly" ? isRegistrationFeeApplicable(reader.join_date, new Date()) : false;
+    const registrationApplicable = planType === "monthly" ? isRegistrationFeeApplicable(reader.join_date, getISTDate()) : false;
     const registrationAmount = registrationApplicable ? invoice.registrationAmount : 0;
     const cautionAmount = planType === "monthly" ? invoice.cautionAmount : 0;
     const totalAmount = invoice.baseAmount + registrationAmount + cautionAmount;
 
     await supabase.from("bills").insert({
-      reader_id: reader.id, month: null, year: null, due_date: new Date().toISOString().slice(0, 10), invoice_kind: "manual",
+      reader_id: reader.id, month: null, year: null, due_date: getISTDateString(), invoice_kind: "manual",
       title: "Rejoin admission invoice", base_amount: invoice.baseAmount, registration_amount: registrationAmount, caution_amount: cautionAmount,
       prorated_days: (invoice as any).remainingDays ?? null, amount_due: totalAmount, amount_paid: 0, status: "pending",
     });
@@ -632,14 +633,15 @@ export async function convertStudentToMonthlyAction(formData: FormData) {
     await sendEmail({ to: [reader.email], subject: credentialEmail.subject, html: credentialEmail.html, text: credentialEmail.text });
   }
 
-  const invoice = calculateMonthlyAdmissionAmount(new Date(), monthlyFee);
-  const registrationApplicable = !reader.registration_paid && isRegistrationFeeApplicable(reader.join_date, new Date());
+  const now = getISTDate();
+  const invoice = calculateMonthlyAdmissionAmount(now, monthlyFee);
+  const registrationApplicable = !reader.registration_paid && isRegistrationFeeApplicable(reader.join_date, now);
   const registrationAmount = registrationApplicable ? invoice.registrationAmount : 0;
   const cautionAmount = reader.caution_paid ? 0 : invoice.cautionAmount;
   const totalAmount = invoice.baseAmount + registrationAmount + cautionAmount;
 
   const { error: createBillError } = await supabase.from("bills").insert({
-    reader_id: reader.id, month: null, year: null, due_date: getIsoDateOnly(new Date()), invoice_kind: "manual", title: "Monthly conversion invoice",
+    reader_id: reader.id, month: null, year: null, due_date: getIsoDateOnly(getISTDate()), invoice_kind: "manual", title: "Monthly conversion invoice",
     base_amount: invoice.baseAmount, registration_amount: registrationAmount, caution_amount: cautionAmount, prorated_days: invoice.remainingDays ?? null, amount_due: totalAmount, amount_paid: 0, status: "pending",
   });
   
@@ -649,7 +651,7 @@ export async function convertStudentToMonthlyAction(formData: FormData) {
   }
 
   await supabase.from("readers").update({
-    user_id: userId, reader_type: "monthly", monthly_fee: monthlyFee, status: "pending_payment", onboarding_completed: true, credentials_sent_at: new Date().toISOString(),
+    user_id: userId, reader_type: "monthly", monthly_fee: monthlyFee, status: "pending_payment", onboarding_completed: true, credentials_sent_at: getISTTimestamp(),
   }).eq("id", reader.id);
 
   await notifyReader(reader.id, { category: "billing", title: "Monthly conversion invoice created", body: `You have been upgraded to monthly plan. Your invoice of Rs ${totalAmount} is pending. Upload payment proof after UPI transfer.`, link: "/student/payments" });

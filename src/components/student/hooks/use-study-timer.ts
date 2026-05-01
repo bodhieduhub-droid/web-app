@@ -14,6 +14,7 @@ import {
   formatTime, 
   getPresetConfig 
 } from "../timer-parts/utils";
+import { getISTDateString, getISTTimestamp } from "@/lib/date-utils";
 
 export function useStudyTimer(insights: StudyInsights) {
   const [isPending, startTransition] = useTransition();
@@ -62,7 +63,7 @@ export function useStudyTimer(insights: StudyInsights) {
     persistStudySession({
       completedFocusBlocks,
       startedAt: sessionStartedAt,
-      endedAt: new Date().toISOString(),
+      endedAt: getISTTimestamp(),
     });
     setSessionStartedAt(null);
   }, [persistStudySession, sessionStartedAt]);
@@ -143,12 +144,9 @@ export function useStudyTimer(insights: StudyInsights) {
         let currentPhase: "work" | "rest" = nextPhase;
 
         if (parsed.savedAt) {
-          const savedDate = new Date(parsed.savedAt);
-          const now = new Date();
-          const isSameDay =
-            savedDate.getFullYear() === now.getFullYear() &&
-            savedDate.getMonth() === now.getMonth() &&
-            savedDate.getDate() === now.getDate();
+          const savedDateStr = getISTDateString(new Date(parsed.savedAt));
+          const nowStr = getISTDateString();
+          const isSameDay = savedDateStr === nowStr;
           if (!isSameDay) {
             nextSessions = insights.todayBlocks;
           }
@@ -204,7 +202,7 @@ export function useStudyTimer(insights: StudyInsights) {
         sessions,
         quoteIndex,
         examCategory,
-        savedAt: new Date().toISOString(),
+        savedAt: getISTTimestamp(),
         sessionStartedAt,
       }),
     );

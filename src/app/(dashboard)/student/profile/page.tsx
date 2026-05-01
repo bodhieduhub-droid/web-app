@@ -8,6 +8,7 @@ import type { SeatChangeRequestRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CardsSkeleton } from "@/components/dashboard/suspense-skeletons";
+import { formatDateToIST } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +89,7 @@ async function ProfileContent({ studentId }: { studentId: string }) {
   }
 
   const joinDate = studentRow?.join_date
-    ? new Date(studentRow.join_date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+    ? formatDateToIST(studentRow.join_date, "date")
     : "—";
 
   return (
@@ -206,10 +207,7 @@ async function ProfileContent({ studentId }: { studentId: string }) {
               Staff has your request. You can submit another once this one is resolved.
             </p>
             <p className="mt-3 text-sm font-medium text-amber-700">
-              Requested on{" "}
-              {new Date(activeSeatRequest.created_at).toLocaleDateString("en-IN", {
-                day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
-              })}
+              Requested on {formatDateToIST(activeSeatRequest.created_at, "datetime")}
             </p>
           </div>
         ) : seats.length > 0 ? (

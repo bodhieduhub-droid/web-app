@@ -9,6 +9,7 @@ import {
   getCalendarGridDays,
   isSameDay,
   isSameMonth,
+  getTodayIST,
 } from "@/lib/calendar-utils";
 
 function dayChipLabel(event: CalendarGridItem, day: Date) {
@@ -40,7 +41,7 @@ export function CalendarMonthGrid({
 }: CalendarMonthGridProps) {
   const visibleDays = getCalendarGridDays(monthDate);
   const dayEventMap = buildDayEventMap(events, visibleDays);
-  const today = new Date();
+  const today = getTodayIST();
 
   return (
     <section className="overflow-hidden rounded-[1.8rem] border border-[#d8e0d4] bg-white p-3 shadow-lg shadow-[#27452e]/6 sm:p-5 lg:rounded-[2rem] lg:p-6">

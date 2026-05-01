@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2, Pencil, X, Check } from "lucide-react";
 import { createExpenseAction, updateExpenseAction, deleteExpenseAction } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
+import { getISTDateString } from "@/lib/date-utils";
 
 type Expense = {
   id: string;
@@ -122,7 +123,7 @@ export function ExpenseManagement({ initialExpenses }: { initialExpenses: Expens
             <input
               name="date"
               type="date"
-              defaultValue={new Date().toISOString().split("T")[0]}
+              defaultValue={getISTDateString()}
               required
               className="w-full rounded-xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-2 text-sm font-bold outline-none"
             />

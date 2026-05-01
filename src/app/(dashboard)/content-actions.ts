@@ -7,7 +7,7 @@ import { deleteFromCloudinary, uploadToCloudinary } from "@/lib/cloudinary";
 import { sendEmailBatched } from "@/lib/email";
 import { emailTemplates } from "@/lib/email-templates";
 import { notifyReader } from "@/lib/notifications";
-import { getISTTimestamp } from "@/lib/date-utils";
+import { getISTDateString, getISTTimestamp } from "@/lib/date-utils";
 import { type AppRole } from "@/lib/billing-utils";
 
 import {
@@ -410,7 +410,7 @@ export async function createExpenseAction(formData: FormData) {
   const amount = getNumber(formData, "amount", 0);
   const category = getString(formData, "category");
   const description = getOptionalString(formData, "description");
-  const date = getString(formData, "date") || new Date().toISOString().split("T")[0];
+  const date = getString(formData, "date") || getISTDateString();
 
   if (amount <= 0 || !category) return { error: "Please provide a valid amount and category." };
 

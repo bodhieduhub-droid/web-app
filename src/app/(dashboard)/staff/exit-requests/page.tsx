@@ -3,6 +3,7 @@ import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { ExitRequestRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DebouncedSearch } from "@/components/ui/debounced-search";
+import { formatDateToIST } from "@/lib/utils";
 
 type ExitRequestRow = ExitRequestRecord & {
   readers: { name: string; phone: string; email: string | null; caution_paid: boolean; status: string } | null;
@@ -60,7 +61,7 @@ export default async function StaffExitRequestsPage({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-2xl font-black text-[#1b3022]">{req.readers?.name || "Student"}</p>
-                  <p className="mt-2 text-sm font-medium text-[#556455]">Exit Date: {new Date(req.exit_date).toLocaleDateString()}</p>
+                  <p className="mt-2 text-sm font-medium text-[#556455]">Exit Date: {formatDateToIST(req.exit_date, "date")}</p>
                   {req.refund_eligible && (
                     <span className="mt-2 inline-block rounded-full bg-[#eef5ed] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#1b3022]">
                       Caution Refund Eligible
@@ -103,7 +104,7 @@ export default async function StaffExitRequestsPage({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-xl font-black text-[#1b3022]">{req.readers?.name || "Student"}</p>
-                  <p className="mt-2 text-sm font-medium text-[#556455]">Exit Date: {new Date(req.exit_date).toLocaleDateString()}</p>
+                  <p className="mt-2 text-sm font-medium text-[#556455]">Exit Date: {formatDateToIST(req.exit_date, "date")}</p>
                 </div>
                 <span className="rounded-full bg-[#f2f6ef] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#60705f]">
                   {req.status}

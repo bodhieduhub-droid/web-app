@@ -3,6 +3,7 @@ import { ArrowRightLeft, CheckCircle2, XCircle } from "lucide-react";
 import { approveSeatChangeAction, blockSeatForEnquiry, denySeatChangeAction, releaseSeat } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatDateToIST } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -173,13 +174,7 @@ export default async function StaffSeatsPage({
                     Seat #{req.current_seat_id ? seatNumberMap.get(req.current_seat_id) ?? "?" : "None"} to Seat #{seatNumberMap.get(req.requested_seat_id) ?? "?"}
                   </p>
                   <p className="mt-0.5 text-[10px] font-bold text-amber-600">
-                    {new Date(req.created_at).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatDateToIST(req.created_at, "datetime")}
                   </p>
                 </div>
                  <div className="flex gap-2">

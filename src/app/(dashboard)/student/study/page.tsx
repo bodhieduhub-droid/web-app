@@ -5,11 +5,12 @@ import type { StudySessionRecord } from "@/lib/app-types";
 import { requireDashboardContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ChartSkeleton } from "@/components/dashboard/suspense-skeletons";
+import { getISTDateString, getISTStartOfDay } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
 function getDayKey(value: string) {
-  return new Date(value).toISOString().slice(0, 10);
+  return getISTDateString(new Date(value));
 }
 
 function getCurrentStreak(sessions: StudySessionRecord[]) {
@@ -19,9 +20,8 @@ function getCurrentStreak(sessions: StudySessionRecord[]) {
       .map((s) => getDayKey(s.started_at)),
   );
   const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
   let streak = 0;
-  while (activeDays.has(cursor.toISOString().slice(0, 10))) {
+  while (activeDays.has(getISTDateString(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -39,11 +39,9 @@ async function StudyInsights({ studentId }: { studentId: string }) {
     .limit(45);
 
   const rows = (sessions ?? []) as StudySessionRecord[];
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const weekStart = new Date(todayStart);
-  weekStart.setDate(weekStart.getDate() - 6);
+  const todayStartStr = getISTStartOfDay();
+  const todayStart = new Date(todayStartStr);
+  const weekStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
 
   const todayMinutes = rows
     .filter((s) => new Date(s.started_at) >= todayStart)
@@ -60,17 +58,16 @@ async function StudyInsights({ studentId }: { studentId: string }) {
   const totalBlocks = rows.reduce((sum, s) => sum + s.completed_focus_blocks, 0);
 
   const weeklyChartData = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const dayLabel = d.toLocaleDateString("en-IN", { weekday: "short" });
-    const dayStart = new Date(d);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setHours(23, 59, 59, 999);
+    const d = new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000);
+    const dayLabel = d.toLocaleDateString("en-IN", { weekday: "short", timeZone: "Asia/Kolkata" });
+    const dayStartStr = getISTStartOfDay(d);
+    const dayStart = new Date(dayStartStr).getTime();
+    const dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1;
+
     const minutes = rows
       .filter((s) => {
         const t = new Date(s.started_at).getTime();
-        return t >= dayStart.getTime() && t <= dayEnd.getTime();
+        return t >= dayStart && t <= dayEnd;
       })
       .reduce((sum, s) => sum + s.focus_minutes * s.completed_focus_blocks, 0);
     return { dayLabel, minutes };

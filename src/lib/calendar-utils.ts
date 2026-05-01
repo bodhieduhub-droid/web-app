@@ -12,6 +12,12 @@ export type CalendarGridItem = CalendarRangeItem & {
 
 export const calendarWeekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
+import { getISTDate, getISTDateString } from "./date-utils";
+
+export function getTodayIST() {
+  return getISTDate();
+}
+
 export function startOfDay(date: Date) {
   const value = new Date(date);
   value.setHours(0, 0, 0, 0);
@@ -74,7 +80,7 @@ export function formatDayParam(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function parseMonthParam(rawValue: string | null | undefined, fallback = new Date()) {
+export function parseMonthParam(rawValue: string | null | undefined, fallback = getTodayIST()) {
   if (!rawValue) return startOfMonth(fallback);
 
   const match = /^(\d{4})-(\d{2})$/.exec(rawValue);

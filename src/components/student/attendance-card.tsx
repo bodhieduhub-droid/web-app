@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 import { checkInAction, checkOutAction } from "@/app/(dashboard)/attendance-actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { AttendanceRecord } from "@/lib/app-types";
-import { formatTimeIST } from "@/lib/date-utils";
+import { formatTimeIST, getISTDateString, getISTTimestamp } from "@/lib/date-utils";
 
 interface AttendanceCardProps {
   todayAttendance: AttendanceRecord | null;
@@ -22,14 +22,14 @@ export function AttendanceCard({ todayAttendance, streakCount }: AttendanceCardP
         return { 
           id: "temp-id", 
           reader_id: "temp-reader", 
-          date: new Date().toISOString().split("T")[0], 
-          check_in_at: new Date().toISOString(),
+          date: getISTDateString(), 
+          check_in_at: getISTTimestamp(),
           check_out_at: null,
-          created_at: new Date().toISOString()
+          created_at: getISTTimestamp()
         } as AttendanceRecord;
       }
       if (newStatus === "checking_out") {
-        return { ...state, check_out_at: new Date().toISOString() } as AttendanceRecord;
+        return { ...state, check_out_at: getISTTimestamp() } as AttendanceRecord;
       }
       return state;
     }

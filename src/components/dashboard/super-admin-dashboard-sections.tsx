@@ -8,7 +8,7 @@ import { formatDateToIST } from "@/lib/utils";
 import { TrendChart } from "@/app/(dashboard)/super-admin/components/trend-chart";
 import { RecentActivityLog, type ActivityLog } from "@/app/(dashboard)/super-admin/components/recent-activity-log";
 
-import { getISTStartOfDay } from "@/lib/date-utils";
+import { getISTStartOfDay, getISTDateString } from "@/lib/date-utils";
 
 import { MetricCardsDisplay } from "./metric-cards-display";
 
@@ -107,10 +107,7 @@ import { AnalyticsDisplay } from "./analytics-display";
 // ─── Analytics & Activity (SLOWEST) ──────────────────────────────────────────
 export async function SuperAdminAnalytics() {
   const supabase = createAdminClient();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-  thirtyDaysAgo.setHours(0, 0, 0, 0);
-  const thirtyDaysIso = thirtyDaysAgo.toISOString();
+  const thirtyDaysIso = getISTStartOfDay(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000));
 
   const [{ data: chartTx }, { data: recentEnquiries }, { data: recentStudents }, { data: recentBills }, { data: recentTx }] = await Promise.all([
     supabase.from("transactions").select("amount,verified_at").eq("verification_status", "verified").gte("verified_at", thirtyDaysIso).order("verified_at", { ascending: true }),
@@ -122,15 +119,14 @@ export async function SuperAdminAnalytics() {
 
   // Build 30-day trend map
   const trendDataMap = new Map<string, number>();
+  const startDate = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
   for (let i = 0; i < 30; i++) {
-    const d = new Date(thirtyDaysAgo);
-    d.setDate(d.getDate() + i);
-    trendDataMap.set(d.toISOString().split("T")[0], 0);
+    const d = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+    trendDataMap.set(getISTDateString(d), 0);
   }
   chartTx?.forEach((tx) => {
     if (tx.verified_at) {
-      const istTime = new Date(new Date(tx.verified_at).getTime() + 5.5 * 60 * 60 * 1000);
-      const dateKey = istTime.toISOString().split("T")[0];
+      const dateKey = getISTDateString(new Date(tx.verified_at));
       if (trendDataMap.has(dateKey)) trendDataMap.set(dateKey, trendDataMap.get(dateKey)! + Number(tx.amount || 0));
     }
   });

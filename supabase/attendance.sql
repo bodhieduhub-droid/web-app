@@ -5,7 +5,7 @@ alter table public.hub_settings add column if not exists allowed_attendance_ips 
 create table if not exists public.attendance (
   id uuid primary key default uuid_generate_v4(),
   reader_id uuid not null references public.readers(id) on delete cascade,
-  date date not null default current_date,
+  date date not null default (now() at time zone 'Asia/Kolkata')::date,
   check_in_at timestamptz not null default timezone('utc', now()),
   check_out_at timestamptz,
   notes text,
