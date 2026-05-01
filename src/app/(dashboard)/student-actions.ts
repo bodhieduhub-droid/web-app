@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { notifyProfileIds, notifyReader } from "@/lib/notifications";
 import { getHubSettings } from "@/lib/settings";
-import { getISTTimestamp } from "@/lib/date-utils";
+import { getISTDate, getISTTimestamp } from "@/lib/date-utils";
 import { normalizeRole, type AppRole } from "@/lib/billing-utils";
 
 import {
