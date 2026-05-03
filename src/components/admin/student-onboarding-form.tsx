@@ -5,6 +5,7 @@ import { onboardStudentAction } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { HubSettings } from "@/lib/settings";
 import { getISTDateString } from "@/lib/date-utils";
+import { compressImage } from "@/lib/image-utils";
 
 interface SeatOption {
   id: string;
@@ -25,8 +26,21 @@ export function StudentOnboardingForm({
 
   const isQuickEntry = planType === "daily" || planType === "weekly";
 
+  async function handleSubmit(formData: FormData) {
+    const idProof = formData.get("id_proof") as File;
+    if (idProof && idProof.size > 0 && idProof.type.startsWith("image/")) {
+      try {
+        const compressed = await compressImage(idProof);
+        formData.set("id_proof", compressed);
+      } catch (err) {
+        console.error("[StudentOnboardingForm] Compression failed:", err);
+      }
+    }
+    await onboardStudentAction(formData);
+  }
+
   return (
-    <form action={onboardStudentAction} className="space-y-8 rounded-[2rem] border border-[#d8e0d4] bg-white p-8 shadow-xl shadow-[#27452e]/6">
+    <form action={handleSubmit} className="space-y-8 rounded-[2rem] border border-[#d8e0d4] bg-white p-8 shadow-xl shadow-[#27452e]/6">
       {/* Plan & Seat Selection - MOVED TO TOP for context */}
       <section className="space-y-4">
         <h2 className="text-lg font-black text-[#1b3022] flex items-center gap-2">

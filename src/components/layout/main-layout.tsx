@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen, BriefcaseBusiness, CircleDollarSign,
-  ClipboardList, DoorOpen, Home, Inbox, LogOut,
+  ClipboardList, DoorOpen, Fingerprint, Home, Inbox, LogOut,
   NotebookPen, Settings, Timer, User, Users, Wallet, Bell, Megaphone,
   Bot, CheckCircle2, ChevronRight, Menu, X, Loader2,
 } from "lucide-react";
@@ -24,6 +24,7 @@ const superAdminLinks = [
   { href: "/super-admin/students", label: "Students", icon: Users },
   { href: "/super-admin/seats", label: "Seats", icon: NotebookPen },
   { href: "/super-admin/attendance", label: "Attendance", icon: CheckCircle2 },
+  { href: "/super-admin/biometrics", label: "Biometric Sync", icon: Fingerprint },
   { href: "/super-admin/night-logs", label: "Night Logs", icon: Timer },
   { href: "/super-admin/billing", label: "Billing", icon: CircleDollarSign },
   { href: "/super-admin/expenses", label: "Expenses", icon: Wallet },

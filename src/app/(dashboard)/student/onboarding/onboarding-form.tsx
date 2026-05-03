@@ -7,6 +7,7 @@ import { useFormStatus } from "react-dom";
 
 import { submitOnboarding } from "@/app/(dashboard)/actions";
 import type { StudentRecord } from "@/lib/app-types";
+import { compressImage } from "@/lib/image-utils";
 
 const examCategories = ["SSC", "PSC", "UPSC", "BANKING", "RAILWAY"];
 const MAX_FILE_SIZE_MB = 10;
@@ -71,6 +72,20 @@ export function OnboardingForm({ student }: { student: StudentRecord }) {
     }
   }
 
+  async function handleSubmit(formData: FormData) {
+    const idProof = formData.get("id_proof") as File;
+    if (idProof && idProof.size > 0 && idProof.type.startsWith("image/")) {
+      try {
+        const compressed = await compressImage(idProof);
+        formData.set("id_proof", compressed);
+      } catch (err) {
+        console.error("[OnboardingForm] Compression failed:", err);
+        // Fallback to original file if compression fails
+      }
+    }
+    formAction(formData);
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <section className="rounded-[2.4rem] bg-[#1b3022] p-8 text-white shadow-2xl shadow-[#1b3022]/15">
@@ -88,7 +103,7 @@ export function OnboardingForm({ student }: { student: StudentRecord }) {
       )}
 
       <form
-        action={formAction}
+        action={handleSubmit}
         className="space-y-6 rounded-[2rem] border border-[#d8e0d4] bg-white p-8 shadow-xl shadow-[#27452e]/8"
       >
         <FormOverlay />

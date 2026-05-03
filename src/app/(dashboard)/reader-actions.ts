@@ -487,15 +487,21 @@ export async function onboardStudentAction(formData: FormData) {
     }
   }
 
-  await Promise.allSettled(sideEffects);
+  try {
+    await Promise.allSettled(sideEffects);
 
-  revalidatePath("/super-admin/students");
-  revalidatePath("/staff/students");
-  revalidatePath("/super-admin/seats");
-  revalidatePath("/staff/seats");
-  
-  const role = normalizeRole(profile.role);
-  redirect(role === "super_admin" ? "/super-admin/students" : "/staff/students");
+    revalidatePath("/super-admin/students");
+    revalidatePath("/staff/students");
+    revalidatePath("/super-admin/seats");
+    revalidatePath("/staff/seats");
+    
+    const role = normalizeRole(profile.role);
+    redirect(role === "super_admin" ? "/super-admin/students" : "/staff/students");
+  } catch (err: any) {
+    if (err && typeof err === 'object' && err.digest && err.digest.startsWith('NEXT_REDIRECT')) throw err;
+    console.error("[onboardStudentAction] Finalization failed:", err);
+    await notifyActor(profile.id, "Onboarding error", `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}`);
+  }
 }
 
 export async function rejectStudentIdProofAction(formData: FormData) {

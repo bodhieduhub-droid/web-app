@@ -56,13 +56,13 @@ export async function GET(request: Request) {
         ? todayDate
         : planType === "weekly"
           ? weekStartDate
-          : new Date(Date.UTC(year, month - 1, 1)).toISOString().slice(0, 10);
+          : new Date(Date.UTC(year, month - 1, 5)).toISOString().slice(0, 10);
     const recurringTitle =
       planType === "daily"
         ? `Daily fee for ${dueDate}`
         : planType === "weekly"
           ? `Weekly fee for week of ${dueDate}`
-          : `Monthly fee for ${new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-IN", { month: "long", timeZone: "UTC" })}`;
+          : `Monthly fee for ${new Date(Date.UTC(year, month - 1, 5)).toLocaleString("en-IN", { month: "long", timeZone: "UTC" })}`;
     const invoiceKind = planType === "monthly" ? "monthly_renewal" : "manual";
 
     let existingBillQuery = supabase
@@ -123,7 +123,7 @@ export async function GET(request: Request) {
           ? `Daily cycle ${dueDate}`
           : planType === "weekly"
             ? `Week of ${dueDate}`
-            : new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+            : new Date(Date.UTC(year, month - 1, 5)).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
       const emailTemplate = emailTemplates.monthlyDue({
         name: student.name,
         amount: invoice.totalAmount,

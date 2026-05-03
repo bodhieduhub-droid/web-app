@@ -4,6 +4,7 @@ import { useActionState, useId, useRef, useState } from "react";
 
 import { submitPaymentProof } from "@/app/(dashboard)/actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
+import { compressImage } from "@/lib/image-utils";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -45,18 +46,30 @@ export function PaymentProofForm({
 
     setClientError(null);
   }
-
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     if (clientError) {
       event.preventDefault();
     }
   }
 
+  async function handleAction(formData: FormData) {
+    const proofFile = formData.get("payment_proof") as File;
+    if (proofFile && proofFile.size > 0 && proofFile.type.startsWith("image/")) {
+      try {
+        const compressed = await compressImage(proofFile);
+        formData.set("payment_proof", compressed);
+      } catch (err) {
+        console.error("[PaymentProofForm] Compression failed:", err);
+      }
+    }
+    formAction(formData);
+  }
+
   const errorMessage = clientError || (state.status === "error" && state.billId === billId ? state.message : null);
   const successMessage = state.status === "success" && state.billId === billId ? state.message : null;
 
   return (
-    <form action={formAction} onSubmit={handleSubmit} className="mt-5 grid gap-3 sm:grid-cols-2">
+    <form action={handleAction} onSubmit={handleSubmit} className="mt-5 grid gap-3 sm:grid-cols-2">
       <input type="hidden" name="bill_id" value={billId} />
 
       {successMessage ? (

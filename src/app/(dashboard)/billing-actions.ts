@@ -542,8 +542,8 @@ export async function generateMonthlyInvoices() {
     const planType = normalizePlanType(student.reader_type ?? "monthly");
     const planFee = Math.max(0, Number(student.monthly_fee) || planDefaultPrice(planType, settings));
     
-    const dueDate = planType === "daily" ? todayDate : planType === "weekly" ? weekStartDate : new Date(Date.UTC(year, month - 1, 1)).toISOString().slice(0, 10);
-    const recurringTitle = planType === "daily" ? `Daily fee for ${dueDate}` : planType === "weekly" ? `Weekly fee for week of ${dueDate}` : `Monthly fee for ${new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-IN", { month: "long", timeZone: "UTC" })}`;
+    const dueDate = planType === "daily" ? todayDate : planType === "weekly" ? weekStartDate : new Date(Date.UTC(year, month - 1, 5)).toISOString().slice(0, 10);
+    const recurringTitle = planType === "daily" ? `Daily fee for ${dueDate}` : planType === "weekly" ? `Weekly fee for week of ${dueDate}` : `Monthly fee for ${new Date(Date.UTC(year, month - 1, 5)).toLocaleString("en-IN", { month: "long", timeZone: "UTC" })}`;
     const invoiceKind = planType === "monthly" ? "monthly_renewal" : "manual";
 
     let existingBillQuery = supabase.from("bills").select("id").eq("reader_id", student.id).eq("due_date", dueDate).eq("title", recurringTitle);
@@ -583,7 +583,7 @@ export async function generateMonthlyInvoices() {
     }));
 
     if (student.email) {
-      const monthLabel = planType === "daily" ? `Daily cycle ${dueDate}` : planType === "weekly" ? `Week of ${dueDate}` : new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+      const monthLabel = planType === "daily" ? `Daily cycle ${dueDate}` : planType === "weekly" ? `Week of ${dueDate}` : new Date(Date.UTC(year, month - 1, 5)).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
       const emailTemplate = emailTemplates.monthlyDue({
         name: student.name,
         amount: invoice.totalAmount,

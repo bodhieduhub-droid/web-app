@@ -44,9 +44,20 @@ export function useStudyTimer(insights: StudyInsights) {
     startedAt: string;
     endedAt?: string | null;
   }) => {
+    let focusMinutes = preset.work;
+    
+    // If it's a partial session (0 blocks), calculate actual minutes spent
+    if (input.completedFocusBlocks === 0 && input.endedAt) {
+      const ms = new Date(input.endedAt).getTime() - new Date(input.startedAt).getTime();
+      focusMinutes = Math.max(1, Math.round(ms / (60 * 1000)));
+      
+      // Don't log if less than a minute of actual focus
+      if (ms < 60 * 1000) return;
+    }
+
     const formData = buildSessionFormData({
       presetName: preset.label,
-      focusMinutes: preset.work,
+      focusMinutes,
       breakMinutes: preset.rest,
       completedFocusBlocks: input.completedFocusBlocks,
       startedAt: input.startedAt,

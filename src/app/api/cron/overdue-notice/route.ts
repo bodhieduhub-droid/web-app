@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     .from("bills")
     .select("id, amount_due, amount_paid, due_date, readers!inner(id, name, email)")
     .lt("due_date", todayStr)
-    .in("status", ["pending", "partial", "rejected_proof"]);
+    .in("status", ["pending", "partial", "rejected_proof", "overdue"]);
 
   const { data: dueTodayBills } = await supabase
     .from("bills")
@@ -109,7 +109,9 @@ export async function GET(request: Request) {
       ? (bill.readers[0] as BillReader | undefined)
       : (bill.readers as BillReader | null);
     if (!student) continue;
-    const remainingAmount = Number(bill.amount_due) - Number(bill.amount_paid);
+    const remainingAmount = Number(bill.amount_due || 0) - Number(bill.amount_paid || 0);
+    if (remainingAmount <= 0) continue;
+
     await sendBillReminder({
       billId: bill.id,
       readerId: student.id,
@@ -128,7 +130,9 @@ export async function GET(request: Request) {
       ? (bill.readers[0] as BillReader | undefined)
       : (bill.readers as BillReader | null);
     if (!student) continue;
-    const remainingAmount = Number(bill.amount_due) - Number(bill.amount_paid);
+    const remainingAmount = Number(bill.amount_due || 0) - Number(bill.amount_paid || 0);
+    if (remainingAmount <= 0) continue;
+
     await sendBillReminder({
       billId: bill.id,
       readerId: student.id,
@@ -147,7 +151,9 @@ export async function GET(request: Request) {
       ? (bill.readers[0] as BillReader | undefined)
       : (bill.readers as BillReader | null);
     if (!student) continue;
-    const remainingAmount = Number(bill.amount_due) - Number(bill.amount_paid);
+    const remainingAmount = Number(bill.amount_due || 0) - Number(bill.amount_paid || 0);
+    if (remainingAmount <= 0) continue;
+
     await sendBillReminder({
       billId: bill.id,
       readerId: student.id,

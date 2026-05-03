@@ -148,6 +148,29 @@ export async function logStudySessionAction(formData: FormData) {
 
   if (!presetName || !startedAt) return;
 
+  // 1. Prevent duplicate submissions (check if a session with same start time exists for this reader)
+  const { data: existing } = await supabase
+    .from("study_sessions")
+    .select("id")
+    .eq("reader_id", student.id)
+    .eq("started_at", startedAt)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    console.log("Skipping duplicate study session log");
+    return;
+  }
+
+  // 2. Minimum duration check (at least 1 minute)
+  if (endedAt) {
+    const durationMs = new Date(endedAt).getTime() - new Date(startedAt).getTime();
+    if (durationMs < 60 * 1000) {
+      console.log("Skipping session shorter than 1 minute");
+      return;
+    }
+  }
+
   await supabase.from("study_sessions").insert({
     reader_id: student.id,
     preset_name: presetName,
