@@ -201,7 +201,14 @@ export default async function SuperAdminBillingPage({
                 </td>
                 <td className="px-6 py-4 text-right">
                   <Link
-                    href={`/super-admin/billing/${bill.id}`}
+                    href={`/super-admin/billing/${bill.id}?${(() => {
+                      const p = new URLSearchParams();
+                      if (query) p.set("q", query);
+                      if (statusFilter !== "all") p.set("status", statusFilter);
+                      if (financePeriod !== "daily") p.set("period", financePeriod);
+                      if (initialPage > 1) p.set("page", String(initialPage));
+                      return p.toString();
+                    })()}`}
                     className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#1b3022] hover:bg-[#f5f8f3]"
                   >
                     Details

@@ -67,6 +67,9 @@ export function OnboardingForm({ student }: { student: StudentRecord }) {
         `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max allowed is ${MAX_FILE_SIZE_MB} MB.`,
       );
       e.target.value = "";
+    } else if (!file.type.startsWith("image/")) {
+      setFileError("Invalid file type. We only allow image files (JPG, PNG, WebP) for ID proof. PDFs are not allowed.");
+      e.target.value = "";
     } else {
       setFileError(null);
     }

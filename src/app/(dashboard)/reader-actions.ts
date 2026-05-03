@@ -315,14 +315,24 @@ export async function onboardStudentAction(formData: FormData) {
 
   if (!isQuickEntry && idProofFile) {
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
-    if (idProofFile.size <= MAX_FILE_SIZE && idProofFile.type.startsWith("image/")) {
-      try {
-        const uploaded = await uploadToCloudinary(idProofFile, "bodhi-id-proofs");
-        idProofUrl = uploaded.secureUrl;
-        idProofPublicId = uploaded.publicId;
-      } catch (err) {
-        console.error("[onboardStudentAction] ID upload failed:", err);
-      }
+    if (idProofFile.size > MAX_FILE_SIZE) {
+      await notifyActor(profile.id, "Onboarding failed", "ID proof file is too large. Max 10MB allowed.");
+      return;
+    }
+
+    if (!idProofFile.type.startsWith("image/")) {
+      await notifyActor(profile.id, "Onboarding failed", "Invalid file type. We only allow image files (JPG, PNG, WebP) for ID proof. PDFs are not allowed.");
+      return;
+    }
+
+    try {
+      const uploaded = await uploadToCloudinary(idProofFile, "bodhi-id-proofs");
+      idProofUrl = uploaded.secureUrl;
+      idProofPublicId = uploaded.publicId;
+    } catch (err) {
+      console.error("[onboardStudentAction] ID upload failed:", err);
+      await notifyActor(profile.id, "Onboarding failed", "There was an error uploading the ID proof. Please try again with a different image.");
+      return;
     }
   }
 
@@ -660,7 +670,7 @@ export async function submitOnboarding(
 
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     if (idProof.size > MAX_FILE_SIZE) return { error: "ID proof file is too large. Please upload an image under 10MB." };
-    if (!idProof.type || !idProof.type.startsWith("image/")) return { error: "Invalid file type. Please upload an image for ID proof." };
+    if (!idProof.type || !idProof.type.startsWith("image/")) return { error: "Invalid file type. We only allow image files (JPG, PNG, WebP) for ID proof. PDFs are not allowed." };
 
     const uploadedId = await uploadToCloudinary(idProof, "bodhi-id-proofs");
 

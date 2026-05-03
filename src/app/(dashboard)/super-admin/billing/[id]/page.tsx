@@ -15,10 +15,19 @@ import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import type { BillRecord, TransactionRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOptimizedImage } from "@/lib/utils";
+import { resolveFinancePeriod } from "@/lib/finance-utils";
+import { getCurrentBillingPeriod } from "@/lib/billing-utils";
+import { getISTDateString, getISTMonday } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
 type Params = { id: string };
+type SearchParams = {
+  q?: string;
+  status?: string;
+  period?: string;
+  page?: string;
+};
 
 type BillDetailRow = BillRecord & {
   readers?: { id?: string; name?: string; phone?: string; email?: string } | null;
@@ -46,10 +55,17 @@ function safeText(value: unknown, fallback: string) {
 
 export default async function BillingDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<Params>;
+  searchParams?: Promise<SearchParams>;
 }) {
   const { id } = await params;
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const query = (resolvedSearchParams.q ?? "").trim();
+  const statusFilter = (resolvedSearchParams.status ?? "all").trim();
+  const financePeriod = resolveFinancePeriod(resolvedSearchParams.period);
+
   const supabase = createAdminClient();
 
   const [{ data: bill }, { data: audits }] = await Promise.all([
@@ -75,6 +91,47 @@ export default async function BillingDetailPage({
   const auditTrail = (audits ?? []) as BillAuditRow[];
   const currentStatus = safeText(detail.status, "pending");
 
+  // Fetch next bill ID in the same filtered queue
+  let nextBillQuery = supabase
+    .from("bills")
+    .select("id")
+    .order("created_at", { ascending: false })
+    .lt("created_at", detail.created_at)
+    .limit(1);
+
+  if (statusFilter !== "all") nextBillQuery = nextBillQuery.eq("status", statusFilter);
+  if (financePeriod === "monthly") {
+    const { month, year } = getCurrentBillingPeriod();
+    nextBillQuery = nextBillQuery.eq("month", month).eq("year", year);
+  } else if (financePeriod === "daily") {
+    nextBillQuery = nextBillQuery.eq("due_date", getISTDateString());
+  } else if (financePeriod === "weekly") {
+    const monday = getISTMonday();
+    const sunday = new Date(monday);
+    sunday.setUTCDate(sunday.getUTCDate() + 6);
+    nextBillQuery = nextBillQuery.gte("due_date", getISTDateString(monday)).lte("due_date", getISTDateString(sunday));
+  }
+
+  if (query) {
+    const { data: matchedReaders } = await supabase
+      .from("readers")
+      .select("id")
+      .or(`name.ilike.%${query}%,phone.ilike.%${query}%`);
+    const readerIds = (matchedReaders ?? []).map((r) => r.id);
+    let orFilter = `title.ilike.%${query}%`;
+    if (readerIds.length > 0) orFilter += `,reader_id.in.(${readerIds.join(",")})`;
+    nextBillQuery = nextBillQuery.or(orFilter);
+  }
+
+  const { data: nextBill } = await nextBillQuery.maybeSingle();
+
+  const filterParams = new URLSearchParams();
+  if (query) filterParams.set("q", query);
+  if (statusFilter !== "all") filterParams.set("status", statusFilter);
+  if (financePeriod !== "daily") filterParams.set("period", financePeriod);
+  if (resolvedSearchParams.page) filterParams.set("page", resolvedSearchParams.page);
+  const backHref = `/super-admin/billing?${filterParams.toString()}`;
+
   return (
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
@@ -90,14 +147,26 @@ export default async function BillingDetailPage({
             <p className="rounded-full border border-[#d8e0d4] bg-[#f2f6ef] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#60705f]">
               {currentStatus.replaceAll("_", " ")}
             </p>
-            <Link href="/super-admin/billing" className="mt-3 inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022]">
-              Back to Billing
-            </Link>
-            {detail.readers?.id ? (
-              <Link href={`/super-admin/students/${detail.readers.id}`} className="mt-2 inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022]">
-                Open Student
+            <div className="mt-3 flex flex-wrap gap-2 justify-end">
+              <Link href={backHref} className="inline-block rounded-xl border border-[#d8e0d4] px-4 py-2 text-xs font-black text-[#1b3022] hover:bg-[#f5f8f3]">
+                Back to Billing
               </Link>
-            ) : null}
+              {nextBill ? (
+                <Link 
+                  href={`/super-admin/billing/${nextBill.id}?${filterParams.toString()}`} 
+                  className="inline-block rounded-xl bg-[#1b3022] px-4 py-2 text-xs font-black text-white shadow-lg shadow-[#1b3022]/20 active:scale-95 transition-transform"
+                >
+                  Next Student →
+                </Link>
+              ) : null}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 justify-end">
+              {detail.readers?.id ? (
+                <Link href={`/super-admin/students/${detail.readers.id}`} className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022] hover:bg-[#f5f8f3]">
+                  Open Student Profile
+                </Link>
+              ) : null}
+            </div>
           </div>
         </div>
 

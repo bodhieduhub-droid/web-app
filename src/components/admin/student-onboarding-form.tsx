@@ -23,6 +23,7 @@ export function StudentOnboardingForm({
   backUrl: string;
 }) {
   const [planType, setPlanType] = useState<string>("monthly");
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const isQuickEntry = planType === "daily" || planType === "weekly";
 
@@ -36,7 +37,26 @@ export function StudentOnboardingForm({
         console.error("[StudentOnboardingForm] Compression failed:", err);
       }
     }
+    if (fileError) return;
     await onboardStudentAction(formData);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setFileError(null);
+      return;
+    }
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setFileError("File is too large. Max 10MB allowed.");
+      e.target.value = "";
+    } else if (!file.type.startsWith("image/")) {
+      setFileError("Invalid file type. We only allow image files (JPG, PNG, WebP) for ID proof. PDFs are not allowed.");
+      e.target.value = "";
+    } else {
+      setFileError(null);
+    }
   }
 
   return (
@@ -213,8 +233,12 @@ export function StudentOnboardingForm({
                   name="id_proof"
                   type="file"
                   accept="image/*"
+                  onChange={handleFileChange}
                   className="w-full rounded-2xl border border-[#d7ddd3] bg-[#f7faf5] px-4 py-3 text-sm font-semibold text-[#1b3022] file:mr-4 file:rounded-full file:border-0 file:bg-[#1b3022] file:px-4 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-[#27452e]"
                 />
+                {fileError && (
+                  <p className="text-xs font-semibold text-red-600 mt-1">{fileError}</p>
+                )}
                 <p className="text-[10px] text-[#6d7c6c] ml-1 italic">
                   Upload a clear photo of Aadhar, PAN, or any Gov ID. 
                   <br />
