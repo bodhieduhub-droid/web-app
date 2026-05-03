@@ -22,9 +22,7 @@ export async function submitEnquiry(data: {
   }
 
   const supabase = createAdminClient();
-  const name = data.name.trim();
-  const phone = data.phone.trim();
-  const email = data.email.trim();
+  const { name, phone, email } = validation.data;
   const visit_date = data.visit_date || null;
   const visit_time = data.visit_time || null;
 
