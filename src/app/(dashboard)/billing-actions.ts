@@ -403,12 +403,12 @@ export async function recordOfflinePaymentAction(formData: FormData) {
     verified_by_profile_id: profile.id,
   });
   
+  const sideEffects = [];
+
   const { data: updatedBill } = await supabase.from("bills").select("status").eq("id", billId).single();
   if (updatedBill?.status === "paid") {
     sideEffects.push(syncStudentStatusWithBills(supabase, bill.reader_id));
   }
-
-  const sideEffects = [];
 
   sideEffects.push(supabase.from("bill_audit_logs").insert({
     bill_id: bill.id,
