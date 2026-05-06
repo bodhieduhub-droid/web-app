@@ -27,6 +27,7 @@ type SearchParams = {
   status?: string;
   period?: string;
   page?: string;
+  sort?: string;
 };
 
 type BillDetailRow = BillRecord & {
@@ -129,6 +130,7 @@ export default async function BillingDetailPage({
   if (query) filterParams.set("q", query);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
   if (financePeriod !== "daily") filterParams.set("period", financePeriod);
+  if (resolvedSearchParams.sort) filterParams.set("sort", resolvedSearchParams.sort);
   if (resolvedSearchParams.page) filterParams.set("page", resolvedSearchParams.page);
   const backHref = `/super-admin/billing?${filterParams.toString()}`;
 

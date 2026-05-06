@@ -25,7 +25,7 @@ export function URLSelect({
   return (
     <select
       name={name}
-      defaultValue={defaultValue}
+      value={defaultValue}
       onChange={(e) => {
         const params = new URLSearchParams(searchParams.toString());
         params.set(targetParam, e.target.value);
