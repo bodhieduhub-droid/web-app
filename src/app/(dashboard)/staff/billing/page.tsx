@@ -117,7 +117,6 @@ export default async function StaffBillingPage({
     entries.push(row);
     auditByBill.set(row.bill_id, entries);
   }
-  const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(initialPage, totalPages);
   const params = new URLSearchParams();
