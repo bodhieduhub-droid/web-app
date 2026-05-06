@@ -34,15 +34,16 @@ type SeatRow = {
   readers: unknown;
 };
 
-function getStudentFromSeatRelation(input: unknown): { id?: string; name?: string } | null {
+function getStudentFromSeatRelation(input: unknown): { id?: string; name?: string; status?: string } | null {
   if (!input) return null;
   if (Array.isArray(input)) {
-    const first = input[0] as { id?: string; name?: string } | undefined;
-    if (!first) return null;
-    return { id: first.id, name: first.name };
+    const first = input[0] as { id?: string; name?: string; status?: string } | undefined;
+    if (!first || first.status === "archived") return null;
+    return { id: first.id, name: first.name, status: first.status };
   }
-  const row = input as { id?: string; name?: string };
-  return { id: row.id, name: row.name };
+  const row = input as { id?: string; name?: string; status?: string };
+  if (row.status === "archived") return null;
+  return { id: row.id, name: row.name, status: row.status };
 }
 
 export default async function SuperAdminSeatsPage({
@@ -59,7 +60,7 @@ export default async function SuperAdminSeatsPage({
   const [{ data: seats, error }, { data: pendingRequests }, { data: unassignedStudents }] = await Promise.all([
     supabase
       .from("seats")
-      .select("id, seat_number, status, block_reason, readers:readers!fixed_seat_id(name,id,reader_type)")
+      .select("id, seat_number, status, block_reason, readers:readers!fixed_seat_id(name,id,reader_type,status)")
       .order("seat_number", { ascending: true }),
     supabase
       .from("seat_change_requests")

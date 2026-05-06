@@ -45,6 +45,25 @@ function resolveBillStatusForManualEdit(amountDue: number, amountPaid: number) {
   return "pending";
 }
 
+async function syncStudentStatusWithBills(supabase: any, readerId: string) {
+  const { data: reader } = await supabase.from("readers").select("status, onboarding_completed").eq("id", readerId).maybeSingle();
+  if (!reader || reader.status !== "pending_payment") return;
+
+  const { data: otherDues } = await supabase.from("bills")
+    .select("id")
+    .eq("reader_id", readerId)
+    .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"])
+    .limit(1);
+
+  if (!otherDues || otherDues.length === 0) {
+    await supabase.from("readers").update({
+      registration_paid: true,
+      caution_paid: true,
+      status: reader.onboarding_completed ? "active" : "pending_onboarding",
+    }).eq("id", readerId);
+  }
+}
+
 export async function submitPaymentProof(
   _prevState: PaymentProofActionState,
   formData: FormData,
@@ -177,15 +196,9 @@ export async function verifyPaymentProof(formData: FormData) {
     }).eq("id", transactionId));
   }
 
-  if (transaction.bills?.invoice_kind === "admission") {
-    const { data: updatedBill } = await supabase.from("bills").select("status").eq("id", transaction.bill_id).single();
-    if (updatedBill?.status === "paid") {
-      sideEffects.push(supabase.from("readers").update({
-        registration_paid: true,
-        caution_paid: true,
-        status: transaction.readers?.onboarding_completed ? "active" : "pending_onboarding",
-      }).eq("id", transaction.reader_id));
-    }
+  const { data: updatedBill } = await supabase.from("bills").select("status").eq("id", transaction.bill_id).single();
+  if (updatedBill?.status === "paid") {
+    sideEffects.push(syncStudentStatusWithBills(supabase, transaction.reader_id));
   }
 
   sideEffects.push(notifyReader(transaction.reader_id, {
@@ -338,13 +351,8 @@ export async function updateBillFromAdminAction(formData: FormData) {
 
   const { data: billInfo } = await supabase.from("bills").select("reader_id, invoice_kind").eq("id", billId).single();
 
-  if (billInfo?.invoice_kind === "admission" && nextStatus === "paid") {
-    const { data: reader } = await supabase.from("readers").select("onboarding_completed").eq("id", billInfo.reader_id).single();
-    await supabase.from("readers").update({
-      registration_paid: true,
-      caution_paid: true,
-      status: reader?.onboarding_completed ? "active" : "pending_onboarding",
-    }).eq("id", billInfo.reader_id);
+  if (nextStatus === "paid") {
+    await syncStudentStatusWithBills(supabase, billInfo.reader_id);
   }
 
   await supabase.from("bill_audit_logs").insert({
@@ -395,16 +403,9 @@ export async function recordOfflinePaymentAction(formData: FormData) {
     verified_by_profile_id: profile.id,
   });
   
-  if (bill.invoice_kind === "admission") {
-    const { data: updatedBill } = await supabase.from("bills").select("status").eq("id", billId).single();
-    if (updatedBill?.status === "paid") {
-      const { data: reader } = await supabase.from("readers").select("onboarding_completed").eq("id", bill.reader_id).single();
-      await supabase.from("readers").update({
-        registration_paid: true,
-        caution_paid: true,
-        status: reader?.onboarding_completed ? "active" : "pending_onboarding",
-      }).eq("id", bill.reader_id);
-    }
+  const { data: updatedBill } = await supabase.from("bills").select("status").eq("id", billId).single();
+  if (updatedBill?.status === "paid") {
+    sideEffects.push(syncStudentStatusWithBills(supabase, bill.reader_id));
   }
 
   const sideEffects = [];
@@ -465,6 +466,10 @@ export async function addBillLedgerEntryAction(formData: FormData) {
   });
 
   await supabase.from("bills").update({ amount_paid: nextPaid, status: nextStatus }).eq("id", bill.id);
+
+  if (nextStatus === "paid") {
+    await syncStudentStatusWithBills(supabase, bill.reader_id);
+  }
 
   const sideEffects = [];
 

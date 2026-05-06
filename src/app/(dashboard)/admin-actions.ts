@@ -309,7 +309,11 @@ export async function processExitAction(formData: FormData) {
   const sideEffects = [];
 
   sideEffects.push(supabase.from("exit_requests").update({ status: "processed", admin_notes: adminNotes }).eq("id", exitRequestId).eq("status", "pending"));
-  sideEffects.push(supabase.from("readers").update({ status: "archived", caution_refunded: exitRequest.refund_eligible ? true : student.caution_refunded }).eq("id", exitRequest.reader_id));
+  sideEffects.push(supabase.from("readers").update({ 
+    status: "archived", 
+    caution_refunded: exitRequest.refund_eligible ? true : student.caution_refunded,
+    fixed_seat_id: null 
+  }).eq("id", exitRequest.reader_id));
 
   if (student.fixed_seat_id) {
     sideEffects.push(supabase.from("seats").update({ status: "available", assigned_reader_id: null, blocked_by_profile_id: null, block_reason: null, linked_enquiry_id: null }).eq("id", student.fixed_seat_id));
@@ -404,7 +408,7 @@ export async function rejoinStudentAction(formData: FormData) {
     const totalAmount = invoice.baseAmount + registrationAmount + cautionAmount;
 
     sideEffects.push(supabase.from("bills").insert({
-      reader_id: reader.id, month: null, year: null, due_date: getISTDateString(), invoice_kind: "manual",
+      reader_id: reader.id, month: null, year: null, due_date: getISTDateString(), invoice_kind: "admission",
       title: "Rejoin admission invoice", base_amount: invoice.baseAmount, registration_amount: registrationAmount, caution_amount: cautionAmount,
       prorated_days: (invoice as any).remainingDays ?? null, amount_due: totalAmount, amount_paid: 0, status: "pending",
     }));
@@ -499,7 +503,7 @@ export async function bulkCreateRejoinInvoicesAction(formData: FormData) {
     const totalAmount = invoice.baseAmount + registrationAmount + cautionAmount;
 
     await supabase.from("bills").insert({
-      reader_id: reader.id, month: null, year: null, due_date: getISTDateString(), invoice_kind: "manual",
+      reader_id: reader.id, month: null, year: null, due_date: getISTDateString(), invoice_kind: "admission",
       title: "Rejoin admission invoice", base_amount: invoice.baseAmount, registration_amount: registrationAmount, caution_amount: cautionAmount,
       prorated_days: (invoice as any).remainingDays ?? null, amount_due: totalAmount, amount_paid: 0, status: "pending",
     });
@@ -557,7 +561,15 @@ export async function updateStudentStatusAction(formData: FormData) {
   const status = getString(formData, "status");
   if (!readerId || !MANAGEABLE_STUDENT_STATUSES.has(status)) return;
 
-  await supabase.from("readers").update({ status }).eq("id", readerId);
+  if (status === "archived") {
+    const { data: reader } = await supabase.from("readers").select("fixed_seat_id").eq("id", readerId).maybeSingle();
+    if (reader?.fixed_seat_id) {
+      await supabase.from("seats").update({ status: "available", assigned_reader_id: null }).eq("id", reader.fixed_seat_id);
+    }
+    await supabase.from("readers").update({ status, fixed_seat_id: null }).eq("id", readerId);
+  } else {
+    await supabase.from("readers").update({ status }).eq("id", readerId);
+  }
 
   revalidatePath("/super-admin/students");
   revalidatePath("/staff/students");
@@ -641,7 +653,7 @@ export async function convertStudentToMonthlyAction(formData: FormData) {
   const totalAmount = invoice.baseAmount + registrationAmount + cautionAmount;
 
   const { error: createBillError } = await supabase.from("bills").insert({
-    reader_id: reader.id, month: null, year: null, due_date: getIsoDateOnly(getISTDate()), invoice_kind: "manual", title: "Monthly conversion invoice",
+    reader_id: reader.id, month: null, year: null, due_date: getIsoDateOnly(getISTDate()), invoice_kind: "admission", title: "Monthly conversion invoice",
     base_amount: invoice.baseAmount, registration_amount: registrationAmount, caution_amount: cautionAmount, prorated_days: invoice.remainingDays ?? null, amount_due: totalAmount, amount_paid: 0, status: "pending",
   });
   

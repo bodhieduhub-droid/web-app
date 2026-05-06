@@ -108,13 +108,16 @@ export async function releaseSeat(formData: FormData) {
 
   if (!seatId) return;
 
-  await supabase.from("seats").update({
-    status: "available",
-    assigned_reader_id: null,
-    blocked_by_profile_id: null,
-    block_reason: null,
-    linked_enquiry_id: null,
-  }).eq("id", seatId);
+  await Promise.all([
+    supabase.from("seats").update({
+      status: "available",
+      assigned_reader_id: null,
+      blocked_by_profile_id: null,
+      block_reason: null,
+      linked_enquiry_id: null,
+    }).eq("id", seatId),
+    supabase.from("readers").update({ fixed_seat_id: null }).eq("fixed_seat_id", seatId)
+  ]);
 
   revalidatePath("/super-admin/seats");
   revalidatePath("/staff/seats");
