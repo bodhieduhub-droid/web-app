@@ -114,12 +114,15 @@ function money(value: number) {
 
 export default async function SuperAdminStudentDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<StudentDetailParams>;
+  searchParams?: Promise<Record<string, string | undefined>>;
 }) {
   await requireDashboardContext(["super_admin", "staff"]);
 
   const { id } = await params;
+  const resolvedSearchParams = (await searchParams) ?? {};
   const supabase = createAdminClient();
 
   const [studentRes, seatsRes, billsRes, txRes, exitsRes, nightLogsRes, notificationsRes, seatShiftsRes] = await Promise.all([
@@ -262,6 +265,15 @@ export default async function SuperAdminStudentDetailPage({
     .sort((a, b) => +new Date(b.at) - +new Date(a.at))
     .slice(0, 30);
 
+  const backParams = new URLSearchParams();
+  if (resolvedSearchParams.q) backParams.set("q", resolvedSearchParams.q);
+  if (resolvedSearchParams.status) backParams.set("status", resolvedSearchParams.status);
+  if (resolvedSearchParams.type) backParams.set("type", resolvedSearchParams.type);
+  if (resolvedSearchParams.billing) backParams.set("billing", resolvedSearchParams.billing);
+  if (resolvedSearchParams.sort) backParams.set("sort", resolvedSearchParams.sort);
+  if (resolvedSearchParams.page) backParams.set("page", resolvedSearchParams.page);
+  const backHref = `/super-admin/students${backParams.toString() ? `?${backParams.toString()}` : ""}`;
+
   return (
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
@@ -309,7 +321,7 @@ export default async function SuperAdminStudentDetailPage({
                 </>
               ) : null}
               <Link
-                href="/super-admin/students"
+                href={backHref}
                 className="inline-block rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black text-[#1b3022]"
               >
                 Back to Listing

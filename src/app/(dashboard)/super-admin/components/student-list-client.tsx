@@ -1,6 +1,7 @@
 "use client";
 
 import { useOptimistic, useTransition, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { bulkStudentBatchAction } from "@/app/(dashboard)/actions";
@@ -44,6 +45,8 @@ export function StudentListClient({ students, billMap, statusOptions }: StudentL
       });
     }
   );
+  const searchParams = useSearchParams();
+  const currentParams = searchParams.toString();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -172,7 +175,7 @@ export function StudentListClient({ students, billMap, statusOptions }: StudentL
                   <td className="px-5 py-4">
                     <div className="flex flex-wrap gap-2">
                       <Link
-                        href={`/super-admin/students/${student.id}`}
+                        href={`/super-admin/students/${student.id}${currentParams ? `?${currentParams}` : ""}`}
                         className="rounded-xl border border-[#d8e0d4] bg-white hover:bg-[#f0f5ec] px-3 py-2 text-xs font-black text-[#1b3022] shadow-sm transition-colors"
                       >
                         View Details

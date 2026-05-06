@@ -17,6 +17,7 @@ type SearchParams = {
   billing?: string;
   page?: string;
   type?: string;
+  sort?: string;
 };
 
 type BillingAggregate = {
@@ -78,11 +79,12 @@ function passesBillingFilter(billing: BillingAggregate, filter: string) {
   return true;
 }
 
-async function StudentListContainer({ query, statusFilter, typeFilter, billingFilter, page }: {
+async function StudentListContainer({ query, statusFilter, typeFilter, billingFilter, sort, page }: {
   query: string;
   statusFilter: string;
   typeFilter: string;
   billingFilter: string;
+  sort: string;
   page: number;
 }) {
   const supabase = createAdminClient();
@@ -90,7 +92,7 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
 
   let idsQuery = supabase
     .from("readers")
-    .select("id", { count: "exact" });
+    .select("id, seats:fixed_seat_id(seat_number)", { count: "exact" });
 
   if (statusFilter !== "all") idsQuery = idsQuery.eq("status", statusFilter);
   if (typeFilter !== "all") idsQuery = idsQuery.eq("reader_type", typeFilter);
@@ -109,9 +111,9 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
     return <div className="p-8 text-center bg-red-50 text-red-600 rounded-[2rem] border border-red-100 font-bold">Error loading student IDs. Please refresh.</div>;
   }
 
-  const allMatchedIds = (allMatchedIdsRows ?? []).map((row) => row.id as string);
+  const allMatchedIds = (allMatchedIdsRows ?? []) as any[];
 
-  let filteredIds = allMatchedIds;
+  let filteredStudents = allMatchedIds;
   let billMap = new Map<string, BillingAggregate>();
 
   // Fetch only open bills once
@@ -125,11 +127,21 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
   billMap = computeBillingMap(allOpenBills ?? []);
   
   if (billingFilter !== "all") {
-    filteredIds = allMatchedIds.filter((id) => {
-      const billing = billMap.get(id) ?? { openCount: 0, overdueCount: 0, totalDue: 0 };
+    filteredStudents = allMatchedIds.filter((row) => {
+      const billing = billMap.get(row.id) ?? { openCount: 0, overdueCount: 0, totalDue: 0 };
       return passesBillingFilter(billing, billingFilter);
     });
   }
+
+  if (sort === "seat") {
+    filteredStudents.sort((a, b) => {
+      const sA = a.seats?.seat_number ?? 9999;
+      const sB = b.seats?.seat_number ?? 9999;
+      return sA - sB;
+    });
+  }
+
+  const filteredIds = filteredStudents.map(s => s.id);
 
   const totalCount = billingFilter === "all" ? allMatchedCount ?? 0 : filteredIds.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -194,13 +206,13 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
         </p>
         <div className="flex gap-2">
           <Link
-            href={`?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}&type=${encodeURIComponent(typeFilter)}&billing=${encodeURIComponent(billingFilter)}&page=${Math.max(1, currentPage - 1)}`}
+            href={`?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}&type=${encodeURIComponent(typeFilter)}&billing=${encodeURIComponent(billingFilter)}&sort=${encodeURIComponent(sort)}&page=${Math.max(1, currentPage - 1)}`}
             className={`rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black ${currentPage <= 1 ? "pointer-events-none opacity-40" : "text-[#1b3022]"}`}
           >
             Previous
           </Link>
           <Link
-            href={`?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}&type=${encodeURIComponent(typeFilter)}&billing=${encodeURIComponent(billingFilter)}&page=${Math.min(totalPages, currentPage + 1)}`}
+            href={`?q=${encodeURIComponent(query)}&status=${encodeURIComponent(statusFilter)}&type=${encodeURIComponent(typeFilter)}&billing=${encodeURIComponent(billingFilter)}&sort=${encodeURIComponent(sort)}&page=${Math.min(totalPages, currentPage + 1)}`}
             className={`rounded-xl border border-[#d8e0d4] px-3 py-2 text-xs font-black ${currentPage >= totalPages ? "pointer-events-none opacity-40" : "text-[#1b3022]"}`}
           >
             Next
@@ -223,6 +235,7 @@ export default async function SuperAdminStudentsPage({
   const statusFilter = (resolvedSearchParams.status ?? "all").trim();
   const typeFilter = (resolvedSearchParams.type ?? "all").trim();
   const billingFilter = (resolvedSearchParams.billing ?? "all").trim();
+  const sort = (resolvedSearchParams.sort ?? "").trim();
   const page = Math.max(1, Number(resolvedSearchParams.page ?? 1) || 1);
 
   return (
@@ -242,7 +255,7 @@ export default async function SuperAdminStudentsPage({
         </Link>
       </section>
 
-      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_160px_160px_160px]">
+      <div className="grid gap-3 rounded-[1.6rem] border border-[#d8e0d4] bg-white p-4 shadow-lg shadow-[#27452e]/6 md:grid-cols-[1fr_160px_160px_160px_160px]">
         <DebouncedSearch defaultValue={query} placeholder="Search by name, phone, email" className="relative z-10" />
         <URLSelect
           name="status"
@@ -272,6 +285,14 @@ export default async function SuperAdminStudentsPage({
             { value: "clear", label: "Cleared" },
           ]}
         />
+        <URLSelect
+          name="sort"
+          defaultValue={sort}
+          options={[
+            { value: "", label: "Default Sort" },
+            { value: "seat", label: "Sort by Seat" },
+          ]}
+        />
       </div>
 
       <Suspense fallback={
@@ -284,7 +305,7 @@ export default async function SuperAdminStudentsPage({
           </div>
         </div>
       }>
-        <StudentListContainer query={query} statusFilter={statusFilter} typeFilter={typeFilter} billingFilter={billingFilter} page={page} />
+        <StudentListContainer query={query} statusFilter={statusFilter} typeFilter={typeFilter} billingFilter={billingFilter} sort={sort} page={page} />
       </Suspense>
     </div>
   );
