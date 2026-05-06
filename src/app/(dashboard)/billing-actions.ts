@@ -351,7 +351,7 @@ export async function updateBillFromAdminAction(formData: FormData) {
 
   const { data: billInfo } = await supabase.from("bills").select("reader_id, invoice_kind").eq("id", billId).single();
 
-  if (nextStatus === "paid") {
+  if (nextStatus === "paid" && billInfo) {
     await syncStudentStatusWithBills(supabase, billInfo.reader_id);
   }
 
