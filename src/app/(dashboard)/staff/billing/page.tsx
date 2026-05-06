@@ -8,7 +8,7 @@ import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { OptimisticTransactionVerification } from "./optimistic-transaction-verification";
 
 type PaymentRow = BillRecord & {
-  readers?: { name?: string; phone?: string } | null;
+  readers?: { name?: string; phone?: string; seats?: { seat_number?: number } | null } | null;
   transactions?: TransactionRecord[] | null;
 };
 type BillAuditRow = {
@@ -51,7 +51,7 @@ export default async function StaffBillingPage({
 
   let billsQuery = supabase
     .from("bills")
-    .select("*, readers!inner(name, phone), transactions(*)", { count: "exact" })
+    .select("*, readers!inner(name, phone, seats:fixed_seat_id(seat_number)), transactions(*)", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (query) {
@@ -83,9 +83,20 @@ export default async function StaffBillingPage({
     sunday.setUTCDate(sunday.getUTCDate() + 6);
     billsQuery = billsQuery.gte("due_date", getISTDateString(monday)).lte("due_date", getISTDateString(sunday));
   }
+  
+  // For staff we always sort by seat number by default for easy desk verification
+  const { data: billsRaw, count } = await billsQuery.limit(1000);
+  const totalCount = count ?? 0;
+  let allMatchingBills = (billsRaw ?? []) as PaymentRow[];
+  
+  allMatchingBills.sort((a, b) => {
+    const sA = a.readers?.seats?.seat_number ?? 9999;
+    const sB = b.readers?.seats?.seat_number ?? 9999;
+    return sA - sB;
+  });
 
-  const { data: bills, count } = await billsQuery.range(from, to);
-  const billIds = (bills ?? []).map((bill) => bill.id);
+  const bills = allMatchingBills.slice(from, to + 1);
+  const billIds = bills.map((bill) => bill.id);
   const { data: financeRows } = await supabase
     .from("transactions")
     .select("amount,type,payment_mode")
@@ -169,9 +180,14 @@ export default async function StaffBillingPage({
           return (
             <article key={bill.id} className="rounded-[2rem] border border-[#d8e0d4] bg-white p-6 shadow-lg shadow-[#27452e]/6">
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-2xl font-black text-[#1b3022]">{bill.readers?.name || "Student"}</p>
-                  <p className="mt-2 text-sm font-medium text-[#556455]">{bill.title || bill.invoice_kind}</p>
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1b3022] text-lg font-black text-white shadow-lg shadow-[#1b3022]/20">
+                    #{bill.readers?.seats?.seat_number || "??"}
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black text-[#1b3022]">{bill.readers?.name || "Student"}</p>
+                    <p className="mt-1 text-sm font-medium text-[#556455]">{bill.title || bill.invoice_kind}</p>
+                  </div>
                 </div>
                 <span className="rounded-full bg-[#f2f6ef] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#60705f]">
                   {bill.status.replaceAll("_", " ")}

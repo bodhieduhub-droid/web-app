@@ -2,89 +2,84 @@
 // Each fetches independently so the page shell renders instantly.
 
 import Link from "next/link";
-import { finalizeFinance, getFinancePeriodWindow, summarizeFinance } from "@/lib/finance-utils";
+import { getFinancePeriodWindow } from "@/lib/finance-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateToIST } from "@/lib/utils";
-import { TrendChart } from "@/app/(dashboard)/super-admin/components/trend-chart";
-import { RecentActivityLog, type ActivityLog } from "@/app/(dashboard)/super-admin/components/recent-activity-log";
-
-import { getISTStartOfDay, getISTDateString } from "@/lib/date-utils";
+import { unstable_cache } from "next/cache";
+import { getISTStartOfDay } from "@/lib/date-utils";
 
 import { MetricCardsDisplay } from "./metric-cards-display";
+import { AnalyticsDisplay } from "./analytics-display";
+
+// ─── Optimized Data Fetching (Cached) ────────────────────────────────────────
+
+const getCachedMetrics = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase.rpc("get_super_admin_metrics");
+    if (error) {
+      console.error("Error fetching metrics via RPC:", error);
+      return null;
+    }
+    return data;
+  },
+  ["super-admin-metrics"],
+  { revalidate: 60, tags: ["dashboard-metrics"] }
+);
+
+const getCachedFinance = unstable_cache(
+  async (daily: any, weekly: any, monthly: any) => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase.rpc("get_consolidated_finance_summary", {
+      p_daily_start: daily.startIso,
+      p_daily_end: daily.endIso,
+      p_weekly_start: weekly.startIso,
+      p_weekly_end: weekly.endIso,
+      p_monthly_start: monthly.startIso,
+      p_monthly_end: monthly.endIso,
+    });
+    if (error) {
+      console.error("Error fetching finance via RPC:", error);
+      return null;
+    }
+    return data;
+  },
+  ["super-admin-finance"],
+  { revalidate: 300, tags: ["dashboard-finance"] }
+);
 
 // ─── Core Metric Cards ────────────────────────────────────────────────────────
 export async function SuperAdminMetricCards() {
-  const supabase = createAdminClient();
-  const todayIso = getISTStartOfDay();
+  const metrics = await getCachedMetrics();
 
-  const [
-    { count: enquiryCount },
-    { count: studentCount },
-    { count: availableSeats },
-    { count: openBills },
-    { count: overdueBills },
-    { count: openSupportTickets },
-    { count: totalSeats },
-    { count: occupiedSeats },
-    { count: pendingExits },
-    { count: pendingProofs },
-    { data: todayCollections },
-  ] = await Promise.all([
-    supabase.from("enquiries").select("*", { count: "exact", head: true }).in("status", ["new", "contacted", "seat_blocked"]),
-    supabase.from("readers").select("*", { count: "exact", head: true }).eq("status", "active"),
-    supabase.from("seats").select("*", { count: "exact", head: true }).eq("status", "available"),
-    supabase.from("bills").select("*", { count: "exact", head: true }).in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"]),
-    supabase.from("bills").select("*", { count: "exact", head: true }).eq("status", "overdue"),
-    supabase.from("student_support_tickets").select("*", { count: "exact", head: true }).in("status", ["open", "in_review"]),
-    supabase.from("seats").select("*", { count: "exact", head: true }),
-    supabase.from("seats").select("*", { count: "exact", head: true }).eq("status", "occupied"),
-    supabase.from("exit_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    supabase.from("transactions").select("*", { count: "exact", head: true }).eq("verification_status", "pending"),
-    supabase.from("transactions").select("amount").eq("verification_status", "verified").gte("verified_at", todayIso),
-  ]);
+  if (!metrics) {
+    return <div className="p-8 text-center text-red-500 font-bold">Failed to load metrics.</div>;
+  }
 
-  const occupancyPct = totalSeats ? Math.round(((occupiedSeats ?? 0) / totalSeats) * 100) : 0;
-  const collectionToday = (todayCollections ?? []).reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+  // Calculate occupancy locally (UI logic)
+  const occupancyPct = metrics.totalSeats ? Math.round(((metrics.occupiedSeats ?? 0) / metrics.totalSeats) * 100) : 0;
 
-  const metrics = {
-    enquiryCount: enquiryCount ?? 0,
-    studentCount: studentCount ?? 0,
-    availableSeats: availableSeats ?? 0,
-    openBills: openBills ?? 0,
-    collectionToday,
-    overdueBills: overdueBills ?? 0,
-    occupancyPct,
-    pendingExits: pendingExits ?? 0,
-    pendingProofs: pendingProofs ?? 0,
-    openSupportTickets: openSupportTickets ?? 0,
-  };
-
-  return <MetricCardsDisplay data={metrics} />;
+  return <MetricCardsDisplay data={{ ...metrics, occupancyPct }} />;
 }
 
 // ─── Finance Cards ────────────────────────────────────────────────────────────
 export async function SuperAdminFinanceCards() {
-  const supabase = createAdminClient();
   const dailyWindow = getFinancePeriodWindow("daily");
   const weeklyWindow = getFinancePeriodWindow("weekly");
   const monthlyWindow = getFinancePeriodWindow("monthly");
 
-  const [{ data: dailyTx }, { data: weeklyTx }, { data: monthlyTx }] = await Promise.all([
-    supabase.from("transactions").select("amount,type,payment_mode").in("verification_status", ["verified", "closed"]).gte("verified_at", dailyWindow.startIso).lt("verified_at", dailyWindow.endIso),
-    supabase.from("transactions").select("amount,type,payment_mode").in("verification_status", ["verified", "closed"]).gte("verified_at", weeklyWindow.startIso).lt("verified_at", weeklyWindow.endIso),
-    supabase.from("transactions").select("amount,type,payment_mode").in("verification_status", ["verified", "closed"]).gte("verified_at", monthlyWindow.startIso).lt("verified_at", monthlyWindow.endIso),
-  ]);
+  const summaries = await getCachedFinance(dailyWindow, weeklyWindow, monthlyWindow);
 
-  const dailyFinance = finalizeFinance(summarizeFinance(dailyTx));
-  const weeklyFinance = finalizeFinance(summarizeFinance(weeklyTx));
-  const monthlyFinance = finalizeFinance(summarizeFinance(monthlyTx));
+  if (!summaries) {
+    return <div className="p-8 text-center text-red-500 font-bold">Failed to load finance data.</div>;
+  }
 
   return (
     <section className="grid gap-4 md:grid-cols-3">
       {[
-        { label: "Today", summary: dailyFinance, period: "daily" },
-        { label: "This Week", summary: weeklyFinance, period: "weekly" },
-        { label: "This Month", summary: monthlyFinance, period: "monthly" },
+        { label: "Today", summary: summaries.daily, period: "daily" },
+        { label: "This Week", summary: summaries.weekly, period: "weekly" },
+        { label: "This Month", summary: summaries.monthly, period: "monthly" },
       ].map((item) => (
         <Link key={item.label} href={`/super-admin/billing?period=${item.period}`} className="premium-card relative group p-6 overflow-hidden flex flex-col justify-between min-h-[140px]">
           <div className="premium-card-inner"></div>
@@ -92,9 +87,9 @@ export async function SuperAdminFinanceCards() {
           
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#6d7c6c] relative z-10">{item.label} Finance</p>
           <div className="mt-4 relative z-10">
-            <p className="text-3xl font-black text-[#1b3022] transition-transform duration-200 group-hover:translate-x-1">₹{item.summary.net.toFixed(0)}</p>
-            <p className="mt-2 text-sm font-semibold text-emerald-700">Revenue ₹{item.summary.revenue.toFixed(0)}</p>
-            <p className="text-sm font-semibold text-[#7d2f2f]">Expense ₹{item.summary.expense.toFixed(0)}</p>
+            <p className="text-3xl font-black text-[#1b3022] transition-transform duration-200 group-hover:translate-x-1">₹{Number(item.summary.net ?? 0).toFixed(0)}</p>
+            <p className="mt-2 text-sm font-semibold text-emerald-700">Revenue ₹{Number(item.summary.revenue ?? 0).toFixed(0)}</p>
+            <p className="text-sm font-semibold text-[#7d2f2f]">Expense ₹{Number(item.summary.expense ?? 0).toFixed(0)}</p>
           </div>
         </Link>
       ))}
@@ -102,37 +97,32 @@ export async function SuperAdminFinanceCards() {
   );
 }
 
-import { AnalyticsDisplay } from "./analytics-display";
-
 // ─── Analytics & Activity (SLOWEST) ──────────────────────────────────────────
 export async function SuperAdminAnalytics() {
   const supabase = createAdminClient();
-  const thirtyDaysIso = getISTStartOfDay(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000));
 
-  const [{ data: chartTx }, { data: recentEnquiries }, { data: recentStudents }, { data: recentBills }, { data: recentTx }] = await Promise.all([
-    supabase.from("transactions").select("amount,verified_at").eq("verification_status", "verified").gte("verified_at", thirtyDaysIso).order("verified_at", { ascending: true }),
+  // Fetch trend data via RPC and recent activities in parallel
+  const [
+    { data: trendDataRaw },
+    { data: recentEnquiries },
+    { data: recentStudents },
+    { data: recentBills },
+    { data: recentTx }
+  ] = await Promise.all([
+    supabase.rpc("get_revenue_trend_30d"),
     supabase.from("enquiries").select("id, name, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("readers").select("id, name, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("bills").select("id, title, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("transactions").select("id, amount, submitted_at").order("submitted_at", { ascending: false }).limit(5),
   ]);
 
-  // Build 30-day trend map
-  const trendDataMap = new Map<string, number>();
-  const startDate = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-    trendDataMap.set(getISTDateString(d), 0);
-  }
-  chartTx?.forEach((tx) => {
-    if (tx.verified_at) {
-      const dateKey = getISTDateString(new Date(tx.verified_at));
-      if (trendDataMap.has(dateKey)) trendDataMap.set(dateKey, trendDataMap.get(dateKey)! + Number(tx.amount || 0));
-    }
-  });
-  const trendData = Array.from(trendDataMap.entries()).map(([date, revenue]) => ({ date, revenue }));
+  // Format trend data for display
+  const trendData = (trendDataRaw || []).map((row: any) => ({
+    date: row.trend_date,
+    revenue: Number(row.revenue)
+  }));
 
-  const activities: ActivityLog[] = [
+  const activities = [
     ...(recentEnquiries || []).map((e) => ({ id: `enq-${e.id}`, type: "enquiry" as const, title: "New Enquiry", description: `${e.name} submitted an enquiry`, timestamp: e.created_at })),
     ...(recentStudents || []).map((s) => ({ id: `stu-${s.id}`, type: "student" as const, title: "New Admission", description: `${s.name} joined Bodhi Edu Hub`, timestamp: s.created_at })),
     ...(recentBills || []).map((b) => ({ id: `bill-${b.id}`, type: "invoice" as const, title: "Invoice Generated", description: b.title || "New invoice generated", timestamp: b.created_at })),

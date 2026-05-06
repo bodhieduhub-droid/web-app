@@ -30,7 +30,7 @@ type SearchParams = {
 };
 
 type BillDetailRow = BillRecord & {
-  readers?: { id?: string; name?: string; phone?: string; email?: string } | null;
+  readers?: { id?: string; name?: string; phone?: string; email?: string; seats?: { seat_number?: number } | null } | null;
   transactions?: TransactionRecord[] | null;
 };
 
@@ -71,7 +71,7 @@ export default async function BillingDetailPage({
   const [{ data: bill }, { data: audits }] = await Promise.all([
     supabase
       .from("bills")
-      .select("*, readers(id,name,phone,email), transactions(*)")
+      .select("*, readers(id,name,phone,email,seats:fixed_seat_id(seat_number)), transactions(*)")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -141,6 +141,7 @@ export default async function BillingDetailPage({
             <h1 className="mt-3 text-3xl font-black text-[#1b3022]">{detail.title || detail.invoice_kind}</h1>
             <p className="mt-2 text-sm font-semibold text-[#536352]">Invoice ID: {detail.id}</p>
             <p className="text-sm font-semibold text-[#536352]">Student: {detail.readers?.name || "Student"}</p>
+            <p className="text-sm font-semibold text-[#536352]">Seat: #{detail.readers?.seats?.seat_number || "??"}</p>
             <p className="text-sm font-semibold text-[#536352]">Phone: {detail.readers?.phone || "No phone"}</p>
           </div>
           <div className="text-right">

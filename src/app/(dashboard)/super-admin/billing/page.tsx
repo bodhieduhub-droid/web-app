@@ -18,10 +18,11 @@ type SearchParams = {
   status?: string;
   period?: string;
   page?: string;
+  sort?: string;
 };
 
 type BillRow = BillRecord & {
-  readers?: { id?: string; name?: string; phone?: string } | null;
+  readers?: { id?: string; name?: string; phone?: string; seats?: { seat_number?: number } | null } | null;
   transactions?: TransactionRecord[] | null;
 };
 
@@ -42,11 +43,12 @@ export default async function SuperAdminBillingPage({
   const initialPage = Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1);
   const from = (initialPage - 1) * pageSize;
   const to = from + pageSize - 1;
+  const sort = (resolvedSearchParams.sort ?? "").trim();
 
   const supabase = createAdminClient();
   let billsQuery = supabase
     .from("bills")
-    .select("*, readers!inner(id, name, phone), transactions(*)", { count: "exact" })
+    .select("*, readers!inner(id, name, phone, seats:fixed_seat_id(seat_number)), transactions(*)", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (statusFilter !== "all") billsQuery = billsQuery.eq("status", statusFilter);
@@ -81,9 +83,21 @@ export default async function SuperAdminBillingPage({
     billsQuery = billsQuery.or(orFilter);
   }
 
-  const { data: billsRaw, count } = await billsQuery.range(from, to);
+  // If sorting by seat, we fetch more to allow in-memory sorting of the "current view"
+  // For larger hubs we'd use a view, but for ~100 students this is perfect
+  const { data: billsRaw, count } = await (sort === "seat" ? billsQuery.limit(1000) : billsQuery.range(from, to));
   const totalCount = count ?? 0;
-  const bills = (billsRaw ?? []) as BillRow[];
+  let bills = (billsRaw ?? []) as BillRow[];
+
+  if (sort === "seat") {
+    bills.sort((a, b) => {
+      const sA = a.readers?.seats?.seat_number ?? 9999;
+      const sB = b.readers?.seats?.seat_number ?? 9999;
+      return sA - sB;
+    });
+    // Re-paginate after sorting
+    bills = bills.slice(from, to + 1);
+  }
 
   const { data: financeRows } = await supabase
     .from("transactions")
@@ -102,6 +116,7 @@ export default async function SuperAdminBillingPage({
     if (query) params.set("q", query);
     if (statusFilter !== "all") params.set("status", statusFilter);
     if (financePeriod !== "daily") params.set("period", financePeriod);
+    if (sort) params.set("sort", sort);
     params.set("page", String(p));
     return `?${params.toString()}`;
   };
@@ -144,6 +159,14 @@ export default async function SuperAdminBillingPage({
             { value: "monthly", label: "Monthly Period" },
           ]}
         />
+        <URLSelect
+          name="sort"
+          defaultValue={sort}
+          options={[
+            { value: "", label: "Default Sort" },
+            { value: "seat", label: "Sort by Seat" },
+          ]}
+        />
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -169,6 +192,7 @@ export default async function SuperAdminBillingPage({
           <thead className="bg-[#f5f8f3] border-b border-[#e4eae0]">
             <tr className="text-[11px] font-black uppercase tracking-[0.2em] text-[#6d7c6c]">
               <th className="px-6 py-4">Invoice</th>
+              <th className="px-6 py-4">Seat</th>
               <th className="px-6 py-4">Student</th>
               <th className="px-6 py-4 text-right">Amount</th>
               <th className="px-6 py-4 text-center">Status</th>
@@ -181,6 +205,11 @@ export default async function SuperAdminBillingPage({
                 <td className="px-6 py-4">
                   <p className="font-black text-[#1b3022]">{bill.title || bill.invoice_kind.replaceAll("_", " ")}</p>
                   <p className="text-[10px] font-bold text-[#6d7c6c] uppercase tracking-wider">{bill.id.slice(0, 8)}</p>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="inline-flex items-center justify-center rounded-lg bg-[#1b3022] px-2 py-1 text-[11px] font-black text-white">
+                    #{bill.readers?.seats?.seat_number || "??"}
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <p className="font-black text-[#1b3022]">{bill.readers?.name}</p>
@@ -206,6 +235,7 @@ export default async function SuperAdminBillingPage({
                       if (query) p.set("q", query);
                       if (statusFilter !== "all") p.set("status", statusFilter);
                       if (financePeriod !== "daily") p.set("period", financePeriod);
+                      if (sort) p.set("sort", sort);
                       if (initialPage > 1) p.set("page", String(initialPage));
                       return p.toString();
                     })()}`}
@@ -218,7 +248,7 @@ export default async function SuperAdminBillingPage({
             ))}
             {bills.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-sm font-bold text-[#6d7c6c] italic">
+                <td colSpan={6} className="px-6 py-12 text-center text-sm font-bold text-[#6d7c6c] italic">
                   No billing records found matching your filters.
                 </td>
               </tr>
