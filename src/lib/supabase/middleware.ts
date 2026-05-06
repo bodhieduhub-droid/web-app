@@ -100,23 +100,26 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
+    // Only fetch student status if we are on a student path
     const { data: student } = await supabase
       .from("readers")
       .select("onboarding_completed, status, caution_refunded")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (student?.status === "archived" && student.caution_refunded === true) {
-      await supabase.auth.signOut();
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
+    if (student) {
+      if (student.status === "archived" && student.caution_refunded === true) {
+        await supabase.auth.signOut();
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        return NextResponse.redirect(url);
+      }
 
-    if (student && student.status !== "archived" && !student.onboarding_completed && !pathname.startsWith("/student/onboarding")) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/student/onboarding";
-      return NextResponse.redirect(url);
+      if (student.status !== "archived" && !student.onboarding_completed && !pathname.startsWith("/student/onboarding")) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/student/onboarding";
+        return NextResponse.redirect(url);
+      }
     }
   }
 

@@ -101,7 +101,7 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
     idsQuery = idsQuery.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
   }
 
-  // Fetch a larger set of IDs to handle client-side billing filters
+  // 1. Fetch IDs
   const { data: allMatchedIdsRows, count: allMatchedCount, error: idsError } = await idsQuery
     .order("created_at", { ascending: false })
     .range(0, 2000);
@@ -112,20 +112,23 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
   }
 
   const allMatchedIds = (allMatchedIdsRows ?? []) as any[];
+  const allMatchedIdsList = allMatchedIds.map(s => s.id);
+
+  // 2. Fetch Bills (Parallelize or Delay depending on filters)
+  let billMap = new Map<string, BillingAggregate>();
+  
+  if (billingFilter !== "all") {
+    // If filtering by billing, we need all open bills for all matched students
+    const { data: matchedBills } = await supabase
+      .from("bills")
+      .select("reader_id,status,amount_due,amount_paid")
+      .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"])
+      .in("reader_id", allMatchedIdsList);
+    
+    billMap = computeBillingMap(matchedBills ?? []);
+  }
 
   let filteredStudents = allMatchedIds;
-  let billMap = new Map<string, BillingAggregate>();
-
-  // Fetch only open bills once
-  const { data: allOpenBills, error: billsError } = await supabase
-    .from("bills")
-    .select("reader_id,status,amount_due,amount_paid")
-    .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"]);
-
-  if (billsError) console.error("[StudentList] Bills Fetch Error:", billsError);
-
-  billMap = computeBillingMap(allOpenBills ?? []);
-  
   if (billingFilter !== "all") {
     filteredStudents = allMatchedIds.filter((row) => {
       const billing = billMap.get(row.id) ?? { openCount: 0, overdueCount: 0, totalDue: 0 };
@@ -142,7 +145,6 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
   }
 
   const filteredIds = filteredStudents.map(s => s.id);
-
   const totalCount = billingFilter === "all" ? allMatchedCount ?? 0 : filteredIds.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -150,20 +152,35 @@ async function StudentListContainer({ query, statusFilter, typeFilter, billingFi
   const to = from + pageSize;
   const pageIds = filteredIds.slice(from, to);
 
-  const { data: studentsRaw, error: studentsError } = pageIds.length
-    ? await supabase
-        .from("readers")
-        .select(
-          "id,name,email,phone,reader_type,status,monthly_fee,onboarding_completed,caution_refunded,fixed_seat_id,seats:fixed_seat_id(seat_number)",
-        )
-        .in("id", pageIds)
-    : { data: [] as any, error: null };
+  // 3. Fetch Student Data + Bills for the current page (if not already fetched)
+  const [studentsRes, pageBillsRes] = await Promise.all([
+    pageIds.length
+      ? supabase
+          .from("readers")
+          .select(
+            "id,name,email,phone,reader_type,status,monthly_fee,onboarding_completed,caution_refunded,fixed_seat_id,seats:fixed_seat_id(seat_number)",
+          )
+          .in("id", pageIds)
+      : Promise.resolve({ data: [] as any, error: null }),
+    (billingFilter === "all" && pageIds.length)
+      ? supabase
+          .from("bills")
+          .select("reader_id,status,amount_due,amount_paid")
+          .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"])
+          .in("reader_id", pageIds)
+      : Promise.resolve({ data: null, error: null })
+  ]);
 
-  if (studentsError) {
-    console.error("[StudentList] Students Fetch Error:", studentsError);
+  if (studentsRes.error) {
+    console.error("[StudentList] Students Fetch Error:", studentsRes.error);
     return <div className="p-8 text-center bg-red-50 text-red-600 rounded-[2rem] border border-red-100 font-bold">Error loading student data. Please refresh.</div>;
   }
 
+  if (billingFilter === "all" && pageBillsRes.data) {
+    billMap = computeBillingMap(pageBillsRes.data);
+  }
+
+  const studentsRaw = studentsRes.data;
   const studentsById = new Map((studentsRaw ?? []).map((row: any) => [row.id as string, row as StudentRow]));
   const students = pageIds
     .map((id) => studentsById.get(id))

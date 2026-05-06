@@ -118,10 +118,18 @@ export default function RootLayout({
                   );
                 }
 
-                Promise.all(tasks).finally(function () {
-                  if (shouldReload) {
+                Promise.all(tasks).then(function (results) {
+                  // Only reload if we actually found something to clean up
+                  var swRegs = results[0] || [];
+                  var cacheKeys = results[1] || [];
+                  var didCleanup = swRegs.length > 0 || cacheKeys.length > 0;
+
+                  if (shouldReload && didCleanup) {
                     sessionStorage.setItem(cleanupFlag, "1");
                     window.location.reload();
+                  } else if (shouldReload) {
+                    // Mark as done even if no cleanup was needed, to avoid checking every time
+                    sessionStorage.setItem(cleanupFlag, "1");
                   }
                 });
               })();

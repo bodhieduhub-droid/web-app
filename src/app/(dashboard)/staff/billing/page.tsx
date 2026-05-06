@@ -49,25 +49,37 @@ export default async function StaffBillingPage({
 
   const supabase = createAdminClient();
 
+  // 1. Fetch finance data and matching readers (if query exists) in parallel
+  const [financeRes, matchedReadersRes] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("amount,type,payment_mode")
+      .in("verification_status", ["verified", "closed"])
+      .gte("verified_at", financeWindow.startIso)
+      .lt("verified_at", financeWindow.endIso),
+    query 
+      ? supabase
+          .from("readers")
+          .select("id")
+          .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
+      : Promise.resolve({ data: null })
+  ]);
+
+  const financeRows = financeRes.data;
+  const matchedReaders = matchedReadersRes.data;
+
+  // 2. Prepare the billing query
   let billsQuery = supabase
     .from("bills")
     .select("*, readers!inner(name, phone, seats:fixed_seat_id(seat_number)), transactions(*)", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (query) {
-    // Robust two-step search: First find matching readers, then filter bills
-    const { data: matchedReaders } = await supabase
-      .from("readers")
-      .select("id")
-      .or(`name.ilike.%${query}%,phone.ilike.%${query}%`);
-
     const readerIds = (matchedReaders ?? []).map((r) => r.id);
-
     let orFilter = `title.ilike.%${query}%`;
     if (readerIds.length > 0) {
       orFilter += `,reader_id.in.(${readerIds.join(",")})`;
     }
-    
     billsQuery = billsQuery.or(orFilter);
   }
 
@@ -97,12 +109,8 @@ export default async function StaffBillingPage({
 
   const bills = allMatchingBills.slice(from, to + 1);
   const billIds = bills.map((bill) => bill.id);
-  const { data: financeRows } = await supabase
-    .from("transactions")
-    .select("amount,type,payment_mode")
-    .in("verification_status", ["verified", "closed"])
-    .gte("verified_at", financeWindow.startIso)
-    .lt("verified_at", financeWindow.endIso);
+
+  // 3. Fetch audits for current page
   const { data: audits } = billIds.length
     ? await supabase
         .from("bill_audit_logs")
@@ -110,6 +118,7 @@ export default async function StaffBillingPage({
         .in("bill_id", billIds)
         .order("created_at", { ascending: false })
     : { data: [] };
+
   const finance = finalizeFinance(summarizeFinance(financeRows));
   const auditByBill = new Map<string, BillAuditRow[]>();
   for (const row of (audits ?? []) as BillAuditRow[]) {

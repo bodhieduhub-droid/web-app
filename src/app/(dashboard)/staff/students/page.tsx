@@ -37,13 +37,20 @@ export default async function StaffStudentsPage({
     studentsQuery = studentsQuery.or(`name.ilike.%${query}%,phone.ilike.%${query}%`);
   }
 
-  const [{ data: students }, { data: openBills }] = await Promise.all([
-    studentsQuery.limit(100),
-    supabase
-      .from("bills")
-      .select("reader_id, status")
-      .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"]),
-  ]);
+  // 1. Fetch Students
+  const { data: students, error: studentsError } = await studentsQuery.limit(100);
+  if (studentsError) console.error("[StaffStudents] Students Fetch Error:", studentsError);
+
+  const studentIds = (students ?? []).map(s => s.id);
+
+  // 2. Fetch Open Bills for these specific students only
+  const { data: openBills } = studentIds.length
+    ? await supabase
+        .from("bills")
+        .select("reader_id, status")
+        .in("status", ["pending", "proof_submitted", "partial", "rejected_proof", "overdue"])
+        .in("reader_id", studentIds)
+    : { data: [] };
 
   const openBillReaderIds = new Set((openBills ?? []).map((bill) => bill.reader_id));
 

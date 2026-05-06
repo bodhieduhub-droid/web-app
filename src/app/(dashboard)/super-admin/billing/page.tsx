@@ -46,14 +46,34 @@ export default async function SuperAdminBillingPage({
   const sort = (resolvedSearchParams.sort ?? "").trim();
 
   const supabase = createAdminClient();
+
+  // 1. Fetch finance data and matching readers (if query exists) in parallel
+  const [financeRes, matchedReadersRes] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("amount,type,payment_mode")
+      .in("verification_status", ["verified", "closed"])
+      .gte("verified_at", financeWindow.startIso)
+      .lt("verified_at", financeWindow.endIso),
+    query 
+      ? supabase
+          .from("readers")
+          .select("id")
+          .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
+      : Promise.resolve({ data: null })
+  ]);
+
+  const financeRows = financeRes.data;
+  const matchedReaders = matchedReadersRes.data;
+
+  // 2. Prepare the billing query
   let billsQuery = supabase
     .from("bills")
     .select("*, readers!inner(id, name, phone, seats:fixed_seat_id(seat_number)), transactions(*)", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (statusFilter !== "all") billsQuery = billsQuery.eq("status", statusFilter);
-
-  // Filter bills by selected period
+  
   if (financePeriod === "monthly") {
     const { month, year } = getCurrentBillingPeriod();
     billsQuery = billsQuery.eq("month", month).eq("year", year);
@@ -67,24 +87,15 @@ export default async function SuperAdminBillingPage({
   }
 
   if (query) {
-    // Robust two-step search: First find matching readers, then filter bills
-    const { data: matchedReaders } = await supabase
-      .from("readers")
-      .select("id")
-      .or(`name.ilike.%${query}%,phone.ilike.%${query}%`);
-
     const readerIds = (matchedReaders ?? []).map((r) => r.id);
-
     let orFilter = `title.ilike.%${query}%`;
     if (readerIds.length > 0) {
       orFilter += `,reader_id.in.(${readerIds.join(",")})`;
     }
-    
     billsQuery = billsQuery.or(orFilter);
   }
 
-  // If sorting by seat, we fetch more to allow in-memory sorting of the "current view"
-  // For larger hubs we'd use a view, but for ~100 students this is perfect
+  // 3. Fetch bills
   const { data: billsRaw, count } = await (sort === "seat" ? billsQuery.limit(1000) : billsQuery.range(from, to));
   const totalCount = count ?? 0;
   let bills = (billsRaw ?? []) as BillRow[];
@@ -95,16 +106,8 @@ export default async function SuperAdminBillingPage({
       const sB = b.readers?.seats?.seat_number ?? 9999;
       return sA - sB;
     });
-    // Re-paginate after sorting
     bills = bills.slice(from, to + 1);
   }
-
-  const { data: financeRows } = await supabase
-    .from("transactions")
-    .select("amount,type,payment_mode")
-    .in("verification_status", ["verified", "closed"])
-    .gte("verified_at", financeWindow.startIso)
-    .lt("verified_at", financeWindow.endIso);
 
   const rawStats = summarizeFinance(financeRows ?? []);
   const stats = finalizeFinance(rawStats);

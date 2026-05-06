@@ -7,15 +7,13 @@ export const dynamic = "force-dynamic";
 export default async function ChatbotAdminPage() {
   const supabase = createAdminClient();
 
-  // Fetch metrics (just counting enquiries to simulate chat sessions for now)
-  const { count: leadCount } = await supabase
-    .from("enquiries")
-    .select("*", { count: "exact", head: true });
+  const [leadCountRes, docsRes] = await Promise.all([
+    supabase.from("enquiries").select("*", { count: "exact", head: true }),
+    supabase.from("document_chunks").select("id, source_type, created_at").order("created_at", { ascending: false })
+  ]);
 
-  const { data: docs } = await supabase
-    .from("document_chunks")
-    .select("id, source_type, created_at")
-    .order("created_at", { ascending: false });
+  const leadCount = leadCountRes.count;
+  const docs = docsRes.data;
 
   return (
     <div className="space-y-8">
