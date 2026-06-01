@@ -1,4 +1,5 @@
 "use client";
+// Force turbopack invalidation
 
 import { useMemo } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -34,8 +35,8 @@ export function TrendChart({ data }: { data: TrendData[] }) {
           <h2 className="mt-1 text-xl font-bold text-[#1b3022]">30-Day Revenue Analysis</h2>
         </div>
       </div>
-      <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-[300px] w-full min-w-0">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">

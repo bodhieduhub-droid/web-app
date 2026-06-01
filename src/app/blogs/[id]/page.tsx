@@ -5,7 +5,8 @@ import { ArrowLeft, Calendar, ArrowRight } from "lucide-react";
 import { MarketingFooter } from "@/components/marketing/footer";
 import { MarketingNavbar } from "@/components/marketing/navbar";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseMarkdown } from "@/lib/parse-markdown";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,6 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
       content: "This is a placeholder blog post. In a real scenario, this content would be fetched from your Supabase 'posts' table. Once you add real published blogs to the database, these dummy posts will disappear.",
       cover_image_url: null,
     };
-    
-    const htmlContent = parseMarkdown(dummyPost.content);
 
     return (
       <main className="min-h-screen bg-[#f9f8f6] text-[#1b3022]">
@@ -46,10 +45,11 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          <div 
-            className="prose prose-lg prose-emerald max-w-none break-words"
-            dangerouslySetInnerHTML={{ __html: htmlContent }} 
-          />
+          <div className="prose prose-lg prose-emerald max-w-none break-words prose-headings:font-serif prose-headings:text-[#1b3022] prose-a:text-emerald-700">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {dummyPost.content}
+            </ReactMarkdown>
+          </div>
         </article>
 
         <MarketingFooter />
@@ -68,8 +68,6 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
     console.error("Blog 404 trigger:", { id: resolvedParams.id, error, post: post ? { type: post.type, status: post.status } : "null" });
     notFound();
   }
-
-  const htmlContent = parseMarkdown(post.content);
 
   return (
     <main className="min-h-screen bg-[#f9f8f6] text-[#1b3022]">
@@ -96,10 +94,11 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
             <img src={post.cover_image_url} alt={post.title} className="w-full h-[400px] object-cover rounded-[2rem] mb-12 shadow-xl shadow-[#1b3022]/5" />
         )}
 
-        <div 
-          className="prose prose-lg prose-emerald max-w-none break-words"
-          dangerouslySetInnerHTML={{ __html: htmlContent }} 
-        />
+        <div className="prose prose-lg prose-emerald max-w-none break-words prose-headings:font-serif prose-headings:text-[#1b3022] prose-a:text-emerald-700">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {post.content}
+          </ReactMarkdown>
+        </div>
 
         <div className="mt-16 pt-10 border-t border-[#d8ddcf] flex flex-col items-center text-center">
             <h3 className="font-serif text-3xl text-[#1b3022] mb-4">Ready to elevate your study routine?</h3>

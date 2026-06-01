@@ -10,8 +10,8 @@ import {
   updateStudentSeatAction,
   updateStudentStatusAction,
   verifyStudentIdProofAction,
-  rejectStudentIdProofAction,
 } from "@/app/(dashboard)/actions";
+import { rejectStudentIdProofAction } from "@/app/(dashboard)/student-onboarding-actions";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { requireDashboardContext } from "@/lib/auth";
 import { isRegistrationFeeApplicable } from "@/lib/billing-utils";
@@ -308,7 +308,7 @@ export default async function SuperAdminStudentDetailPage({
                       />
                     </form>
                   )}
-                  {!(student as any).id_proof_verified && (
+                  {student.id_proof_url && (
                     <form action={rejectStudentIdProofAction}>
                       <input type="hidden" name="reader_id" value={student.id} />
                       <PendingSubmitButton

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { createRejoinInvoiceAction, rejoinStudentAction, verifyStudentIdProofAction, rejectStudentIdProofAction } from "@/app/(dashboard)/actions";
+import { createRejoinInvoiceAction, rejoinStudentAction, verifyStudentIdProofAction } from "@/app/(dashboard)/actions";
+import { rejectStudentIdProofAction } from "@/app/(dashboard)/student-onboarding-actions";
 import type { StudentRecord } from "@/lib/app-types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
@@ -167,16 +168,14 @@ export default async function StaffStudentsPage({
                       ID Verified ✓
                     </span>
                   )}
-                  {!(student as any).id_proof_verified && (
-                    <form action={rejectStudentIdProofAction}>
-                      <input type="hidden" name="reader_id" value={student.id} />
-                      <PendingSubmitButton
-                        idleLabel="Reject ID Proof"
-                        pendingLabel="Rejecting..."
-                        className="rounded-2xl border border-[#d8e0d4] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7d2f2f]"
-                      />
-                    </form>
-                  )}
+                  <form action={rejectStudentIdProofAction}>
+                    <input type="hidden" name="reader_id" value={student.id} />
+                    <PendingSubmitButton
+                      idleLabel="Reject ID Proof"
+                      pendingLabel="Rejecting..."
+                      className="rounded-2xl border border-[#d8e0d4] px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7d2f2f]"
+                    />
+                  </form>
                 </>
               )}
 

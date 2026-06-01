@@ -5,7 +5,8 @@ import { ArrowLeft, Calendar, ArrowRight, ExternalLink } from "lucide-react";
 import { MarketingFooter } from "@/components/marketing/footer";
 import { MarketingNavbar } from "@/components/marketing/navbar";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseMarkdown } from "@/lib/parse-markdown";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +23,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   if (error || !post || post.type !== "job" || post.status !== "published") {
     notFound();
   }
-
-  const htmlContent = parseMarkdown(post.content);
   
   // If there's a link_url that's not just a placeholder, we show it prominently
   let displayLink = (post.link_url || "").trim();
@@ -89,10 +88,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </div>
         )}
 
-        <div 
-          className="prose prose-lg prose-emerald max-w-none break-words"
-          dangerouslySetInnerHTML={{ __html: htmlContent }} 
-        />
+        <div className="prose prose-lg prose-emerald max-w-none break-words prose-headings:font-serif prose-headings:text-[#1b3022] prose-a:text-emerald-700">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {post.content}
+          </ReactMarkdown>
+        </div>
 
         {/* Only show reference info if we couldn't find ANY usable link */}
         {!hasLink && !isExtracted && displayLink && (

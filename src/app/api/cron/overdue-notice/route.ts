@@ -33,6 +33,19 @@ export async function GET(request: Request) {
   }
 
   // Find bills that are due before today and not fully paid
+  const { data: billsToMarkOverdue } = await supabase
+    .from("bills")
+    .select("id")
+    .lt("due_date", todayStr)
+    .in("status", ["pending", "partial", "rejected_proof"]);
+
+  if (billsToMarkOverdue && billsToMarkOverdue.length > 0) {
+    await supabase
+      .from("bills")
+      .update({ status: "overdue" })
+      .in("id", billsToMarkOverdue.map(b => b.id));
+  }
+
   const { data: overdueBills } = await supabase
     .from("bills")
     .select("id, amount_due, amount_paid, due_date, readers!inner(id, name, email)")

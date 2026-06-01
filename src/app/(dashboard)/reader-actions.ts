@@ -514,55 +514,6 @@ export async function onboardStudentAction(formData: FormData) {
   }
 }
 
-export async function rejectStudentIdProofAction(formData: FormData) {
-  const { profile } = await requireRole(["super_admin", "staff"]);
-  const supabase = createAdminClient();
-  const readerId = getString(formData, "reader_id");
-
-  if (!readerId) return;
-
-  const { data: student } = await supabase.from("readers").select("id, id_proof_public_id, email, name, user_id").eq("id", readerId).maybeSingle();
-  if (!student) return;
-
-  await supabase.from("readers").update({
-    id_proof_url: null,
-    id_proof_public_id: null,
-    onboarding_completed: false,
-    id_proof_verified: false,
-  }).eq("id", readerId);
-
-  const sideEffects = [];
-
-  if (student.id_proof_public_id) {
-    sideEffects.push(deleteFromCloudinary(student.id_proof_public_id).catch(e => console.error(e)));
-  }
-
-  if (student.email) {
-    sideEffects.push(sendEmail({
-      to: [student.email],
-      subject: "ID Proof Rejected - Re-upload Required",
-      html: `<p>Hi ${student.name},</p><p>The ID proof you uploaded during onboarding was rejected. Please log in to your dashboard and re-upload a valid ID proof.</p>`,
-      text: `Hi ${student.name},\n\nThe ID proof you uploaded during onboarding was rejected. Please log in to your dashboard and re-upload a valid ID proof.\n`,
-    }));
-  }
-
-  if (student.user_id) {
-    sideEffects.push(notifyReader(student.id, {
-      category: "account",
-      title: "ID Proof Rejected",
-      body: "Your uploaded ID proof was rejected. Please re-upload a clear, valid ID proof.",
-      link: "/student/onboarding",
-    }));
-  }
-
-  sideEffects.push(notifyActor(profile.id, "ID Proof Rejected", `ID proof for ${student.name} has been rejected.`));
-  
-  await Promise.allSettled(sideEffects);
-
-  revalidatePath("/super-admin/students");
-  revalidatePath(`/super-admin/students/${readerId}`);
-  revalidatePath("/staff/students");
-}
 
 export async function verifyStudentIdProofAction(formData: FormData) {
   const { profile } = await requireRole(["super_admin", "staff"]);
