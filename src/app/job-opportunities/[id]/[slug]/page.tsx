@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, ArrowRight, ExternalLink } from "lucide-react";
@@ -10,7 +11,39 @@ import remarkGfm from "remark-gfm";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type Props = { params: Promise<{ id: string; slug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const resolvedParams = await params;
+  const supabase = createAdminClient();
+  
+  const { data: post } = await supabase
+    .from("posts")
+    .select("title, summary, content")
+    .eq("id", resolvedParams.id)
+    .single();
+
+  if (!post) {
+    return {
+      title: "Job Not Found - Bodhi Edu Hub",
+    };
+  }
+
+  const description = post.summary || 
+    (post.content && typeof post.content === "string" ? post.content.slice(0, 160) : "Job update from Bodhi Edu Hub");
+
+  return {
+    title: `${post.title} - Bodhi Edu Hub`,
+    description,
+    openGraph: {
+      title: post.title,
+      description,
+      type: "article",
+    },
+  };
+}
+
+export default async function JobDetailPage({ params }: Props) {
   const resolvedParams = await params;
   const supabase = createAdminClient();
   

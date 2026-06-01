@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, ArrowRight } from "lucide-react";
@@ -10,7 +11,47 @@ import remarkGfm from "remark-gfm";
 
 export const dynamic = "force-dynamic";
 
-export default async function BlogDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type Props = { params: Promise<{ id: string; slug: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const resolvedParams = await params;
+  
+  if (resolvedParams.id.startsWith("dummy-")) {
+    return {
+      title: "Sample Blog Post - Bodhi Edu Hub",
+      description: "This is a placeholder blog post.",
+    };
+  }
+
+  const supabase = createAdminClient();
+  const { data: post } = await supabase
+    .from("posts")
+    .select("title, summary, content, cover_image_url")
+    .eq("id", resolvedParams.id)
+    .single();
+
+  if (!post) {
+    return {
+      title: "Blog Not Found - Bodhi Edu Hub",
+    };
+  }
+
+  const description = post.summary || 
+    (post.content && typeof post.content === "string" ? post.content.slice(0, 160) : "Blog post from Bodhi Edu Hub");
+
+  return {
+    title: `${post.title} - Bodhi Edu Hub`,
+    description,
+    openGraph: {
+      title: post.title,
+      description,
+      type: "article",
+      images: post.cover_image_url ? [post.cover_image_url] : undefined,
+    },
+  };
+}
+
+export default async function BlogDetailPage({ params }: Props) {
   const resolvedParams = await params;
   
   // Handle dummy blog fallback if it matches dummy IDs
